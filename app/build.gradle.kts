@@ -16,6 +16,21 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // A fixed, committed debug keystore (not the AGP-generated one, which
+            // differs per machine/CI-run) so every debug build -- local or from
+            // GitHub Actions -- is signed with the same key. Without this, installing
+            // a newer build over an older one fails with "signatures don't match"
+            // unless you uninstall first. This is a debug-only key with no
+            // confidentiality requirement, so it's fine to commit to the repo.
+            storeFile = file("../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
