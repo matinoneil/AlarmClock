@@ -24,6 +24,7 @@ class BootReceiver : BroadcastReceiver() {
                 val dao = AlarmDatabase.getInstance(context).alarmDao()
                 val scheduler = AlarmScheduler(context)
                 dao.getAllEnabledAlarms().forEach { scheduler.schedule(it) }
+                UpcomingAlarmManager(context).refresh()
             } finally {
                 pendingResult.finish()
             }

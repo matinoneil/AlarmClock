@@ -24,13 +24,24 @@ class AlarmScheduler(private val context: Context) {
             return
         }
         val triggerAtMillis = nextTriggerTime(alarm)
-        val pendingIntent = createPendingIntent(alarm.id)
+        setAlarmManagerEntry(alarm.id, triggerAtMillis)
+    }
 
-        // setAlarmClock() shows the little alarm icon in the status bar and is the most
-        // reliable way to fire exactly on time even under Doze, without needing the user
-        // to grant battery-optimization exemptions.
-        val info = AlarmManager.AlarmClockInfo(triggerAtMillis, pendingIntent)
-        alarmManager.setAlarmClock(info, pendingIntent)
+    /**
+     * Skips the alarm's very next scheduled occurrence and reschedules it for the one
+     * after that. For a one-shot alarm (no repeat days) there's nothing to reschedule
+     * to, so it's simply cancelled.
+     */
+    fun skipNextAndReschedule(alarm: Alarm) {
+        if (alarm.daysOfWeek.isEmpty()) {
+            cancel(alarm)
+            return
+        }
+        val upcoming = nextTriggerTime(alarm)
+        // Pretend "now" is a minute after the occurrence we're skipping, so the next
+        // computed trigger time is the one *after* it.
+        val afterSkip = nextTriggerTime(alarm, referenceMillis = upcoming + 60_000L)
+        setAlarmManagerEntry(alarm.id, afterSkip)
     }
 
     fun cancel(alarm: Alarm) {
@@ -41,6 +52,18 @@ class AlarmScheduler(private val context: Context) {
 
     fun canScheduleExactAlarms(): Boolean =
         alarmManager.canScheduleExactAlarms()
+
+    /** Exposes the next trigger time without touching AlarmManager, for the upcoming-alarm notification. */
+    fun peekNextTriggerTime(alarm: Alarm): Long = nextTriggerTime(alarm)
+
+    private fun setAlarmManagerEntry(alarmId: Long, triggerAtMillis: Long) {
+        val pendingIntent = createPendingIntent(alarmId)
+        // setAlarmClock() shows the little alarm icon in the status bar and is the most
+        // reliable way to fire exactly on time even under Doze, without needing the user
+        // to grant battery-optimization exemptions.
+        val info = AlarmManager.AlarmClockInfo(triggerAtMillis, pendingIntent)
+        alarmManager.setAlarmClock(info, pendingIntent)
+    }
 
     private fun intentFor(alarmId: Long): Intent =
         Intent(context, AlarmReceiver::class.java).apply {
@@ -62,8 +85,8 @@ class AlarmScheduler(private val context: Context) {
         )
 
     /** Computes the next millis this alarm should fire at, honoring repeat days if set. */
-    private fun nextTriggerTime(alarm: Alarm): Long {
-        val now = Calendar.getInstance()
+    private fun nextTriggerTime(alarm: Alarm, referenceMillis: Long = System.currentTimeMillis()): Long {
+        val now = Calendar.getInstance().apply { timeInMillis = referenceMillis }
 
         fun candidateFor(dayOffset: Int): Calendar = (now.clone() as Calendar).apply {
             add(Calendar.DAY_OF_YEAR, dayOffset)

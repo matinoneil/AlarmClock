@@ -37,6 +37,13 @@ class AlarmReceiver : BroadcastReceiver() {
                     if (alarm.daysOfWeek.isNotEmpty()) {
                         AlarmScheduler(context).schedule(alarm)
                     }
+
+                    // This alarm is no longer "upcoming" -- it's ringing now. Recompute
+                    // in case a different alarm (or this one's next occurrence) is next.
+                    UpcomingAlarmManager(context).apply {
+                        cancelNotification()
+                        refresh()
+                    }
                 }
             } finally {
                 pendingResult.finish()

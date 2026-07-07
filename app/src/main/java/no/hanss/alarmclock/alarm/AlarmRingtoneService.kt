@@ -15,12 +15,14 @@ import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmDatabase
 import no.hanss.alarmclock.ui.RingingActivity
@@ -37,6 +39,8 @@ class AlarmRingtoneService : Service() {
     private var vibrator: Vibrator? = null
     private val serviceScope = CoroutineScope(Dispatchers.Default)
     private var rampJob: Job? = null
+    private var overlayWindow: OverlayAlarmWindow? = null
+    private var currentAlarmId: Long = -1L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -45,14 +49,11 @@ class AlarmRingtoneService : Service() {
 
         when (intent?.action) {
             ACTION_DISMISS -> {
-                stopRinging()
-                stopSelf()
+                handleDismiss()
                 return START_NOT_STICKY
             }
             ACTION_SNOOZE -> {
-                stopRinging()
-                snooze(alarmId)
-                stopSelf()
+                handleSnooze()
                 return START_NOT_STICKY
             }
         }
@@ -61,13 +62,15 @@ class AlarmRingtoneService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        currentAlarmId = alarmId
 
         createNotificationChannel()
-        // Post the full-screen-intent notification first. This is the mechanism Android
-        // exempts from background-activity-launch restrictions, so it reliably shows the
-        // ringing UI full-screen whether the device is locked, unlocked, or the screen is
-        // already on -- unlike calling startActivity() directly from a service, which the
-        // system silently blocks unless the app is already in the foreground.
+        // Post the full-screen-intent notification. This is the mechanism Android
+        // exempts from background-activity-launch restrictions, so it reliably shows
+        // the ringing UI full-screen when the device is locked or the screen is off.
+        // When the screen is already on and the phone is actively in use, Android
+        // downgrades this to a heads-up notification instead (same as it does for
+        // incoming calls) -- the overlay window below is what covers that case.
         startForeground(NOTIFICATION_ID, buildNotification(alarmId))
 
         serviceScope.launch {
@@ -122,6 +125,27 @@ class AlarmRingtoneService : Service() {
             val pattern = longArrayOf(0, 800, 500)
             vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
         }
+
+        if (Settings.canDrawOverlays(applicationContext)) {
+            val timeLabel = if (alarm != null) String.format("%02d:%02d", alarm.hour, alarm.minute) else ""
+            val labelText = alarm?.label?.takeIf { it.isNotBlank() } ?: "Alarm"
+            withContext(Dispatchers.Main) {
+                overlayWindow = OverlayAlarmWindow(applicationContext).also {
+                    it.show(timeLabel, labelText, onDismiss = { handleDismiss() }, onSnooze = { handleSnooze() })
+                }
+            }
+        }
+    }
+
+    private fun handleDismiss() {
+        stopRinging()
+        stopSelf()
+    }
+
+    private fun handleSnooze() {
+        stopRinging()
+        snooze(currentAlarmId)
+        stopSelf()
     }
 
     private fun stopRinging() {
@@ -131,6 +155,8 @@ class AlarmRingtoneService : Service() {
         mediaPlayer = null
         vibrator?.cancel()
         vibrator = null
+        overlayWindow?.dismiss()
+        overlayWindow = null
     }
 
     private fun snooze(alarmId: Long) {
@@ -147,6 +173,7 @@ class AlarmRingtoneService : Service() {
             val snoozedAlarm = alarm.copy(hour = cal.get(java.util.Calendar.HOUR_OF_DAY),
                 minute = cal.get(java.util.Calendar.MINUTE), daysOfWeek = emptySet())
             AlarmScheduler(applicationContext).schedule(snoozedAlarm)
+            UpcomingAlarmManager(applicationContext).refresh()
         }
     }
 

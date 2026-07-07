@@ -61,6 +61,17 @@ class MainActivity : ComponentActivity() {
                             startActivity(intent)
                         }
                     }
+
+                    // "Display over other apps" lets the ringing screen draw over
+                    // whatever the user is doing even when the phone is unlocked and
+                    // actively in use, which the full-screen-intent notification alone
+                    // can't guarantee (Android downgrades those to heads-up in that case).
+                    if (!Settings.canDrawOverlays(this@MainActivity)) {
+                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    }
                 }
 
                 NavHost(navController = navController, startDestination = "list") {

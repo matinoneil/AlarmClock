@@ -3,12 +3,14 @@ package no.hanss.alarmclock.data
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import no.hanss.alarmclock.alarm.AlarmScheduler
+import no.hanss.alarmclock.alarm.UpcomingAlarmManager
 
 class AlarmRepository(context: Context) {
     private val db = AlarmDatabase.getInstance(context)
     private val alarmDao = db.alarmDao()
     private val seriesDao = db.alarmSeriesDao()
     private val scheduler = AlarmScheduler(context)
+    private val upcomingAlarmManager = UpcomingAlarmManager(context)
 
     fun observeStandaloneAlarms(): Flow<List<Alarm>> = alarmDao.observeStandaloneAlarms()
     fun observeSeries(): Flow<List<AlarmSeries>> = seriesDao.observeSeries()
@@ -25,18 +27,21 @@ class AlarmRepository(context: Context) {
         }
         val saved = alarm.copy(id = id)
         scheduler.schedule(saved)
+        upcomingAlarmManager.refresh()
         return id
     }
 
     suspend fun deleteAlarm(alarm: Alarm) {
         scheduler.cancel(alarm)
         alarmDao.delete(alarm)
+        upcomingAlarmManager.refresh()
     }
 
     suspend fun setAlarmEnabled(alarm: Alarm, enabled: Boolean) {
         val updated = alarm.copy(enabled = enabled)
         alarmDao.update(updated)
         if (enabled) scheduler.schedule(updated) else scheduler.cancel(updated)
+        upcomingAlarmManager.refresh()
     }
 
     // --- Alarm series ---
@@ -75,12 +80,14 @@ class AlarmRepository(context: Context) {
         if (saved.enabled) {
             newAlarms.zip(ids).forEach { (a, id) -> scheduler.schedule(a.copy(id = id)) }
         }
+        upcomingAlarmManager.refresh()
         return seriesId
     }
 
     suspend fun deleteSeries(series: AlarmSeries) {
         alarmDao.getAlarmsForSeries(series.id).forEach { scheduler.cancel(it) }
         seriesDao.delete(series) // cascades to child alarms via foreign key
+        upcomingAlarmManager.refresh()
     }
 
     suspend fun setSeriesEnabled(series: AlarmSeries, enabled: Boolean) {
@@ -92,6 +99,7 @@ class AlarmRepository(context: Context) {
             alarmDao.update(updatedChild)
             if (enabled) scheduler.schedule(updatedChild) else scheduler.cancel(updatedChild)
         }
+        upcomingAlarmManager.refresh()
     }
 
     fun canScheduleExactAlarms(): Boolean = scheduler.canScheduleExactAlarms()
