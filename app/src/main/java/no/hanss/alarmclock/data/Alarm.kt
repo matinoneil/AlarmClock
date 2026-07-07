@@ -38,5 +38,6 @@ data class Alarm(
     val enabled: Boolean = true,
     val vibrate: Boolean = true,
     val soundUri: String? = null,
-    val volumeRampSeconds: Int = 0 // 0 = ring at full volume immediately
+    val volumeRampSeconds: Int = 0, // 0 = ring at full volume immediately
+    val snoozeMinutes: Int = 10
 )

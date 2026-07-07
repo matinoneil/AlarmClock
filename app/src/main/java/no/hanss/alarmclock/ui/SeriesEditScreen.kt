@@ -63,11 +63,13 @@ fun SeriesEditScreen(
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
     var soundUri by remember { mutableStateOf(existing?.soundUri) }
     var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: 0).toString()) }
+    var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: 10).toString()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val interval = intervalText.toIntOrNull()?.coerceAtLeast(1) ?: 5
     val duration = durationText.toIntOrNull()?.coerceAtLeast(0) ?: 45
     val rampSeconds = rampText.toIntOrNull()?.coerceAtLeast(0) ?: 0
+    val snoozeMinutes = snoozeText.toIntOrNull()?.coerceAtLeast(1) ?: 10
 
     // Auto-fill the name from the start time until the user edits it manually.
     val autoName = String.format("%02d:%02d Alarms", timeState.hour, timeState.minute)
@@ -236,6 +238,16 @@ fun SeriesEditScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            OutlinedTextField(
+                value = snoozeText,
+                onValueChange = { snoozeText = it.filter(Char::isDigit) },
+                label = { Text("Snooze length (min)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -275,6 +287,7 @@ fun SeriesEditScreen(
                         vibrate = vibrate,
                         soundUri = soundUri,
                         volumeRampSeconds = rampSeconds,
+                        snoozeMinutes = snoozeMinutes,
                         // Preserve whatever the enabled state already was when editing;
                         // only default to "on" for a brand-new series.
                         enabled = existing?.enabled ?: true

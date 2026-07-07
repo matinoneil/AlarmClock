@@ -26,7 +26,7 @@ class OverlayAlarmWindow(private val context: Context) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var rootView: View? = null
 
-    fun show(timeLabel: String, label: String, onDismiss: () -> Unit, onSnooze: () -> Unit) {
+    fun show(timeLabel: String, label: String, snoozeLabel: String, onDismiss: () -> Unit, onSnooze: () -> Unit) {
         if (rootView != null) return // already showing
 
         val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -73,7 +73,7 @@ class OverlayAlarmWindow(private val context: Context) {
             setOnClickListener { onDismiss() }
         }
         val snoozeButton = Button(context).apply {
-            text = "Snooze 10 min"
+            text = snoozeLabel
             setOnClickListener { onSnooze() }
         }
 

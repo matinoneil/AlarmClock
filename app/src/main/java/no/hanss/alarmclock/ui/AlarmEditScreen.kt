@@ -61,9 +61,11 @@ fun AlarmEditScreen(
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
     var soundUri by remember { mutableStateOf(existing?.soundUri) }
     var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: 0).toString()) }
+    var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: 10).toString()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val rampSeconds = rampText.toIntOrNull()?.coerceAtLeast(0) ?: 0
+    val snoozeMinutes = snoozeText.toIntOrNull()?.coerceAtLeast(1) ?: 10
 
     val ringtonePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -194,6 +196,16 @@ fun AlarmEditScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            OutlinedTextField(
+                value = snoozeText,
+                onValueChange = { snoozeText = it.filter(Char::isDigit) },
+                label = { Text("Snooze length (min)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -215,6 +227,7 @@ fun AlarmEditScreen(
                         daysOfWeek = selectedDays,
                         soundUri = soundUri,
                         volumeRampSeconds = rampSeconds,
+                        snoozeMinutes = snoozeMinutes,
                         // Preserve whatever the enabled state already was when editing;
                         // only default to "on" for a brand-new alarm.
                         enabled = existing?.enabled ?: true

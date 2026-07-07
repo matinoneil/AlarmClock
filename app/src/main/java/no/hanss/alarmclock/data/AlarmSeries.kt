@@ -23,7 +23,8 @@ data class AlarmSeries(
     val enabled: Boolean = true,
     val vibrate: Boolean = true,
     val soundUri: String? = null,
-    val volumeRampSeconds: Int = 0
+    val volumeRampSeconds: Int = 0,
+    val snoozeMinutes: Int = 10
 ) {
     /** All (hour, minute) pairs this series expands to, in order, wrapping past midnight if needed. */
     fun expandTimes(): List<Pair<Int, Int>> {

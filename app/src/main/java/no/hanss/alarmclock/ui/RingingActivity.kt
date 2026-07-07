@@ -60,6 +60,7 @@ class RingingActivity : ComponentActivity() {
                 RingingScreen(
                     label = alarm?.label?.takeIf { it.isNotBlank() } ?: "Alarm",
                     time = alarm?.let { String.format("%02d:%02d", it.hour, it.minute) } ?: "",
+                    snoozeMinutes = alarm?.snoozeMinutes?.coerceAtLeast(1) ?: 10,
                     onDismiss = { sendServiceAction(ACTION_DISMISS) },
                     onSnooze = { sendServiceAction(ACTION_SNOOZE) }
                 )
@@ -81,6 +82,7 @@ class RingingActivity : ComponentActivity() {
 fun RingingScreen(
     label: String,
     time: String,
+    snoozeMinutes: Int,
     onDismiss: () -> Unit,
     onSnooze: () -> Unit
 ) {
@@ -136,7 +138,7 @@ fun RingingScreen(
                 ) {
                     Icon(Icons.Filled.Snooze, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Snooze 10 min", fontSize = 18.sp, color = MaterialTheme.colorScheme.onPrimary)
+                    Text("Snooze $snoozeMinutes min", fontSize = 18.sp, color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

@@ -73,7 +73,8 @@ class AlarmRepository(context: Context) {
                 enabled = saved.enabled,
                 vibrate = saved.vibrate,
                 soundUri = saved.soundUri,
-                volumeRampSeconds = saved.volumeRampSeconds
+                volumeRampSeconds = saved.volumeRampSeconds,
+                snoozeMinutes = saved.snoozeMinutes
             )
         }
         val ids = alarmDao.insertAll(newAlarms)

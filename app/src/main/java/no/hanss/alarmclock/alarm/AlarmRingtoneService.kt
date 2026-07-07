@@ -129,9 +129,10 @@ class AlarmRingtoneService : Service() {
         if (Settings.canDrawOverlays(applicationContext)) {
             val timeLabel = if (alarm != null) String.format("%02d:%02d", alarm.hour, alarm.minute) else ""
             val labelText = alarm?.label?.takeIf { it.isNotBlank() } ?: "Alarm"
+            val snoozeLabel = "Snooze ${(alarm?.snoozeMinutes ?: 10).coerceAtLeast(1)} min"
             withContext(Dispatchers.Main) {
                 overlayWindow = OverlayAlarmWindow(applicationContext).also {
-                    it.show(timeLabel, labelText, onDismiss = { handleDismiss() }, onSnooze = { handleSnooze() })
+                    it.show(timeLabel, labelText, snoozeLabel, onDismiss = { handleDismiss() }, onSnooze = { handleSnooze() })
                 }
             }
         }
@@ -164,7 +165,7 @@ class AlarmRingtoneService : Service() {
         serviceScope.launch {
             val dao = AlarmDatabase.getInstance(applicationContext).alarmDao()
             val alarm = dao.getAlarm(alarmId) ?: return@launch
-            val snoozeMinutes = 10
+            val snoozeMinutes = alarm.snoozeMinutes.coerceAtLeast(1)
             val cal = java.util.Calendar.getInstance().apply {
                 add(java.util.Calendar.MINUTE, snoozeMinutes)
             }

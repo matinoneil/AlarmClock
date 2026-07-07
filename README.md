@@ -26,6 +26,21 @@ A Kotlin + Jetpack Compose Android alarm clock with two kinds of alarms:
   re-enabling it.
 - Alarms are rescheduled automatically after a device reboot.
 
+## Opening the project
+
+1. Open this folder (`AlarmClock/`) directly in Android Studio (Koala or newer recommended).
+2. Let Android Studio sync Gradle - it will generate the Gradle wrapper for you if it's
+   missing.
+3. Run on a device or emulator with **API 26+**.
+
+## Building without Android Studio
+
+A GitHub Actions workflow at `.github/workflows/build-apk.yml` builds a debug APK on
+every push to `main` (or via manual trigger) and uploads it as a downloadable artifact
+under the Actions tab - useful if you don't have a PC or the Android SDK installed
+locally. No signing key is configured, so this produces a debug build only, suitable
+for installing on your own device.
+
 ## Architecture
 
 - **`data/`** - Room entities (`Alarm`, `AlarmSeries`), DAOs, and `AlarmRepository`, which
