@@ -41,6 +41,14 @@ under the Actions tab - useful if you don't have a PC or the Android SDK install
 locally. No signing key is configured, so this produces a debug build only, suitable
 for installing on your own device.
 
+When a build is triggered by publishing a GitHub Release, the app's version name is
+derived automatically from the release tag (tag `v1.5` -> the app shows version `1.5`
+in Settings > Apps), so there's no manual step to keep them in sync. The version code
+(an internal integer Android uses to determine "is this newer") comes from the Actions
+run number instead, since it always increases regardless of what the tag looks like.
+Plain pushes to `main` and manual workflow runs keep whatever version is hardcoded in
+`app/build.gradle.kts`.
+
 ## Architecture
 
 - **`data/`** - Room entities (`Alarm`, `AlarmSeries`), DAOs, and `AlarmRepository`, which

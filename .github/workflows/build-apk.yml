@@ -31,8 +31,24 @@ jobs:
         with:
           gradle-version: 8.7
 
+      # When this build was triggered by publishing a GitHub Release, derive the
+      # app's version name from the release tag (e.g. tag "v1.5" -> versionName
+      # "1.5"), and use the Actions run number as the version code, which always
+      # increases regardless of tag naming. Plain pushes/manual runs keep the
+      # defaults baked into build.gradle.kts.
+      - name: Determine version override
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION_NAME="${TAG#v}"
+            echo "gradle_args=-PversionNameOverride=$VERSION_NAME -PversionCodeOverride=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "gradle_args=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build debug APK
-        run: gradle assembleDebug
+        run: gradle assembleDebug ${{ steps.version.outputs.gradle_args }}
 
       - name: Upload APK as build artifact
         uses: actions/upload-artifact@v4
@@ -40,8 +56,7 @@ jobs:
           name: AlarmClock-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-      # Only runs when this build was triggered by publishing a GitHub Release
-      # (Releases tab -> Draft a new release -> pick/create a tag -> Publish).
+      # Only runs when this build was triggered by publishing a GitHub Release.
       # Attaches a version-named APK directly to that release as a downloadable asset.
       - name: Rename APK for release
         if: github.event_name == 'release'

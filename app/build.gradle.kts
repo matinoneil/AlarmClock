@@ -4,6 +4,13 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Overridable from the command line (used by CI to inject the release tag as the
+// version name, e.g. -PversionNameOverride=1.5), so a GitHub Release's tag becomes
+// what shows up in Settings > Apps automatically. Falls back to a sensible default
+// for local Android Studio builds where nothing is passed in.
+val appVersionName: String = (project.findProperty("versionNameOverride") as String?) ?: "1.4"
+val appVersionCode: Int = (project.findProperty("versionCodeOverride") as String?)?.toIntOrNull() ?: 2
+
 android {
     namespace = "no.hanss.alarmclock"
     compileSdk = 34
@@ -12,8 +19,8 @@ android {
         applicationId = "no.hanss.alarmclock"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.4"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     signingConfigs {
