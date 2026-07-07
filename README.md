@@ -82,6 +82,19 @@ on it exclusively rather than also trying to launch the activity directly.
 - **Notifications** (Android 13+): needed to show the alarm notification/full-screen intent.
 - **Full-screen intent** (Android 14+): a per-app toggle the user can revoke; the app
   checks `canUseFullScreenIntent()` on launch and sends you to settings if it's off.
+- **Display over other apps**: needed only for the case where the screen is already on
+  and you're actively using the phone when an alarm fires -- without it, that specific
+  case falls back to a heads-up notification instead of the full-screen ringing UI.
+  Alarm firing, sound, vibration, volume ramp, snooze, and dismiss all work regardless,
+  and the locked-screen/screen-off case is unaffected either way, since that's handled
+  by the full-screen-intent notification instead.
+
+  On sideloaded installs (i.e. not from the Play Store), Android 13+ applies "Restricted
+  Settings" to this specific permission and blocks granting it with a warning, regardless
+  of what the app actually does. To grant it: Settings -> Apps -> AlarmClock -> three-dot
+  menu (top right) -> "Allow restricted settings" -> then grant "Display over other apps"
+  normally. This is standard Android behavior for any sideloaded app requesting this
+  permission, not specific to this app.
 
 ## Known gaps / things you may want to extend
 
