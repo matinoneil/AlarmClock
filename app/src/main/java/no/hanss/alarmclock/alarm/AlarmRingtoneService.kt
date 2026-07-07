@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
@@ -29,7 +30,7 @@ import no.hanss.alarmclock.ui.RingingActivity
 
 private const val CHANNEL_ID = "alarm_channel"
 private const val NOTIFICATION_ID = 1001
-private const val STARTING_VOLUME = 0.15f // where a ramped alarm begins, before climbing to full
+
 const val ACTION_DISMISS = "no.hanss.alarmclock.action.DISMISS"
 const val ACTION_SNOOZE = "no.hanss.alarmclock.action.SNOOZE"
 
@@ -41,6 +42,11 @@ class AlarmRingtoneService : Service() {
     private var rampJob: Job? = null
     private var overlayWindow: OverlayAlarmWindow? = null
     private var currentAlarmId: Long = -1L
+
+    private val audioManager: AudioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    // The user's actual alarm-volume slider setting before we touched it for a ramp,
+    // so we can put it back once the alarm stops. Only set while a ramp is in progress.
+    private var savedAlarmStreamVolume: Int? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -86,7 +92,33 @@ class AlarmRingtoneService : Service() {
             ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
         val rampSeconds = alarm?.volumeRampSeconds ?: 0
 
-        val startVolume = if (rampSeconds > 0) STARTING_VOLUME else 1.0f
+        // The volume ramp works by stepping the phone's actual Alarm stream volume up
+        // over time, then restoring it afterward -- not MediaPlayer's own per-track
+        // gain. Per-track gain (MediaPlayer.setVolume) is unreliable for this: several
+        // Android OEMs largely ignore or override it specifically for alarm-category
+        // audio, to guarantee alarms can't accidentally be made too quiet by an app.
+        // The system stream volume is the same thing the physical volume buttons
+        // control while an alarm rings, so it's respected everywhere.
+        if (rampSeconds > 0) {
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val targetVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+                .coerceAtLeast(1) // if the user had it at 0, ramp to a minimum audible level instead of silence
+            savedAlarmStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+
+            val startVolume = 0
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, startVolume, 0)
+
+            val totalSteps = (targetVolume - startVolume).coerceAtLeast(1)
+            val stepDurationMillis = (rampSeconds * 1000L / totalSteps).coerceAtLeast(200L)
+
+            rampJob = serviceScope.launch {
+                for (step in 1..totalSteps) {
+                    delay(stepDurationMillis)
+                    val newVolume = (startVolume + step).coerceAtMost(maxVolume)
+                    audioManager.setStreamVolume(AudioManager.STREAM_ALARM, newVolume, 0)
+                }
+            }
+        }
 
         mediaPlayer = MediaPlayer().apply {
             setAudioAttributes(
@@ -97,21 +129,8 @@ class AlarmRingtoneService : Service() {
             )
             setDataSource(this@AlarmRingtoneService, soundUri)
             isLooping = true
-            setVolume(startVolume, startVolume)
             prepare()
             start()
-        }
-
-        if (rampSeconds > 0) {
-            rampJob = serviceScope.launch {
-                val steps = (rampSeconds * 2).coerceAtLeast(1) // update twice a second
-                for (step in 1..steps) {
-                    delay(500)
-                    val progress = step.toFloat() / steps
-                    val volume = STARTING_VOLUME + (1.0f - STARTING_VOLUME) * progress
-                    mediaPlayer?.setVolume(volume, volume)
-                }
-            }
         }
 
         val vibrateEnabled = alarm?.vibrate ?: true
@@ -158,6 +177,12 @@ class AlarmRingtoneService : Service() {
         vibrator = null
         overlayWindow?.dismiss()
         overlayWindow = null
+
+        // Put the user's alarm volume back to whatever it was before a ramp touched it.
+        savedAlarmStreamVolume?.let { original ->
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, original, 0)
+        }
+        savedAlarmStreamVolume = null
     }
 
     private fun snooze(alarmId: Long) {
