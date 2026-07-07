@@ -21,9 +21,19 @@ class AlarmReceiver : BroadcastReceiver() {
                 val dao = AlarmDatabase.getInstance(context).alarmDao()
                 val alarm = dao.getAlarm(alarmId)
                 if (alarm != null && alarm.enabled) {
+                    // Clear any stale "skip this occurrence" marker now that we've
+                    // reached a legitimate occurrence -- it's served its purpose.
+                    val current = if (alarm.skipOccurrenceMillis != null) {
+                        val cleared = alarm.copy(skipOccurrenceMillis = null)
+                        dao.update(cleared)
+                        cleared
+                    } else {
+                        alarm
+                    }
+
                     // Launch the ringing UI / sound service.
                     val serviceIntent = Intent(context, AlarmRingtoneService::class.java).apply {
-                        putExtra(EXTRA_ALARM_ID, alarm.id)
+                        putExtra(EXTRA_ALARM_ID, current.id)
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         context.startForegroundService(serviceIntent)
@@ -34,8 +44,8 @@ class AlarmReceiver : BroadcastReceiver() {
                     // If it repeats on certain weekdays, schedule the next occurrence.
                     // One-shot alarms (empty daysOfWeek) are left as fired; the UI can
                     // re-enable them manually if desired.
-                    if (alarm.daysOfWeek.isNotEmpty()) {
-                        AlarmScheduler(context).schedule(alarm)
+                    if (current.daysOfWeek.isNotEmpty()) {
+                        AlarmScheduler(context).schedule(current)
                     }
 
                     // This alarm is no longer "upcoming" -- it's ringing now. Recompute

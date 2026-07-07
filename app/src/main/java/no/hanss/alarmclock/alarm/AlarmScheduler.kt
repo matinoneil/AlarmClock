@@ -27,23 +27,6 @@ class AlarmScheduler(private val context: Context) {
         setAlarmManagerEntry(alarm.id, triggerAtMillis)
     }
 
-    /**
-     * Skips the alarm's very next scheduled occurrence and reschedules it for the one
-     * after that. For a one-shot alarm (no repeat days) there's nothing to reschedule
-     * to, so it's simply cancelled.
-     */
-    fun skipNextAndReschedule(alarm: Alarm) {
-        if (alarm.daysOfWeek.isEmpty()) {
-            cancel(alarm)
-            return
-        }
-        val upcoming = nextTriggerTime(alarm)
-        // Pretend "now" is a minute after the occurrence we're skipping, so the next
-        // computed trigger time is the one *after* it.
-        val afterSkip = nextTriggerTime(alarm, referenceMillis = upcoming + 60_000L)
-        setAlarmManagerEntry(alarm.id, afterSkip)
-    }
-
     fun cancel(alarm: Alarm) {
         val pendingIntent = findExistingPendingIntent(alarm.id) ?: return
         alarmManager.cancel(pendingIntent)
@@ -84,8 +67,22 @@ class AlarmScheduler(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
         )
 
-    /** Computes the next millis this alarm should fire at, honoring repeat days if set. */
+    /**
+     * Computes the next millis this alarm should fire at, honoring repeat days if set,
+     * and skipping past [Alarm.skipOccurrenceMillis] if the naive next occurrence would
+     * otherwise land exactly on it.
+     */
     private fun nextTriggerTime(alarm: Alarm, referenceMillis: Long = System.currentTimeMillis()): Long {
+        val candidate = rawNextTriggerTime(alarm, referenceMillis)
+        val skip = alarm.skipOccurrenceMillis
+        return if (skip != null && candidate == skip) {
+            rawNextTriggerTime(alarm, candidate + 60_000L)
+        } else {
+            candidate
+        }
+    }
+
+    private fun rawNextTriggerTime(alarm: Alarm, referenceMillis: Long): Long {
         val now = Calendar.getInstance().apply { timeInMillis = referenceMillis }
 
         fun candidateFor(dayOffset: Int): Calendar = (now.clone() as Calendar).apply {
