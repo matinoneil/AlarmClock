@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.AlarmDatabase
+import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
 class UpcomingAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -53,6 +54,7 @@ class UpcomingAlarmReceiver : BroadcastReceiver() {
                         manager.refresh()
                     }
                 }
+                AlarmWidgetUpdater.updateAll(context)
             } finally {
                 pendingResult.finish()
             }

@@ -4,8 +4,10 @@ import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import no.hanss.alarmclock.alarm.AlarmScheduler
 import no.hanss.alarmclock.alarm.UpcomingAlarmManager
+import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
 class AlarmRepository(context: Context) {
+    private val appContext = context.applicationContext
     private val db = AlarmDatabase.getInstance(context)
     private val alarmDao = db.alarmDao()
     private val seriesDao = db.alarmSeriesDao()
@@ -19,6 +21,11 @@ class AlarmRepository(context: Context) {
     suspend fun getSeries(id: Long): AlarmSeries? = seriesDao.getSeries(id)
     suspend fun getAlarm(id: Long): Alarm? = alarmDao.getAlarm(id)
 
+    private suspend fun notifyChanged() {
+        upcomingAlarmManager.refresh()
+        AlarmWidgetUpdater.updateAll(appContext)
+    }
+
     // --- Standalone alarms ---
 
     suspend fun saveStandaloneAlarm(alarm: Alarm): Long {
@@ -27,21 +34,21 @@ class AlarmRepository(context: Context) {
         }
         val saved = alarm.copy(id = id)
         scheduler.schedule(saved)
-        upcomingAlarmManager.refresh()
+        notifyChanged()
         return id
     }
 
     suspend fun deleteAlarm(alarm: Alarm) {
         scheduler.cancel(alarm)
         alarmDao.delete(alarm)
-        upcomingAlarmManager.refresh()
+        notifyChanged()
     }
 
     suspend fun setAlarmEnabled(alarm: Alarm, enabled: Boolean) {
         val updated = alarm.copy(enabled = enabled)
         alarmDao.update(updated)
         if (enabled) scheduler.schedule(updated) else scheduler.cancel(updated)
-        upcomingAlarmManager.refresh()
+        notifyChanged()
     }
 
     // --- Alarm series ---
@@ -81,14 +88,14 @@ class AlarmRepository(context: Context) {
         if (saved.enabled) {
             newAlarms.zip(ids).forEach { (a, id) -> scheduler.schedule(a.copy(id = id)) }
         }
-        upcomingAlarmManager.refresh()
+        notifyChanged()
         return seriesId
     }
 
     suspend fun deleteSeries(series: AlarmSeries) {
         alarmDao.getAlarmsForSeries(series.id).forEach { scheduler.cancel(it) }
         seriesDao.delete(series) // cascades to child alarms via foreign key
-        upcomingAlarmManager.refresh()
+        notifyChanged()
     }
 
     suspend fun setSeriesEnabled(series: AlarmSeries, enabled: Boolean) {
@@ -100,7 +107,7 @@ class AlarmRepository(context: Context) {
             alarmDao.update(updatedChild)
             if (enabled) scheduler.schedule(updatedChild) else scheduler.cancel(updatedChild)
         }
-        upcomingAlarmManager.refresh()
+        notifyChanged()
     }
 
     fun canScheduleExactAlarms(): Boolean = scheduler.canScheduleExactAlarms()

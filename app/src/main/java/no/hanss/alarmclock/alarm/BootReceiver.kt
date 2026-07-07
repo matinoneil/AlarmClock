@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.AlarmDatabase
+import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
 /**
  * AlarmManager entries do not survive a reboot, so we re-schedule every enabled alarm
@@ -25,6 +26,7 @@ class BootReceiver : BroadcastReceiver() {
                 val scheduler = AlarmScheduler(context)
                 dao.getAllEnabledAlarms().forEach { scheduler.schedule(it) }
                 UpcomingAlarmManager(context).refresh()
+                AlarmWidgetUpdater.updateAll(context)
             } finally {
                 pendingResult.finish()
             }

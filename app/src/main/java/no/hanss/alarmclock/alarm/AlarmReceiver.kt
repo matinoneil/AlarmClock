@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.AlarmDatabase
+import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
 class AlarmReceiver : BroadcastReceiver() {
 
@@ -42,10 +43,13 @@ class AlarmReceiver : BroadcastReceiver() {
                     }
 
                     // If it repeats on certain weekdays, schedule the next occurrence.
-                    // One-shot alarms (empty daysOfWeek) are left as fired; the UI can
-                    // re-enable them manually if desired.
+                    // A one-shot alarm (empty daysOfWeek) has no next occurrence, so
+                    // mark it disabled rather than leaving its toggle showing "on" for
+                    // an alarm that will never actually ring again.
                     if (current.daysOfWeek.isNotEmpty()) {
                         AlarmScheduler(context).schedule(current)
+                    } else {
+                        dao.update(current.copy(enabled = false))
                     }
 
                     // This alarm is no longer "upcoming" -- it's ringing now. Recompute
@@ -54,6 +58,7 @@ class AlarmReceiver : BroadcastReceiver() {
                         cancelNotification()
                         refresh()
                     }
+                    AlarmWidgetUpdater.updateAll(context)
                 }
             } finally {
                 pendingResult.finish()

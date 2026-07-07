@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmDatabase
 import no.hanss.alarmclock.ui.RingingActivity
+import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
 private const val CHANNEL_ID = "alarm_channel"
 private const val NOTIFICATION_ID = 1001
@@ -200,6 +201,7 @@ class AlarmRingtoneService : Service() {
                 minute = cal.get(java.util.Calendar.MINUTE), daysOfWeek = emptySet())
             AlarmScheduler(applicationContext).schedule(snoozedAlarm)
             UpcomingAlarmManager(applicationContext).refresh()
+            AlarmWidgetUpdater.updateAll(applicationContext)
         }
     }
 
