@@ -23,8 +23,16 @@ class UpcomingAlarmReceiver : BroadcastReceiver() {
                             if (alarm != null) {
                                 val scheduler = AlarmScheduler(context)
                                 if (alarm.daysOfWeek.isEmpty()) {
-                                    // One-shot: nothing to skip forward to, just cancel it.
-                                    scheduler.cancel(alarm)
+                                    // One-shot: there's no future occurrence to skip
+                                    // forward to, so "dismiss" means disable it outright.
+                                    // Cancelling only the AlarmManager entry isn't enough --
+                                    // the alarm's row would still say enabled=true with its
+                                    // original time untouched, so the upcoming-alarm refresh
+                                    // right below would just find that same time again and
+                                    // repost immediately.
+                                    val updated = alarm.copy(enabled = false)
+                                    dao.update(updated)
+                                    scheduler.cancel(updated)
                                 } else {
                                     // Persist exactly which occurrence to skip, so the
                                     // scheduler (and any later recomputation, like the
