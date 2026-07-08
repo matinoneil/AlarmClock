@@ -71,7 +71,14 @@ object AlarmWidgetUpdater {
         val views = RemoteViews(context.packageName, R.layout.widget_alarm)
         views.setTextViewText(R.id.widget_text, text)
 
-        val launchIntent = Intent(context, MainActivity::class.java)
+        // NEW_TASK + CLEAR_TOP + SINGLE_TOP: reuse an existing MainActivity instance
+        // (clearing anything above it) instead of pushing a second instance onto the
+        // back stack, which is what was forcing a double back-press to fully exit.
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
         val pendingIntent = PendingIntent.getActivity(
             context, 0, launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
