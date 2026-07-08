@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
@@ -42,6 +43,11 @@ class AlarmRingtoneService : Service() {
     private var rampJob: Job? = null
     private var overlayWindow: OverlayAlarmWindow? = null
     private var currentAlarmId: Long = -1L
+
+    private val audioManager: AudioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    // The user's actual alarm-volume slider setting before a ramp touched it, so it
+    // can be restored once the alarm stops. Only set while a ramp is in progress.
+    private var savedAlarmStreamVolume: Int? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -87,15 +93,30 @@ class AlarmRingtoneService : Service() {
             ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
         val rampSeconds = alarm?.volumeRampSeconds ?: 0
 
-        // The ramp is done as a software gain curve on the MediaPlayer itself
-        // (setVolume, 0f..1f), not by stepping the phone's Alarm stream volume.
-        // The stream only has a handful of discrete hardware steps (as few as
-        // 5-7 on many devices), so driving the ramp off that made the "seconds"
-        // setting meaningless -- with few steps available it degenerated into a
-        // single jump from silence to full volume partway through, the same for
-        // any duration. A per-track gain curve gives a true continuous 0-100%
-        // ramp over exactly the configured number of seconds, independent of
-        // hardware step count, and it doesn't touch the user's system volume at all.
+        // The ramp is a hybrid of two mechanisms, because neither one alone is
+        // reliable across devices:
+        //  - Real Alarm-stream volume steps ARE guaranteed audible (this is what
+        //    the volume buttons control), but the stream only has a handful of
+        //    discrete hardware levels (as few as 5-7 on many phones), so stepping
+        //    it alone makes for a coarse, chunky ramp.
+        //  - MediaPlayer's own per-track gain (setVolume) can give a perfectly
+        //    smooth 0-100% curve, but several Android OEMs largely ignore or clamp
+        //    it specifically for USAGE_ALARM audio, as a safety net so alarms can't
+        //    be made silent -- on those devices a gain-only ramp is inaudible.
+        // So: the real stream level is the floor/ceiling for each hardware step
+        // (guarantees audibility), and per-track gain smooths the climb *within*
+        // each step. The gain's starting value at each new step is chosen so the
+        // perceived loudness is continuous across the step boundary -- no dip.
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val targetVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            .coerceAtLeast(1) // if the user had it at 0, ramp to a minimum audible level instead of silence
+        val totalHardwareSteps = if (rampSeconds > 0) targetVolume.coerceIn(1, maxVolume) else 0
+
+        if (rampSeconds > 0) {
+            savedAlarmStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+        }
+
         mediaPlayer = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
@@ -105,24 +126,36 @@ class AlarmRingtoneService : Service() {
             )
             setDataSource(this@AlarmRingtoneService, soundUri)
             isLooping = true
-            // Start silent if we're about to ramp, so there's no flash of full
-            // volume before the ramp coroutine below kicks in.
+            // Start silent (or near it) if we're about to ramp, so there's no flash
+            // of full volume before the ramp coroutine below kicks in.
             if (rampSeconds > 0) setVolume(0f, 0f)
             prepare()
             start()
         }
 
         if (rampSeconds > 0) {
-            // 10 updates per second is smooth to the ear; independent of duration.
-            val stepIntervalMillis = 100L
-            val totalSteps = (rampSeconds * 1000L / stepIntervalMillis).toInt().coerceAtLeast(1)
+            val subStepsPerHardwareStep = 10
+            val totalSubSteps = totalHardwareSteps * subStepsPerHardwareStep
+            val subStepDelayMillis = (rampSeconds * 1000L / totalSubSteps).coerceAtLeast(20L)
 
             rampJob = serviceScope.launch {
-                for (step in 1..totalSteps) {
-                    delay(stepIntervalMillis)
-                    val gain = (step.toFloat() / totalSteps).coerceAtMost(1f)
+                var currentHwIndex = 1
+                for (sub in 1..totalSubSteps) {
+                    delay(subStepDelayMillis)
+                    val hwStep = ((sub - 1) / subStepsPerHardwareStep + 1).coerceAtMost(totalHardwareSteps)
+                    if (hwStep != currentHwIndex) {
+                        currentHwIndex = hwStep
+                        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, hwStep, 0)
+                    }
+                    val positionInStep = (sub - 1) % subStepsPerHardwareStep + 1
+                    // Continuity: at the start of step k this evaluates to (k-1)/k,
+                    // matching step (k-1)'s end value of 1.0 scaled down by the new,
+                    // louder hardware ceiling -- so the actual audible output doesn't
+                    // jump or dip at the boundary. Rises to exactly 1.0 by step's end.
+                    val gain = ((hwStep - 1) + positionInStep.toFloat() / subStepsPerHardwareStep) / hwStep
                     mediaPlayer?.setVolume(gain, gain)
                 }
+                mediaPlayer?.setVolume(1f, 1f)
             }
         }
 
@@ -170,6 +203,12 @@ class AlarmRingtoneService : Service() {
         vibrator = null
         overlayWindow?.dismiss()
         overlayWindow = null
+
+        // Put the user's alarm volume back to whatever it was before a ramp touched it.
+        savedAlarmStreamVolume?.let { original ->
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, original, 0)
+        }
+        savedAlarmStreamVolume = null
     }
 
     private fun snooze(alarmId: Long) {
@@ -181,11 +220,35 @@ class AlarmRingtoneService : Service() {
             val cal = java.util.Calendar.getInstance().apply {
                 add(java.util.Calendar.MINUTE, snoozeMinutes)
             }
-            // A snooze fires once, without touching the alarm's own repeat schedule,
-            // by scheduling a one-shot copy at the same id-space via AlarmManager directly.
-            val snoozedAlarm = alarm.copy(hour = cal.get(java.util.Calendar.HOUR_OF_DAY),
-                minute = cal.get(java.util.Calendar.MINUTE), daysOfWeek = emptySet())
-            AlarmScheduler(applicationContext).schedule(snoozedAlarm)
+            val snoozeHour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+            val snoozeMinute = cal.get(java.util.Calendar.MINUTE)
+
+            if (alarm.daysOfWeek.isEmpty()) {
+                // One-shot alarms are disabled in the database the instant they start
+                // ringing (see AlarmReceiver) since they have no future occurrence of
+                // their own. That means by the time we get here, `alarm.enabled` is
+                // already false -- so just copying it and handing it to the scheduler
+                // silently did nothing, since schedule() bails out for disabled alarms.
+                // Nothing was persisted either, so the upcoming-alarm notification and
+                // widget (both database-driven) never saw it. Snoozing a one-shot alarm
+                // *is* its next occurrence, so persist the new time and re-enable it;
+                // AlarmReceiver already disables it again once it actually fires.
+                val snoozedAlarm = alarm.copy(hour = snoozeHour, minute = snoozeMinute, enabled = true)
+                dao.update(snoozedAlarm)
+                AlarmScheduler(applicationContext).schedule(snoozedAlarm)
+            } else {
+                // Repeating alarms keep their real weekly schedule intact in the
+                // database (AlarmReceiver already re-armed it for the next matching
+                // weekday), so a snooze shouldn't overwrite that. Just re-point this
+                // alarm's existing AlarmManager entry (same id) at the snooze time for
+                // this one firing; it returns to its normal weekly schedule after that.
+                val snoozedAlarm = alarm.copy(
+                    hour = snoozeHour, minute = snoozeMinute,
+                    daysOfWeek = emptySet(), enabled = true
+                )
+                AlarmScheduler(applicationContext).schedule(snoozedAlarm)
+            }
+
             UpcomingAlarmManager(applicationContext).refresh()
             AlarmWidgetUpdater.updateAll(applicationContext)
         }
