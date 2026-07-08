@@ -81,8 +81,15 @@ class AlarmRingtoneService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification(alarmId))
 
         serviceScope.launch {
-            val alarm = AlarmDatabase.getInstance(applicationContext).alarmDao().getAlarm(alarmId)
-            startRinging(alarm)
+            try {
+                val alarm = AlarmDatabase.getInstance(applicationContext).alarmDao().getAlarm(alarmId)
+                startRinging(alarm)
+            } catch (e: Exception) {
+                // The full-screen notification/dismiss action is already up at this
+                // point regardless, so the person can still dismiss even if sound
+                // setup failed for some reason -- an alarm should never take the
+                // whole app down with it.
+            }
         }
 
         return START_STICKY
@@ -107,15 +114,30 @@ class AlarmRingtoneService : Service() {
         // (guarantees audibility), and per-track gain smooths the climb *within*
         // each step. The gain's starting value at each new step is chosen so the
         // perceived loudness is continuous across the step boundary -- no dip.
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-        val targetVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
-            .coerceAtLeast(1) // if the user had it at 0, ramp to a minimum audible level instead of silence
-        val totalHardwareSteps = if (rampSeconds > 0) targetVolume.coerceIn(1, maxVolume) else 0
-
+        //
+        // Every AudioManager call touching the stream volume is wrapped in
+        // try/catch: on several devices, changing stream volume while Do Not
+        // Disturb/priority mode is active and this app lacks Notification Policy
+        // Access throws a SecurityException. This is an alarm -- it must never
+        // crash and fail to ring because of a cosmetic volume-ramp feature, so any
+        // such failure just falls back to a plain (non-ramped) alarm at whatever
+        // volume the stream is already at.
+        var totalHardwareSteps = 0
         if (rampSeconds > 0) {
-            savedAlarmStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
-            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+            totalHardwareSteps = try {
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+                val targetVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+                    .coerceAtLeast(1) // if the user had it at 0, ramp to a minimum audible level instead of silence
+                savedAlarmStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+                audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+                targetVolume.coerceIn(1, maxVolume)
+            } catch (e: SecurityException) {
+                0
+            } catch (e: Exception) {
+                0
+            }
         }
+        val effectiveRampSeconds = if (totalHardwareSteps > 0) rampSeconds else 0
 
         mediaPlayer = MediaPlayer().apply {
             setAudioAttributes(
@@ -128,15 +150,15 @@ class AlarmRingtoneService : Service() {
             isLooping = true
             // Start silent (or near it) if we're about to ramp, so there's no flash
             // of full volume before the ramp coroutine below kicks in.
-            if (rampSeconds > 0) setVolume(0f, 0f)
+            if (effectiveRampSeconds > 0) setVolume(0f, 0f)
             prepare()
             start()
         }
 
-        if (rampSeconds > 0) {
+        if (effectiveRampSeconds > 0) {
             val subStepsPerHardwareStep = 10
             val totalSubSteps = totalHardwareSteps * subStepsPerHardwareStep
-            val subStepDelayMillis = (rampSeconds * 1000L / totalSubSteps).coerceAtLeast(20L)
+            val subStepDelayMillis = (effectiveRampSeconds * 1000L / totalSubSteps).coerceAtLeast(20L)
 
             rampJob = serviceScope.launch {
                 var currentHwIndex = 1
@@ -145,7 +167,13 @@ class AlarmRingtoneService : Service() {
                     val hwStep = ((sub - 1) / subStepsPerHardwareStep + 1).coerceAtMost(totalHardwareSteps)
                     if (hwStep != currentHwIndex) {
                         currentHwIndex = hwStep
-                        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, hwStep, 0)
+                        try {
+                            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, hwStep, 0)
+                        } catch (e: Exception) {
+                            // Ignore: gain-only smoothing below still applies, so the
+                            // alarm keeps ramping (just without the hardware floor
+                            // rising) rather than crashing mid-ring.
+                        }
                     }
                     val positionInStep = (sub - 1) % subStepsPerHardwareStep + 1
                     // Continuity: at the start of step k this evaluates to (k-1)/k,
@@ -206,7 +234,12 @@ class AlarmRingtoneService : Service() {
 
         // Put the user's alarm volume back to whatever it was before a ramp touched it.
         savedAlarmStreamVolume?.let { original ->
-            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, original, 0)
+            try {
+                audioManager.setStreamVolume(AudioManager.STREAM_ALARM, original, 0)
+            } catch (e: Exception) {
+                // Same DND/notification-policy restriction as elsewhere in this file --
+                // not worth crashing over on the way out.
+            }
         }
         savedAlarmStreamVolume = null
     }
