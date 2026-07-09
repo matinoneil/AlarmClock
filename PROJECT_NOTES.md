@@ -66,6 +66,11 @@ untested.
   renderer joins manually-wrapped lines and keeps the continuation indent,
   producing stray multi-space gaps mid-sentence. One line per bullet, however
   long; let the renderer wrap.
+- **Deliver release text as a raw markdown code block in chat.** The text
+  itself has always been markdown (`### Fixed` etc.), but pasting it as
+  normal chat prose means the chat UI renders it and the maintainer's
+  copy loses the `###` marks — GitHub then shows flat text instead of the
+  bold section headings. Fence it so it copies verbatim.
 - **Published release tags are immutable.** Never move/re-point a tag that
   has shipped — a follow-up fix gets a patch tag (`V1.5.1` after `V1.5`),
   not a rewritten `V1.5`. Moving tags silently changes what a version means
