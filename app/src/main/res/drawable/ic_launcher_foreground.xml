@@ -1,24 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Bell nubs, tucked behind the face -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,30 m-24,0 a24,24 0,1 1,48 0 a24,24 0,1 1,-48 0" />
+        android:fillColor="#E8963E"
+        android:pathData="M39,35 m-7,0 a7,7 0,1 1,14 0 a7,7 0,1 1,-14 0" />
     <path
-        android:fillColor="#6650a4"
-        android:pathData="M54,54 m-18,0 a18,18 0,1 1,36 0 a18,18 0,1 1,-36 0" />
+        android:fillColor="#E8963E"
+        android:pathData="M69,35 m-7,0 a7,7 0,1 1,14 0 a7,7 0,1 1,-14 0" />
+    <!-- Feet -->
     <path
-        android:fillColor="#FFFFFF"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="3"
-        android:pathData="M54,44 L54,54 L62,58" />
+        android:strokeColor="#E8963E"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M40,76 L35,82" />
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M20,20 l8,8 -5,5 -8,-8 z" />
+        android:strokeColor="#E8963E"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M68,76 L73,82" />
+    <!-- Clock face with warm gradient -->
+    <path android:pathData="M54,57 m-24,0 a24,24 0,1 1,48 0 a24,24 0,1 1,-48 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="33"
+                android:endX="54" android:endY="81">
+                <item android:offset="0" android:color="#FFFFC466" />
+                <item android:offset="1" android:color="#FFF59B3D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Hands at 7:00, the app's default alarm time -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M88,20 l-8,8 5,5 8,-8 z" />
+        android:strokeColor="#1A1B3A"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,57 L54,43" />
+    <path
+        android:strokeColor="#1A1B3A"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,57 L45,64" />
+    <!-- Center pivot -->
+    <path
+        android:fillColor="#1A1B3A"
+        android:pathData="M54,57 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
 </vector>

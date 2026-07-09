@@ -6,25 +6,23 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
-
-private val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +42,7 @@ fun AlarmEditScreen(
     }
 
     if (!loaded) {
-        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
@@ -123,13 +121,13 @@ fun AlarmEditScreen(
                 title = { Text(if (alarmId == -1L) "New alarm" else "Edit alarm") },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     if (existing != null) {
                         IconButton(onClick = { showDeleteConfirm = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            Icon(Icons.Outlined.Delete, contentDescription = "Delete")
                         }
                     }
                 }
@@ -140,82 +138,75 @@ fun AlarmEditScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            TimePicker(state = timeState)
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TimePicker(state = timeState)
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            EditSection(title = "Repeat") {
+                DayOfWeekSelector(
+                    selectedDays = selectedDays,
+                    onToggle = { day ->
+                        selectedDays = if (day in selectedDays) selectedDays - day
+                        else selectedDays + day
+                    }
+                )
+            }
 
-            OutlinedTextField(
-                value = label,
-                onValueChange = { label = it },
-                label = { Text("Label (optional)") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Repeat", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(androidx.compose.ui.Alignment.Start))
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(dayNames.size) { index ->
-                    val dayNumber = index + 1 // Mon=1..Sun=7
-                    FilterChip(
-                        selected = dayNumber in selectedDays,
-                        onClick = {
-                            selectedDays = if (dayNumber in selectedDays) selectedDays - dayNumber
-                            else selectedDays + dayNumber
-                        },
-                        label = { Text(dayNames[index]) }
-                    )
+            EditSection(title = "Details") {
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it },
+                    label = { Text("Label (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { launchRingtonePicker() },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(soundLabel ?: "Default alarm sound", maxLines = 1)
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedButton(
-                onClick = { launchRingtonePicker() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Filled.MusicNote, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(soundLabel ?: "Default alarm sound")
+            EditSection(title = "Sound & snooze") {
+                OutlinedTextField(
+                    value = rampText,
+                    onValueChange = { rampText = it.filter(Char::isDigit) },
+                    label = { Text("Ramp to full volume") },
+                    suffix = { Text("sec") },
+                    supportingText = { Text("0 = full volume immediately") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = snoozeText,
+                    onValueChange = { snoozeText = it.filter(Char::isDigit) },
+                    label = { Text("Snooze length") },
+                    suffix = { Text("min") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Vibrate", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = vibrate, onCheckedChange = { vibrate = it })
+                }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = rampText,
-                onValueChange = { rampText = it.filter(Char::isDigit) },
-                label = { Text("Ramp up to full volume over (sec, 0 = instant)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = snoozeText,
-                onValueChange = { snoozeText = it.filter(Char::isDigit) },
-                label = { Text("Snooze length (min)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                Text("Vibrate")
-                Switch(checked = vibrate, onCheckedChange = { vibrate = it })
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
@@ -235,10 +226,36 @@ fun AlarmEditScreen(
                     viewModel.saveAlarm(alarm)
                     onDone()
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(28.dp)
             ) {
-                Text("Save")
+                Text("Save", style = MaterialTheme.typography.titleMedium)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Rounded tonal grouping container shared by the edit screens. */
+@Composable
+internal fun EditSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            content()
         }
     }
 }

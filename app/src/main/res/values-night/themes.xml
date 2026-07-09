@@ -1,0 +1,6 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Dark platform theme so activity startup doesn't flash white in dark
+         mode before Compose takes over. Compose content draws its own colors
+         either way; this only affects the pre-first-frame window background. -->
+    <style name="Theme.AlarmClock" parent="android:Theme.Material.NoActionBar" />
+</resources>

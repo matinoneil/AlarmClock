@@ -9,12 +9,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,8 +25,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.AlarmSeries
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
-
-private val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,13 +139,13 @@ fun SeriesEditScreen(
                 title = { Text(if (seriesId == -1L) "New alarm series" else "Edit alarm series") },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     if (existing != null) {
                         IconButton(onClick = { showDeleteConfirm = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            Icon(Icons.Outlined.Delete, contentDescription = "Delete")
                         }
                     }
                 }
@@ -157,120 +156,108 @@ fun SeriesEditScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                "Start time",
-                style = MaterialTheme.typography.labelLarge
-            )
-            Spacer(modifier = Modifier.height(8.dp))
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 TimePicker(state = timeState)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it; nameEdited = true },
-                label = { Text("Series name") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            EditSection(title = "Series") {
                 OutlinedTextField(
-                    value = intervalText,
-                    onValueChange = { intervalText = it.filter(Char::isDigit) },
-                    label = { Text("Every (min)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f)
+                    value = name,
+                    onValueChange = { name = it; nameEdited = true },
+                    label = { Text("Series name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = durationText,
-                    onValueChange = { durationText = it.filter(Char::isDigit) },
-                    label = { Text("For (min)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Repeat", style = MaterialTheme.typography.labelLarge)
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(dayNames.size) { index ->
-                    val dayNumber = index + 1
-                    FilterChip(
-                        selected = dayNumber in selectedDays,
-                        onClick = {
-                            selectedDays = if (dayNumber in selectedDays) selectedDays - dayNumber
-                            else selectedDays + dayNumber
-                        },
-                        label = { Text(dayNames[index]) }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = intervalText,
+                        onValueChange = { intervalText = it.filter(Char::isDigit) },
+                        label = { Text("Every") },
+                        suffix = { Text("min") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = durationText,
+                        onValueChange = { durationText = it.filter(Char::isDigit) },
+                        label = { Text("For") },
+                        suffix = { Text("min") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedButton(
-                onClick = { launchRingtonePicker() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Filled.MusicNote, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(soundLabel ?: "Default alarm sound")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = rampText,
-                onValueChange = { rampText = it.filter(Char::isDigit) },
-                label = { Text("Ramp up to full volume over (sec, 0 = instant)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = snoozeText,
-                onValueChange = { snoozeText = it.filter(Char::isDigit) },
-                label = { Text("Snooze length (min)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Vibrate")
-                Switch(checked = vibrate, onCheckedChange = { vibrate = it })
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                "${previewTimes.size} alarms will be created:",
-                style = MaterialTheme.typography.labelLarge
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.height(40.dp)) {
-                items(previewTimes) { (h, m) ->
-                    AssistChip(onClick = {}, label = { Text(String.format("%02d:%02d", h, m)) })
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "${previewTimes.size} alarms will be created:",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.height(40.dp)) {
+                    items(previewTimes) { (h, m) ->
+                        AssistChip(onClick = {}, label = { Text(String.format("%02d:%02d", h, m)) })
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            EditSection(title = "Repeat") {
+                DayOfWeekSelector(
+                    selectedDays = selectedDays,
+                    onToggle = { day ->
+                        selectedDays = if (day in selectedDays) selectedDays - day
+                        else selectedDays + day
+                    }
+                )
+            }
+
+            EditSection(title = "Sound & snooze") {
+                OutlinedButton(
+                    onClick = { launchRingtonePicker() },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(soundLabel ?: "Default alarm sound", maxLines = 1)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = rampText,
+                    onValueChange = { rampText = it.filter(Char::isDigit) },
+                    label = { Text("Ramp to full volume") },
+                    suffix = { Text("sec") },
+                    supportingText = { Text("0 = full volume immediately") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = snoozeText,
+                    onValueChange = { snoozeText = it.filter(Char::isDigit) },
+                    label = { Text("Snooze length") },
+                    suffix = { Text("min") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Vibrate", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = vibrate, onCheckedChange = { vibrate = it })
+                }
+            }
 
             Button(
                 onClick = {
@@ -295,10 +282,13 @@ fun SeriesEditScreen(
                     viewModel.saveSeries(series)
                     onDone()
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(28.dp)
             ) {
-                Text("Save")
+                Text("Save", style = MaterialTheme.typography.titleMedium)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

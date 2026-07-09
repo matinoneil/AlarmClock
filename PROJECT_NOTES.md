@@ -297,19 +297,33 @@ entry #1.
     ungranted permission reprompts every launch, which is deliberate for now
     since all four materially affect whether/how alarms ring.
 
-16. **[OPEN] UI modernization pass (icon, app screens, ringing UI).** Not a
-    bug — a visual refresh requested to bring the app to current standards.
-    Intended scope: replace the template purple palette/typography with a
-    proper brand theme (warm amber + deep indigo fallback; dynamic color
-    stays the default on Android 12+), expanded type scale, restyled
-    list/edit screens (large collapsing app bar, tonal cards, circular
-    day-of-week toggles replacing FilterChips), redesigned ringing screen
-    (gradient background, oversized tabular time, pulsing icon, prominent
-    dismiss), matching visual refresh of OverlayAlarmWindow (visuals only —
-    no behavioral/OS-call changes, per the never-crash rule), a redesigned
-    adaptive launcher icon with a monochrome layer for Android 13+ themed
-    icons, and a dark values-night activity theme to kill the white startup
-    flash. No DB, scheduling, or service-logic changes intended.
+16. **UI modernization pass (icon, app screens, ringing UI).** Not a bug — a
+    requested visual refresh. What changed: template purple palette replaced
+    with a warm amber/deep indigo brand scheme (fallback only — dynamic
+    color remains the default on Android 12+, so screen colors follow the
+    wallpaper there); expanded Material 3 type scale plus a shared
+    `ClockTextStyle` with tabular figures so clock digits align; list screen
+    got a collapsing `LargeTopAppBar`, 24dp-radius tonal cards using the
+    surfaceContainer roles, dimmed disabled alarms, and Weekdays/Weekends
+    shorthand in day labels; edit screens regrouped into rounded tonal
+    sections with circular per-day toggles (`DayOfWeekSelector`, replacing
+    the FilterChip rows — same Mon=1..Sun=7 semantics) and suffix-labeled
+    number fields; ringing screen redesigned with a hue-tinted dark
+    gradient, 96sp tabular time, pulsing icon, and a white pill Dismiss
+    with a quiet text Snooze. The gradient is deliberately forced dark with
+    white content instead of using the primary/onPrimary pair — in dark
+    dynamic schemes primary is *light* and onPrimary *dark*, so the naive
+    pairing over a darkened background is unreadable; this was caught
+    pre-push, keep it in mind if restyling that screen. OverlayAlarmWindow
+    got the matching look (dark amber gradient, pill buttons) via plain
+    GradientDrawables — pure view construction, no new OS calls, honoring
+    the never-crash rule. New adaptive launcher icon (gradient indigo
+    night background, warm gradient clock face at 7:00) including a
+    `<monochrome>` layer so Android 13+ themed icons work; and a
+    values-night activity theme (`android:Theme.Material.NoActionBar`) so
+    startup no longer flashes white in dark mode. No DB, scheduling, or
+    service-logic changes; everything is unverified-until-installed as
+    usual, and the icon especially needs an eyeball on a real launcher.
 
 ## Restarting this project in a new chat
 

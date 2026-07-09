@@ -1,28 +1,35 @@
 package no.hanss.alarmclock.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Alarm
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmSeries
+import no.hanss.alarmclock.ui.theme.ClockTextStyle
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
 
 private fun dayLabel(days: Set<Int>): String {
     if (days.isEmpty()) return "One-time"
     val names = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     if (days.size == 7) return "Every day"
+    if (days == setOf(1, 2, 3, 4, 5)) return "Weekdays"
+    if (days == setOf(6, 7)) return "Weekends"
     return days.sorted().joinToString(", ") { names[it - 1] }
 }
 
@@ -39,6 +46,7 @@ fun AlarmListScreen(
     var showAddMenu by remember { mutableStateOf(false) }
     var pendingDeleteAlarm by remember { mutableStateOf<Alarm?>(null) }
     var pendingDeleteSeries by remember { mutableStateOf<AlarmSeries?>(null) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     pendingDeleteAlarm?.let { alarm ->
         AlertDialog(
@@ -75,18 +83,29 @@ fun AlarmListScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Alarms") }) },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            LargeTopAppBar(
+                title = { Text("Alarms") },
+                scrollBehavior = scrollBehavior
+            )
+        },
         floatingActionButton = {
             Box {
-                FloatingActionButton(onClick = { showAddMenu = true }) {
+                FloatingActionButton(
+                    onClick = { showAddMenu = true },
+                    shape = RoundedCornerShape(20.dp)
+                ) {
                     Icon(Icons.Filled.Add, contentDescription = "Add")
                 }
                 DropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
                     DropdownMenuItem(
+                        leadingIcon = { Icon(Icons.Outlined.Alarm, contentDescription = null) },
                         text = { Text("Single alarm") },
                         onClick = { showAddMenu = false; onAddAlarm() }
                     )
                     DropdownMenuItem(
+                        leadingIcon = { Icon(Icons.Outlined.Repeat, contentDescription = null) },
                         text = { Text("Alarm series") },
                         onClick = { showAddMenu = false; onAddSeries() }
                     )
@@ -98,7 +117,7 @@ fun AlarmListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (state.series.isNotEmpty()) {
@@ -106,7 +125,8 @@ fun AlarmListScreen(
                     Text(
                         "Alarm series",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp, top = 4.dp)
                     )
                 }
                 items(state.series, key = { "s${it.id}" }) { series ->
@@ -125,7 +145,8 @@ fun AlarmListScreen(
                     Text(
                         "Alarms",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp, top = 4.dp)
                     )
                 }
                 items(state.standaloneAlarms, key = { it.id }) { alarm ->
@@ -140,18 +161,59 @@ fun AlarmListScreen(
 
             if (state.series.isEmpty() && state.standaloneAlarms.isEmpty()) {
                 item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 96.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Icon(
+                            Icons.Outlined.Alarm,
+                            contentDescription = null,
+                            modifier = Modifier.size(72.dp),
+                            tint = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "No alarms yet.\nTap + to add a single alarm or an alarm series.",
-                            style = MaterialTheme.typography.bodyLarge
+                            "No alarms yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Tap + to add a single alarm\nor an alarm series",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ListCard(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    content: @Composable RowScope.() -> Unit
+) {
+    val container by animateColorAsState(
+        targetValue = if (enabled) MaterialTheme.colorScheme.surfaceContainerHigh
+        else MaterialTheme.colorScheme.surfaceContainerLow,
+        label = "cardContainer"
+    )
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        color = container
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
     }
 }
 
@@ -162,28 +224,32 @@ private fun AlarmCard(
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+    ListCard(enabled = alarm.enabled, onClick = onClick) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .alpha(if (alarm.enabled) 1f else 0.5f)
         ) {
-            Icon(Icons.Filled.Alarm, contentDescription = null)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    String.format("%02d:%02d", alarm.hour, alarm.minute),
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Text(
-                    if (alarm.label.isNotBlank()) "${alarm.label} · ${dayLabel(alarm.daysOfWeek)}"
-                    else dayLabel(alarm.daysOfWeek),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            Switch(checked = alarm.enabled, onCheckedChange = onToggle)
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete")
-            }
+            Text(
+                String.format("%02d:%02d", alarm.hour, alarm.minute),
+                style = MaterialTheme.typography.displaySmall.merge(ClockTextStyle)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                if (alarm.label.isNotBlank()) "${alarm.label} · ${dayLabel(alarm.daysOfWeek)}"
+                else dayLabel(alarm.daysOfWeek),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(checked = alarm.enabled, onCheckedChange = onToggle)
+        Spacer(modifier = Modifier.width(4.dp))
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription = "Delete",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -200,25 +266,38 @@ private fun SeriesCard(
     val (endH, endM) = times.last()
     val endLabel = String.format("%02d:%02d", endH, endM)
 
-    ElevatedCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+    ListCard(enabled = series.enabled, onClick = onClick) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .alpha(if (series.enabled) 1f else 0.5f)
         ) {
-            Icon(Icons.Filled.Repeat, contentDescription = null)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(series.name, style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    "$startLabel – $endLabel, every ${series.intervalMinutes} min " +
-                        "(${times.size} alarms) · ${dayLabel(series.daysOfWeek)}",
-                    style = MaterialTheme.typography.bodyMedium
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.Repeat,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(series.name, style = MaterialTheme.typography.headlineSmall)
             }
-            Switch(checked = series.enabled, onCheckedChange = onToggle)
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete")
-            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                "$startLabel – $endLabel, every ${series.intervalMinutes} min " +
+                    "(${times.size} alarms) · ${dayLabel(series.daysOfWeek)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(checked = series.enabled, onCheckedChange = onToggle)
+        Spacer(modifier = Modifier.width(4.dp))
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription = "Delete",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

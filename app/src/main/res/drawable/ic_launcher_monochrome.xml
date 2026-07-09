@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Single-color glyph for Android 13+ themed icons -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M39,35 m-7,0 a7,7 0,1 1,14 0 a7,7 0,1 1,-14 0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M69,35 m-7,0 a7,7 0,1 1,14 0 a7,7 0,1 1,-14 0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M40,76 L35,82" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M68,76 L73,82" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6"
+        android:pathData="M54,57 m-24,0 a24,24 0,1 1,48 0 a24,24 0,1 1,-48 0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,57 L54,43" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,57 L45,64" />
+</vector>

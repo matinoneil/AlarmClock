@@ -1,6 +1,5 @@
 package no.hanss.alarmclock.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -12,15 +11,47 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = AmberPrimaryDark,
+    onPrimary = AmberOnPrimaryDark,
+    primaryContainer = AmberPrimaryContainerDark,
+    onPrimaryContainer = AmberOnPrimaryContainerDark,
+    secondary = IndigoSecondaryDark,
+    onSecondary = IndigoOnSecondaryDark,
+    secondaryContainer = IndigoSecondaryContainerDark,
+    onSecondaryContainer = IndigoOnSecondaryContainerDark,
+    tertiary = DuskTertiaryDark,
+    onTertiary = DuskOnTertiaryDark,
+    tertiaryContainer = DuskTertiaryContainerDark,
+    onTertiaryContainer = DuskOnTertiaryContainerDark,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = AmberPrimary,
+    onPrimary = AmberOnPrimary,
+    primaryContainer = AmberPrimaryContainer,
+    onPrimaryContainer = AmberOnPrimaryContainer,
+    secondary = IndigoSecondary,
+    onSecondary = IndigoOnSecondary,
+    secondaryContainer = IndigoSecondaryContainer,
+    onSecondaryContainer = IndigoOnSecondaryContainer,
+    tertiary = DuskTertiary,
+    onTertiary = DuskOnTertiary,
+    tertiaryContainer = DuskTertiaryContainer,
+    onTertiaryContainer = DuskOnTertiaryContainer,
+    background = LightBackground,
+    onBackground = LightOnBackground,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outline = LightOutline
 )
 
 @Composable
