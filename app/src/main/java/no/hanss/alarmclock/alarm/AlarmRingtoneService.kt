@@ -135,6 +135,7 @@ class AlarmRingtoneService : Service() {
                 // point regardless, so the person can still dismiss even if sound
                 // setup failed for some reason -- an alarm should never take the
                 // whole app down with it.
+                Log.e(TAG, "startRinging failed for alarm $alarmId; notification is up but sound/vibration may be missing", e)
             }
         }
 

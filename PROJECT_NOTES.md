@@ -376,11 +376,12 @@ entry #1.
     LargeTopAppBar is viable again now that shipped builds are
     non-debuggable — but test on-device first, per #17.
 
-20. **[OPEN] Review finding: silent catch in AlarmRingtoneService.** Full
-    codebase review (same spirit as #11) found the codebase healthy overall,
-    but the catch wrapping the DB read + startRinging() in onStartCommand
-    swallows the exception with only a comment — the sole spot in the file
-    violating the log-never-swallow rule. Intended fix: add the Log.e.
+20. **Review finding: silent catch in AlarmRingtoneService.** Full codebase
+    review (same spirit as #11) found the codebase healthy overall; the one
+    rule violation was the catch wrapping the DB read + startRinging() in
+    onStartCommand, which swallowed the exception with only a comment — the
+    sole spot in the file violating the log-never-swallow rule. Fixed with
+    a Log.e naming the alarm id.
     Review observations logged for the record, no code change planned
     without a decision: (a) editing a series while one of its child alarms
     is ringing deletes the child row, so Snooze on that ring silently
