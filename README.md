@@ -1,119 +1,64 @@
 # AlarmClock
 
-A Kotlin + Jetpack Compose Android alarm clock with two kinds of alarms:
+**An Android alarm clock that treats ringing as sacred.** Kotlin + Jetpack Compose,
+developed entirely from a phone — no laptop, no local SDK, just GitHub Actions as the
+build machine.
 
-- **Single alarms** - set at a specific time, optionally repeating on chosen weekdays.
-- **Alarm series** - e.g. "07:00 Alarms": a series of independent alarms fired every
-  N minutes starting at a chosen time, for a chosen total duration (e.g. every 5 min
-  from 07:00 to 07:45, 10 separate alarms). Each one is a fully independent alarm;
-  dismissing one has no effect on the others. Start time, interval, and duration are
-  all editable after creation, and the series' name auto-fills from the start time
-  until you type your own. The whole series can be turned on/off with one switch, and
-  the day-of-week picker applies to every alarm it generates (e.g. Mon-Fri only).
+Every design decision follows one rule: **an alarm must never crash or go silent
+instead of ringing.** Broken ringtone URI? It falls back to the system default. Volume
+ramp blocked by Do Not Disturb? It rings at full volume instead. Phone died mid-ring?
+The alarm comes back after reboot. The full bug-by-bug history behind that rule lives
+in [PROJECT_NOTES.md](PROJECT_NOTES.md).
 
-## Features
+## What it does
 
-- Custom ringtone per alarm or series, chosen via the system ringtone picker.
-- Volume ramp: alarms can start quiet and climb to full volume over a configurable
-  number of seconds, instead of ringing at full volume immediately.
-- Full-screen ringing UI that reliably appears whether the screen is locked, unlocked,
-  or already on, using a full-screen-intent notification rather than a plain
-  heads-up one.
-- Snooze (10 minutes) and dismiss from the ringing screen or its notification.
-- Confirmation dialog before deleting any alarm or series, both from the list screen
-  and from within the edit screens.
-- Editing an alarm or series preserves its existing on/off state rather than
-  re-enabling it.
-- Alarms are rescheduled automatically after a device reboot.
+- **Single alarms** — a time, optional weekday repeat, per-alarm ringtone, snooze
+  length, and vibration.
+- **Alarm series** — one entry that expands into many independent alarms: every N
+  minutes from a start time, for a set duration (07:00–07:45 every 5 minutes = 10
+  separate alarms). Dismissing one never touches the others; edit the series and the
+  whole set regenerates. For the heavy sleepers.
+- **Volume ramp** — start quiet and climb to full volume over as many seconds as you
+  like, instead of a heart attack at 07:00 sharp.
+- **Ringing UI that actually appears** — full-screen over the lock screen, and (with
+  the overlay permission) over whatever you're doing when the screen is already on,
+  where stock Android silently downgrades alarms to a heads-up notification.
+- **Survives real life** — reboots, app updates, and interrupted rings all reschedule
+  or resume; snoozes persist across all of it. Skip just the next occurrence of a
+  repeating alarm straight from its upcoming notification.
+- **Home screen widget** showing your next alarm, plus themed (Material You) icon
+  support on Android 13+.
 
-## Opening the project
+## Install
 
-1. Open this folder (`AlarmClock/`) directly in Android Studio (Koala or newer recommended).
-2. Let Android Studio sync Gradle - it will generate the Gradle wrapper for you if it's
-   missing.
-3. Run on a device or emulator with **API 26+**.
+Grab the APK from the [latest release](../../releases/latest) and sideload it. Builds
+are signed release builds; updates install straight over the previous version.
 
-## Building without Android Studio
+Android 8.0+ (API 26). On first launches the app walks you through the permissions
+alarms genuinely need, one per launch: exact alarms, notifications, full-screen
+intent, and "display over other apps".
 
-A GitHub Actions workflow at `.github/workflows/build-apk.yml` builds a debug APK on
-every push to `main` (or via manual trigger) and uploads it as a downloadable artifact
-under the Actions tab - useful if you don't have a PC or the Android SDK installed
-locally. No signing key is configured, so this produces a debug build only, suitable
-for installing on your own device.
+> **Sideload quirk:** Android 13+ blocks the overlay permission for non-Play-Store
+> apps behind "Restricted settings". To grant it: Settings → Apps → AlarmClock →
+> three-dot menu → *Allow restricted settings*, then grant normally. Everything rings
+> fine without it — you just get a heads-up instead of the full takeover when the
+> screen is already on.
 
-When a build is triggered by publishing a GitHub Release, the app's version name is
-derived automatically from the release tag (tag `v1.5` -> the app shows version `1.5`
-in Settings > Apps), so there's no manual step to keep them in sync. The version code
-(an internal integer Android uses to determine "is this newer") comes from the Actions
-run number instead, since it always increases regardless of what the tag looks like.
-Plain pushes to `main` and manual workflow runs keep whatever version is hardcoded in
-`app/build.gradle.kts`.
+## Build it yourself
 
-## Architecture
+Open the folder in Android Studio (Koala+) and run, or fork it and let
+[the workflow](.github/workflows/build-apk.yml) build for you — every push produces
+an installable APK under the Actions tab. Publishing a GitHub Release tags the build
+with the release's version automatically (tag `V1.7` → version `1.7` in app settings).
 
-- **`data/`** - Room entities (`Alarm`, `AlarmSeries`), DAOs, and `AlarmRepository`, which
-  is the single place that talks to both the database and the alarm scheduler.
-- **`alarm/`** - `AlarmScheduler` (wraps `AlarmManager`), `AlarmReceiver` (fires when an
-  alarm goes off), `BootReceiver` (reschedules everything after a reboot - AlarmManager
-  entries don't survive one), and `AlarmRingtoneService` (foreground service that plays
-  the alarm sound with an optional volume ramp, handles vibration, and posts the
-  full-screen ringing notification).
-- **`ui/`** - Compose screens: the list, single-alarm editor, and alarm-series editor
-  (with a live preview of every time that will be generated, a ringtone picker, and a
-  volume-ramp field), plus `RingingActivity`, the full-screen UI shown when an alarm
-  fires.
-- **`viewmodel/`** - `AlarmViewModel`, exposing a `StateFlow` of alarms/series to the UI.
+## Under the hood
 
-### How an alarm series becomes real alarms
+Room + a repository as the single source of truth, a `StateFlow`-driven Compose UI,
+and `AlarmManager` entries keyed by database id. A foreground service owns the ring:
+sound, vibration, ramp, snooze, dismiss, and crash recovery via a persisted
+ringing-state marker. `BootReceiver` rebuilds everything after reboots and app
+updates. Schema changes ship with real Room migrations — your alarms survive updates.
 
-`AlarmSeries.expandTimes()` turns (start, interval, duration) into a list of times.
-`AlarmRepository.saveSeries()` deletes any previously generated child `Alarm` rows for
-that series and regenerates them from scratch, so editing a series' interval or duration
-later just re-expands and re-schedules - you don't need to touch individual alarms.
-Each child alarm gets its own row, its own `AlarmManager` entry (keyed by its database
-id), and rings completely independently, inheriting the series' ringtone, vibrate, and
-volume-ramp settings.
-
-### Why the full-screen UI relies only on the notification's full-screen intent
-
-Calling `startActivity()` directly from a background service is blocked by Android
-whenever the app isn't already in the foreground and the screen is on - so the ringing
-activity only used to appear reliably when the phone was locked. A full-screen-intent
-notification is specifically exempted from that restriction, so the service now relies
-on it exclusively rather than also trying to launch the activity directly.
-
-### Permissions you'll be prompted for
-
-- **Exact alarms** (Android 12+): the app checks `canScheduleExactAlarms()` on launch and
-  sends you to system settings if it's not granted yet - without this, alarms can be
-  delayed by the OS.
-- **Notifications** (Android 13+): needed to show the alarm notification/full-screen intent.
-- **Full-screen intent** (Android 14+): a per-app toggle the user can revoke; the app
-  checks `canUseFullScreenIntent()` on launch and sends you to settings if it's off.
-- **Display over other apps**: needed only for the case where the screen is already on
-  and you're actively using the phone when an alarm fires -- without it, that specific
-  case falls back to a heads-up notification instead of the full-screen ringing UI.
-  Alarm firing, sound, vibration, volume ramp, snooze, and dismiss all work regardless,
-  and the locked-screen/screen-off case is unaffected either way, since that's handled
-  by the full-screen-intent notification instead.
-
-  On sideloaded installs (i.e. not from the Play Store), Android 13+ applies "Restricted
-  Settings" to this specific permission and blocks granting it with a warning, regardless
-  of what the app actually does. To grant it: Settings -> Apps -> AlarmClock -> three-dot
-  menu (top right) -> "Allow restricted settings" -> then grant "Display over other apps"
-  normally. This is standard Android behavior for any sideloaded app requesting this
-  permission, not specific to this app.
-
-## Known gaps / things you may want to extend
-
-- Snooze always adds 10 minutes with no limit on how many times it can be used.
-- The enable/disable switch is all-or-nothing (on indefinitely / off indefinitely) -
-  there's no "skip just this one occurrence" option for a repeating alarm or series.
-- No launcher app icon design beyond a simple placeholder vector - swap
-  `ic_launcher_foreground.xml` / `ic_launcher_background.xml` for real artwork whenever
-  you like.
-- Widget/quick-settings tile, and Doze-proofing beyond `setAlarmClock()`, aren't included.
-- The database currently falls back to a destructive migration on schema-version bumps
-  (see `AlarmDatabase.kt`), meaning existing alarms are wiped when the schema changes.
-  Fine while iterating; worth replacing with real Room migrations once the schema
-  stabilizes.
+Curious why something is built the way it is? [PROJECT_NOTES.md](PROJECT_NOTES.md)
+is the honest engineering log: every bug, every fix that caused the next bug, and the
+working agreements that keep a phone-only project shippable.
