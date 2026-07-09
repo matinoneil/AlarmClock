@@ -62,6 +62,19 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    // Changing the alarm volume for the ramp feature throws a
+                    // SecurityException on many devices if Do Not Disturb/a focus
+                    // mode is active and this permission hasn't been granted -- the
+                    // ramp then silently falls back to a plain, non-ramped alarm.
+                    // This is a manual per-app toggle in system settings, not a
+                    // runtime permission dialog, same as the overlay permission below.
+                    val notificationManager =
+                        getSystemService(android.app.NotificationManager::class.java)
+                    if (!notificationManager.isNotificationPolicyAccessGranted) {
+                        val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                        startActivity(intent)
+                    }
+
                     // "Display over other apps" lets the ringing screen draw over
                     // whatever the user is doing even when the phone is unlocked and
                     // actively in use, which the full-screen-intent notification alone
