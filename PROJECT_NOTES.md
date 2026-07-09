@@ -325,6 +325,21 @@ entry #1.
     service-logic changes; everything is unverified-until-installed as
     usual, and the icon especially needs an eyeball on a real launcher.
 
+17. **[OPEN] Scroll jank (~10fps reported) in the alarm list after the #16
+    UI pass.** Two suspected causes, compounding: (a) every APK ever
+    shipped is a *debuggable* build — the CI workflow runs `assembleDebug`
+    and attaches that to releases, and Compose performs dramatically worse
+    with `debuggable=true` (no ART optimization, inspection hooks live);
+    the pre-#16 UI was simply light enough to hide it. (b) #16's
+    `exitUntilCollapsedScrollBehavior` on the LargeTopAppBar changes the
+    app bar height every scroll frame, forcing a full Scaffold + LazyColumn
+    remeasure per frame — cheap in release, heavy in debug. Intended fix:
+    ship `assembleRelease` from CI instead, signed with the *same*
+    committed keystore so the signature stays identical and updates still
+    install over existing installs; keep minify off (one variable at a
+    time — R8 in alarm-critical code is its own risk to take separately);
+    and make the LargeTopAppBar static (drop the per-frame collapse).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
