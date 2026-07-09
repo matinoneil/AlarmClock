@@ -397,7 +397,7 @@ entry #1.
     2024.06 / targetSdk 34 are aging — upgrades work but each deserves its
     own on-device-tested release, not a drive-by.
 
-21. **[OPEN] Snooze no-ops if the ringing alarm's row was deleted mid-ring
+21. **Snooze no-ops if the ringing alarm's row was deleted mid-ring
     (review finding 20a).** saveSeries regenerates children by deleting all
     rows; if one is ringing, snooze() does `getAlarm(id) ?: return` — sound
     stops, nothing is rescheduled, user thinks they snoozed. Oversleep
@@ -409,9 +409,11 @@ entry #1.
     Snooze means "ring again" — losing a wake-up is worse than
     resurrecting a deleted alarm as a one-shot. Snapshot gone too (process
     death + row gone): fall back to a bare 10-minute one-shot; snooze must
-    never silently do nothing.
+    never silently do nothing. Implemented as described: `ringingSnapshot`
+    field set at the top of startRinging, resurrect branch at the top of
+    snooze(), with a Log.w naming old and new ids.
 
-22. **[OPEN] Fresh install still stacks the notification dialog on top of
+22. **Fresh install still stacks the notification dialog on top of
     the first settings screen (review finding 20c, #15 incomplete).** The
     POST_NOTIFICATIONS runtime dialog fires unconditionally in onCreate,
     outside #15's one-screen-per-launch chain. Intended fix: fold it into

@@ -57,6 +57,11 @@ class AlarmRingtoneService : Service() {
     private var rampJob: Job? = null
     private var overlayWindow: OverlayAlarmWindow? = null
     private var currentAlarmId: Long = -1L
+    // In-memory copy of the Alarm as it was when ringing started. Exists so snooze
+    // can still work if the DB row vanishes mid-ring -- a series edit regenerates
+    // (deletes + reinserts) every child row, and the user can also delete an alarm
+    // from the list while it rings. See PROJECT_NOTES entry #21.
+    private var ringingSnapshot: Alarm? = null
 
     private val audioManager: AudioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     // The user's actual alarm-volume slider setting before a ramp touched it, so it
@@ -174,6 +179,7 @@ class AlarmRingtoneService : Service() {
     }
 
     private suspend fun startRinging(alarm: Alarm?) {
+        ringingSnapshot = alarm
         val soundUri: Uri = alarm?.soundUri?.let { Uri.parse(it) }
             ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
         val rampSeconds = alarm?.volumeRampSeconds ?: 0
@@ -354,10 +360,42 @@ class AlarmRingtoneService : Service() {
     }
 
     private fun snooze(alarmId: Long) {
-        if (alarmId == -1L) return
         serviceScope.launch {
             val dao = AlarmDatabase.getInstance(applicationContext).alarmDao()
-            val alarm = dao.getAlarm(alarmId) ?: return@launch
+            val alarm = if (alarmId != -1L) dao.getAlarm(alarmId) else null
+            if (alarm == null) {
+                // The row is gone (a series edit regenerated its children mid-ring,
+                // or the alarm was deleted from the list while ringing) or the id
+                // itself was lost. Snooze must never silently do nothing -- the
+                // person pressed it expecting to be woken again. Rebuild a one-shot
+                // from the in-memory snapshot taken at ring start (deliberately
+                // one-shot and detached from any series: the regenerated series
+                // already covers the weekly schedule, so a repeating copy would
+                // double-ring forever). If even the snapshot is gone (process death
+                // plus a missing row), fall back to a bare 10-minute default.
+                val snap = ringingSnapshot
+                val minutes = (snap?.snoozeMinutes ?: 10).coerceAtLeast(1)
+                val cal = java.util.Calendar.getInstance().apply {
+                    add(java.util.Calendar.MINUTE, minutes)
+                }
+                val resurrected = Alarm(
+                    hour = cal.get(java.util.Calendar.HOUR_OF_DAY),
+                    minute = cal.get(java.util.Calendar.MINUTE),
+                    label = snap?.label ?: "",
+                    daysOfWeek = emptySet(),
+                    enabled = true,
+                    vibrate = snap?.vibrate ?: true,
+                    soundUri = snap?.soundUri,
+                    volumeRampSeconds = snap?.volumeRampSeconds ?: 0,
+                    snoozeMinutes = minutes
+                )
+                val newId = dao.insert(resurrected)
+                AlarmScheduler(applicationContext).schedule(resurrected.copy(id = newId))
+                Log.w(TAG, "Snoozed alarm $alarmId no longer exists; resurrected as one-shot alarm $newId")
+                UpcomingAlarmManager(applicationContext).refresh()
+                AlarmWidgetUpdater.updateAll(applicationContext)
+                return@launch
+            }
             val snoozeMinutes = alarm.snoozeMinutes.coerceAtLeast(1)
             val cal = java.util.Calendar.getInstance().apply {
                 add(java.util.Calendar.MINUTE, snoozeMinutes)

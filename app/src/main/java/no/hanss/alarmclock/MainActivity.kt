@@ -32,10 +32,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
         setContent {
             AlarmClockTheme {
                 val navController = rememberNavController()
@@ -48,7 +44,22 @@ class MainActivity : ComponentActivity() {
                     // The next missing one comes up on the next launch.
                     val notificationManager =
                         getSystemService(android.app.NotificationManager::class.java)
-                    if (!viewModel.canScheduleExactAlarms() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // The POST_NOTIFICATIONS runtime dialog is the first link in the
+                    // chain (previously it fired unconditionally in onCreate, stacking
+                    // on top of the first settings screen on a fresh install). Capped
+                    // at two attempts: after two denials Android stops showing the
+                    // dialog at all -- launch() just no-ops straight to a denied
+                    // callback -- and without the cap the chain would stall here
+                    // forever, never reaching the settings screens below.
+                    val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+                    val permPrefs = getSharedPreferences("permission_flow", MODE_PRIVATE)
+                    val notificationAsks = permPrefs.getInt("notification_permission_asks", 0)
+                    if (!notificationsGranted && notificationAsks < 2) {
+                        permPrefs.edit().putInt("notification_permission_asks", notificationAsks + 1).apply()
+                        requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else if (!viewModel.canScheduleExactAlarms() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                             data = Uri.parse("package:$packageName")
                         }
