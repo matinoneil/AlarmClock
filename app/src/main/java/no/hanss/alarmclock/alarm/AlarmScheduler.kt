@@ -92,6 +92,13 @@ class AlarmScheduler(private val context: Context) {
      * otherwise land exactly on it.
      */
     private fun nextTriggerTime(alarm: Alarm, referenceMillis: Long = System.currentTimeMillis()): Long {
+        // A persisted snooze overrides the regular schedule while it's still in the
+        // future. If it's in the past (phone was off through the snooze time), fall
+        // through to the normal computation rather than firing hours late;
+        // AlarmReceiver clears the field whenever the alarm actually fires.
+        alarm.snoozeUntilMillis?.let { snoozeUntil ->
+            if (snoozeUntil > referenceMillis) return snoozeUntil
+        }
         val candidate = rawNextTriggerTime(alarm, referenceMillis)
         val skip = alarm.skipOccurrenceMillis
         return if (skip != null && candidate == skip) {

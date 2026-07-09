@@ -35,13 +35,23 @@ class UpcomingAlarmReceiver : BroadcastReceiver() {
                                     dao.update(updated)
                                     scheduler.cancel(updated)
                                 } else {
-                                    // Persist exactly which occurrence to skip, so the
-                                    // scheduler (and any later recomputation, like the
-                                    // upcoming-alarm refresh right below) actually knows
-                                    // to look past it rather than finding the same one
-                                    // again and effectively doing nothing.
-                                    val upcoming = scheduler.peekNextTriggerTime(alarm)
-                                    val updated = alarm.copy(skipOccurrenceMillis = upcoming)
+                                    val updated = if (alarm.snoozeUntilMillis != null) {
+                                        // The alarm is currently snoozed, so its "next
+                                        // occurrence" IS the pending snooze -- dismissing
+                                        // it means dropping the snooze and returning to
+                                        // the regular weekly schedule. (A skip marker
+                                        // wouldn't work here: the snooze override is
+                                        // consulted before skip during scheduling.)
+                                        alarm.copy(snoozeUntilMillis = null)
+                                    } else {
+                                        // Persist exactly which occurrence to skip, so the
+                                        // scheduler (and any later recomputation, like the
+                                        // upcoming-alarm refresh right below) actually knows
+                                        // to look past it rather than finding the same one
+                                        // again and effectively doing nothing.
+                                        val upcoming = scheduler.peekNextTriggerTime(alarm)
+                                        alarm.copy(skipOccurrenceMillis = upcoming)
+                                    }
                                     dao.update(updated)
                                     scheduler.schedule(updated)
                                 }

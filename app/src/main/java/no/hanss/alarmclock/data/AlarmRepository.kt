@@ -29,10 +29,14 @@ class AlarmRepository(context: Context) {
     // --- Standalone alarms ---
 
     suspend fun saveStandaloneAlarm(alarm: Alarm): Long {
-        val id = if (alarm.id == 0L) alarmDao.insert(alarm) else {
-            alarmDao.update(alarm); alarm.id
+        // An edit invalidates any in-flight snooze -- ringing at a snooze time
+        // computed against the pre-edit schedule would be wrong. (skipOccurrenceMillis
+        // is deliberately kept: it only matches if the next occurrence is unchanged.)
+        val toSave = alarm.copy(snoozeUntilMillis = null)
+        val id = if (toSave.id == 0L) alarmDao.insert(toSave) else {
+            alarmDao.update(toSave); toSave.id
         }
-        val saved = alarm.copy(id = id)
+        val saved = toSave.copy(id = id)
         scheduler.schedule(saved)
         notifyChanged()
         return id
@@ -45,7 +49,9 @@ class AlarmRepository(context: Context) {
     }
 
     suspend fun setAlarmEnabled(alarm: Alarm, enabled: Boolean) {
-        val updated = alarm.copy(enabled = enabled)
+        // Toggling is a reset: any pending snooze or skipped occurrence belongs to
+        // the alarm's previous life and shouldn't survive an off/on cycle.
+        val updated = alarm.copy(enabled = enabled, snoozeUntilMillis = null, skipOccurrenceMillis = null)
         alarmDao.update(updated)
         if (enabled) scheduler.schedule(updated) else scheduler.cancel(updated)
         notifyChanged()
@@ -103,7 +109,7 @@ class AlarmRepository(context: Context) {
         seriesDao.update(updated)
         val children = alarmDao.getAlarmsForSeries(series.id)
         children.forEach { child ->
-            val updatedChild = child.copy(enabled = enabled)
+            val updatedChild = child.copy(enabled = enabled, snoozeUntilMillis = null, skipOccurrenceMillis = null)
             alarmDao.update(updatedChild)
             if (enabled) scheduler.schedule(updatedChild) else scheduler.cancel(updatedChild)
         }

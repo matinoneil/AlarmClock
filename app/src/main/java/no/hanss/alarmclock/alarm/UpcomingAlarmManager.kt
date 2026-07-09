@@ -53,7 +53,7 @@ class UpcomingAlarmManager(private val context: Context) {
         val showAt = triggerAt - WINDOW_MILLIS
 
         if (showAt <= now) {
-            postNotification(alarm)
+            postNotification(alarm, triggerAt)
         } else {
             cancelNotification()
             scheduleCheckAt(showAt)
@@ -92,7 +92,7 @@ class UpcomingAlarmManager(private val context: Context) {
         return PendingIntent.getBroadcast(context, UPCOMING_CHECK_REQUEST_CODE, intent, flags)
     }
 
-    fun postNotification(alarm: Alarm) {
+    fun postNotification(alarm: Alarm, triggerAtMillis: Long) {
         createChannel()
 
         val dismissIntent = Intent(context, UpcomingAlarmReceiver::class.java).apply {
@@ -104,7 +104,14 @@ class UpcomingAlarmManager(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val timeLabel = String.format("%02d:%02d", alarm.hour, alarm.minute)
+        // Format from the actual trigger time, not the alarm's stored hour/minute --
+        // for a snoozed alarm the two differ, and the stored time would be a lie.
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = triggerAtMillis }
+        val timeLabel = String.format(
+            "%02d:%02d",
+            cal.get(java.util.Calendar.HOUR_OF_DAY),
+            cal.get(java.util.Calendar.MINUTE)
+        )
         val title = if (alarm.label.isNotBlank()) "${alarm.label} at $timeLabel" else "Alarm at $timeLabel"
 
         val notification = NotificationCompat.Builder(context, UPCOMING_CHANNEL_ID)

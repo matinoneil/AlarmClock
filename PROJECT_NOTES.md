@@ -224,6 +224,24 @@ entry #1.
     throws IllegalStateException if the player hit an async error mid-ring,
     crashing the dismiss; now guarded, release() attempted regardless.
 
+12. **Snoozed repeating alarms evaporated on reboot or app update.** The
+    deliberate design from #3 (repeating snooze = AlarmManager-only, never
+    persisted) collided with BootReceiver, which rebuilds AlarmManager purely
+    from the DB on BOOT_COMPLETED *and* MY_PACKAGE_REPLACED -- so a reboot or
+    an app update mid-snooze silently reverted the alarm to its next weekly
+    occurrence. Given how often this app ships updates, the update path was a
+    live oversleep risk. Fix: new nullable `snoozeUntilMillis` column;
+    scheduling honors it while it's in the future, AlarmReceiver clears it on
+    fire, and edits/toggles clear it too (a snooze computed against a
+    pre-edit schedule shouldn't survive the edit). "Dismiss next alarm" on a
+    snoozed alarm now clears the snooze instead of setting a skip marker,
+    since the snooze override is consulted before skip. The upcoming
+    notification now formats its time from the actual trigger millis rather
+    than the stored hour/minute, which for a snoozed alarm would be wrong.
+    First schema change shipped with a real Room Migration (4->5); see the
+    policy note in AlarmDatabase -- destructive fallback is now last-resort
+    only, and any future version bump without a Migration wipes all alarms.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

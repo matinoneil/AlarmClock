@@ -44,5 +44,13 @@ data class Alarm(
     // next alarm" action on the upcoming-alarm notification), or null if none is
     // pending. Recomputing "when's the next occurrence" without this would just find
     // the same occurrence again, since nothing else about the alarm changed.
-    val skipOccurrenceMillis: Long? = null
+    val skipOccurrenceMillis: Long? = null,
+    // Exact epoch millis a snoozed repeating alarm should ring at, or null if not
+    // snoozed. Persisted (rather than only re-pointing AlarmManager) so the snooze
+    // survives a reboot or app update -- BootReceiver rebuilds AlarmManager entries
+    // purely from the database, so anything not in a row here doesn't exist to it.
+    // Overrides the weekly schedule while in the future; cleared when the alarm
+    // fires, is toggled, or is edited. One-shot snoozes don't use this: they persist
+    // a new hour/minute directly instead (see entry #3 in PROJECT_NOTES).
+    val snoozeUntilMillis: Long? = null
 )

@@ -320,15 +320,17 @@ class AlarmRingtoneService : Service() {
                 dao.update(snoozedAlarm)
                 AlarmScheduler(applicationContext).schedule(snoozedAlarm)
             } else {
-                // Repeating alarms keep their real weekly schedule intact in the
-                // database (AlarmReceiver already re-armed it for the next matching
-                // weekday), so a snooze shouldn't overwrite that. Just re-point this
-                // alarm's existing AlarmManager entry (same id) at the snooze time for
-                // this one firing; it returns to its normal weekly schedule after that.
-                val snoozedAlarm = alarm.copy(
-                    hour = snoozeHour, minute = snoozeMinute,
-                    daysOfWeek = emptySet(), enabled = true
-                )
+                // Repeating alarms keep their hour/minute/weekday schedule intact in
+                // the database; the snooze is persisted separately as snoozeUntilMillis
+                // so it survives a reboot or app update. (Previously the snooze only
+                // existed as a re-pointed AlarmManager entry -- BootReceiver rebuilds
+                // those purely from the database on BOOT_COMPLETED *and*
+                // MY_PACKAGE_REPLACED, so a reboot or app update mid-snooze silently
+                // reverted the alarm to its next weekly occurrence.) nextTriggerTime
+                // honors the field while it's in the future; AlarmReceiver clears it
+                // when the alarm fires, so it then returns to the weekly schedule.
+                val snoozedAlarm = alarm.copy(snoozeUntilMillis = cal.timeInMillis)
+                dao.update(snoozedAlarm)
                 AlarmScheduler(applicationContext).schedule(snoozedAlarm)
             }
 

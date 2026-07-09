@@ -22,10 +22,12 @@ class AlarmReceiver : BroadcastReceiver() {
                 val dao = AlarmDatabase.getInstance(context).alarmDao()
                 val alarm = dao.getAlarm(alarmId)
                 if (alarm != null && alarm.enabled) {
-                    // Clear any stale "skip this occurrence" marker now that we've
-                    // reached a legitimate occurrence -- it's served its purpose.
-                    val current = if (alarm.skipOccurrenceMillis != null) {
-                        val cleared = alarm.copy(skipOccurrenceMillis = null)
+                    // Clear any stale "skip this occurrence" marker and any consumed
+                    // snooze now that we've reached a legitimate firing -- both have
+                    // served their purpose, and a leftover snoozeUntilMillis would
+                    // otherwise override the next scheduling computation.
+                    val current = if (alarm.skipOccurrenceMillis != null || alarm.snoozeUntilMillis != null) {
+                        val cleared = alarm.copy(skipOccurrenceMillis = null, snoozeUntilMillis = null)
                         dao.update(cleared)
                         cleared
                     } else {
