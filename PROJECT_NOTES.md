@@ -397,6 +397,30 @@ entry #1.
     2024.06 / targetSdk 34 are aging — upgrades work but each deserves its
     own on-device-tested release, not a drive-by.
 
+21. **[OPEN] Snooze no-ops if the ringing alarm's row was deleted mid-ring
+    (review finding 20a).** saveSeries regenerates children by deleting all
+    rows; if one is ringing, snooze() does `getAlarm(id) ?: return` — sound
+    stops, nothing is rescheduled, user thinks they snoozed. Oversleep
+    risk. Intended fix: the service keeps an in-memory snapshot of the
+    Alarm it started ringing; if the row is gone at snooze time, insert a
+    fresh one-shot alarm at now+snoozeMinutes built from the snapshot
+    (label/sound/ramp/vibrate preserved) and schedule it. Deliberately
+    also applies when the user *deleted* the alarm mid-ring: hitting
+    Snooze means "ring again" — losing a wake-up is worse than
+    resurrecting a deleted alarm as a one-shot. Snapshot gone too (process
+    death + row gone): fall back to a bare 10-minute one-shot; snooze must
+    never silently do nothing.
+
+22. **[OPEN] Fresh install still stacks the notification dialog on top of
+    the first settings screen (review finding 20c, #15 incomplete).** The
+    POST_NOTIFICATIONS runtime dialog fires unconditionally in onCreate,
+    outside #15's one-screen-per-launch chain. Intended fix: fold it into
+    the chain as the first link. Caveat handled: after two denials Android
+    stops showing the dialog (launch() no-ops straight to a denied
+    callback), which would stall the chain at notifications forever — so
+    cap the ask at 2 attempts via a SharedPreferences counter, after which
+    the chain proceeds to the settings screens.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
