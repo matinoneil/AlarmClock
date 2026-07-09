@@ -201,6 +201,20 @@ entry #1.
    case. Workflow-only change; takes effect from the next release tag, no
    app code touched.
 
+10. **App missing from the DND access list — #7 was incomplete.** The
+   permission-request flow correctly opened
+    `ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`, but Android only lists
+    apps there that declare `android.permission.ACCESS_NOTIFICATION_POLICY`
+    in their manifest — which was never added. So the settings screen
+    opened, but the app couldn't appear in it and the grant was impossible;
+    `isNotificationPolicyAccessGranted` stayed false forever and the ramp
+    kept silently degrading during DND. Fix: declare the permission in
+    `AndroidManifest.xml` (it's a normal-protection manifest declaration,
+    not a runtime dialog — the manual settings toggle is still how it
+    actually gets granted). Lesson for future "special access" permissions:
+    the settings-launch code is only half the flow; the manifest
+    declaration is what makes the app eligible.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
