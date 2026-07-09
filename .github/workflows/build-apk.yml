@@ -1,4 +1,4 @@
-name: Build debug APK
+name: Build APK
 
 on:
   push:
@@ -47,20 +47,24 @@ jobs:
             echo "gradle_args=" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build debug APK
-        run: gradle assembleDebug ${{ steps.version.outputs.gradle_args }}
+      # Release variant (non-debuggable) -- Compose scroll performance in
+      # debuggable builds is drastically worse; see PROJECT_NOTES entry #17.
+      # Signed with the same committed keystore as debug, so it installs over
+      # older debug-signed installs without an uninstall.
+      - name: Build release APK
+        run: gradle assembleRelease ${{ steps.version.outputs.gradle_args }}
 
       - name: Upload APK as build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AlarmClock-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: AlarmClock-apk
+          path: app/build/outputs/apk/release/app-release.apk
 
       # Only runs when this build was triggered by publishing a GitHub Release.
       # Attaches a version-named APK directly to that release as a downloadable asset.
       - name: Rename APK for release
         if: github.event_name == 'release'
-        run: cp app/build/outputs/apk/debug/app-debug.apk AlarmClock-${{ github.event.release.tag_name }}.apk
+        run: cp app/build/outputs/apk/release/app-release.apk AlarmClock-${{ github.event.release.tag_name }}.apk
 
       - name: Attach APK to release
         if: github.event_name == 'release'

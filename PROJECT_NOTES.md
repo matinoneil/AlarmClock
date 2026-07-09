@@ -325,20 +325,25 @@ entry #1.
     service-logic changes; everything is unverified-until-installed as
     usual, and the icon especially needs an eyeball on a real launcher.
 
-17. **[OPEN] Scroll jank (~10fps reported) in the alarm list after the #16
-    UI pass.** Two suspected causes, compounding: (a) every APK ever
-    shipped is a *debuggable* build — the CI workflow runs `assembleDebug`
-    and attaches that to releases, and Compose performs dramatically worse
-    with `debuggable=true` (no ART optimization, inspection hooks live);
-    the pre-#16 UI was simply light enough to hide it. (b) #16's
-    `exitUntilCollapsedScrollBehavior` on the LargeTopAppBar changes the
-    app bar height every scroll frame, forcing a full Scaffold + LazyColumn
-    remeasure per frame — cheap in release, heavy in debug. Intended fix:
-    ship `assembleRelease` from CI instead, signed with the *same*
-    committed keystore so the signature stays identical and updates still
-    install over existing installs; keep minify off (one variable at a
-    time — R8 in alarm-critical code is its own risk to take separately);
-    and make the LargeTopAppBar static (drop the per-frame collapse).
+17. **Scroll jank (~10fps reported) in the alarm list after the #16 UI
+    pass.** Two compounding causes. (a) The big one: every APK ever shipped
+    was a *debuggable* build — the CI workflow ran `assembleDebug` and
+    attached that to releases. Compose performs drastically worse with
+    `debuggable=true` (no ART optimization, live inspection hooks); the
+    pre-#16 UI was simply light enough to hide it. Fix: CI now runs
+    `assembleRelease`, with the release build type signed by the *same*
+    committed keystore — identical signature, so release APKs install over
+    the existing debug-signed installs with no uninstall. Minify stays OFF
+    deliberately: R8 in alarm-critical code is a separate risk to take on
+    its own, not bundled into a perf fix. (b) #16's
+    `exitUntilCollapsedScrollBehavior` resized the LargeTopAppBar every
+    scroll frame, remeasuring the whole Scaffold + LazyColumn per frame —
+    tolerable in release builds, heavy in debug. The app bar is now a
+    static LargeTopAppBar; if a collapsing bar is ever wanted again, test
+    it on-device in a release build first. Lesson: any future "app feels
+    slow" report should start with "which variant is installed?" — and
+    local `assembleDebug` artifacts are for inspection only, not perf
+    judgment.
 
 ## Restarting this project in a new chat
 

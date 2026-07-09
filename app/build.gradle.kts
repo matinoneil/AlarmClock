@@ -41,6 +41,13 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Deliberately signed with the SAME committed keystore as debug
+            // builds: identical signature means a release APK installs cleanly
+            // over the previously-shipped debug-signed installs (and vice
+            // versa) with no uninstall. CI ships this variant because Compose
+            // performance in debuggable builds is drastically worse -- the
+            // debug variant is only for local inspection now.
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

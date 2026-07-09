@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.Alarm
@@ -46,7 +45,6 @@ fun AlarmListScreen(
     var showAddMenu by remember { mutableStateOf(false) }
     var pendingDeleteAlarm by remember { mutableStateOf<Alarm?>(null) }
     var pendingDeleteSeries by remember { mutableStateOf<AlarmSeries?>(null) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     pendingDeleteAlarm?.let { alarm ->
         AlertDialog(
@@ -83,12 +81,11 @@ fun AlarmListScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = { Text("Alarms") },
-                scrollBehavior = scrollBehavior
-            )
+            // Static large title on purpose -- the collapsing scroll behavior
+            // resizes the app bar every scroll frame, remeasuring the whole
+            // Scaffold + LazyColumn per frame (see PROJECT_NOTES entry #17).
+            LargeTopAppBar(title = { Text("Alarms") })
         },
         floatingActionButton = {
             Box {
