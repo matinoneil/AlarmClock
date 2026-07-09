@@ -37,6 +37,18 @@ private const val TAG = "AlarmRingtoneService"
 const val ACTION_DISMISS = "no.hanss.alarmclock.action.DISMISS"
 const val ACTION_SNOOZE = "no.hanss.alarmclock.action.SNOOZE"
 
+// Marker for "an alarm is ringing right now", so an interrupted ring (process
+// killed under memory pressure, crash, or a reboot mid-ring) can be resumed
+// instead of silently vanishing. Especially important for one-shot alarms,
+// which are disabled in the DB the moment they fire (entry 0.2) -- without
+// this, any interruption meant they'd never ring again at all.
+const val RINGING_PREFS = "alarm_ringing_state"
+const val KEY_RINGING_ID = "ringing_alarm_id"
+const val KEY_RINGING_SINCE = "ringing_since"
+// Don't resurrect a ring older than this -- blasting an alarm long after its
+// moment (e.g. the phone was off for hours) is worse than staying quiet.
+const val RING_RESUME_GRACE_MILLIS = 30 * 60 * 1000L
+
 class AlarmRingtoneService : Service() {
 
     private var mediaPlayer: MediaPlayer? = null
@@ -54,16 +66,31 @@ class AlarmRingtoneService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val alarmId = intent?.getLongExtra(EXTRA_ALARM_ID, -1L) ?: -1L
-
         when (intent?.action) {
             ACTION_DISMISS -> {
                 handleDismiss()
                 return START_NOT_STICKY
             }
             ACTION_SNOOZE -> {
-                handleSnooze()
+                // Prefer the id from the intent: after a process death the in-memory
+                // currentAlarmId is gone, but the notification/activity intents carry it.
+                handleSnooze(intent.getLongExtra(EXTRA_ALARM_ID, currentAlarmId))
                 return START_NOT_STICKY
+            }
+        }
+
+        var alarmId = intent?.getLongExtra(EXTRA_ALARM_ID, -1L) ?: -1L
+
+        // A null intent means START_STICKY restarted us after the process was killed
+        // mid-ring. Resume the interrupted alarm from the persisted marker (if it's
+        // recent) rather than going silent -- the person is very likely still asleep.
+        if (alarmId == -1L && intent == null) {
+            val prefs = getSharedPreferences(RINGING_PREFS, Context.MODE_PRIVATE)
+            val storedId = prefs.getLong(KEY_RINGING_ID, -1L)
+            val age = System.currentTimeMillis() - prefs.getLong(KEY_RINGING_SINCE, 0L)
+            if (storedId != -1L && age in 0..RING_RESUME_GRACE_MILLIS) {
+                Log.w(TAG, "Resuming alarm $storedId after unexpected service restart")
+                alarmId = storedId
             }
         }
 
@@ -72,6 +99,23 @@ class AlarmRingtoneService : Service() {
             return START_NOT_STICKY
         }
         currentAlarmId = alarmId
+
+        // Persist the marker before anything can fail. On the null-intent resume
+        // path keep the original timestamp, so the grace window counts from the
+        // first firing rather than resetting on every service resurrection; any
+        // explicit start (a real firing) stamps it fresh -- otherwise a leftover
+        // timestamp from an old interrupted ring of this same alarm would wrongly
+        // age out a brand-new ring. commit() rather than apply(): this marker exists
+        // precisely to survive an abrupt process kill, and apply()'s asynchronous
+        // disk write can be lost in exactly that case. One tiny write per firing.
+        val isResume = intent == null
+        val prefs = getSharedPreferences(RINGING_PREFS, Context.MODE_PRIVATE)
+        if (!(isResume && prefs.getLong(KEY_RINGING_ID, -1L) == alarmId)) {
+            prefs.edit()
+                .putLong(KEY_RINGING_ID, alarmId)
+                .putLong(KEY_RINGING_SINCE, System.currentTimeMillis())
+                .commit()
+        }
 
         createNotificationChannel()
         // Post the full-screen-intent notification. This is the mechanism Android
@@ -248,14 +292,28 @@ class AlarmRingtoneService : Service() {
     }
 
     private fun handleDismiss() {
+        clearRingingMarker()
         stopRinging()
         stopSelf()
     }
 
-    private fun handleSnooze() {
+    private fun handleSnooze(alarmId: Long = currentAlarmId) {
+        clearRingingMarker()
         stopRinging()
-        snooze(currentAlarmId)
+        snooze(alarmId)
         stopSelf()
+    }
+
+    // Cleared ONLY on an explicit dismiss/snooze -- deliberately NOT in onDestroy,
+    // since onDestroy also runs when the system kills the service, which is exactly
+    // the case the marker exists to recover from. commit() so the clear can't be
+    // lost to a kill right after dismissal -- a surviving stale marker would re-ring
+    // an already-dismissed alarm at the next boot within the grace window.
+    private fun clearRingingMarker() {
+        getSharedPreferences(RINGING_PREFS, Context.MODE_PRIVATE).edit()
+            .remove(KEY_RINGING_ID)
+            .remove(KEY_RINGING_SINCE)
+            .commit()
     }
 
     private fun stopRinging() {
@@ -359,6 +417,20 @@ class AlarmRingtoneService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Same component + extras but a different action, so Intent.filterEquals
+        // treats it as distinct from the dismiss PendingIntent despite the shared
+        // request code. Matters when the notification is all the user gets: without
+        // overlay permission on an unlocked in-use phone, Android downgrades the
+        // full-screen intent to a heads-up, and this row is the only snooze path.
+        val snoozeIntent = Intent(this, AlarmRingtoneService::class.java).apply {
+            action = ACTION_SNOOZE
+            putExtra(EXTRA_ALARM_ID, alarmId)
+        }
+        val snoozePendingIntent = PendingIntent.getService(
+            this, alarmId.toInt(), snoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Alarm")
@@ -368,6 +440,7 @@ class AlarmRingtoneService : Service() {
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(fullScreenPendingIntent)
             .addAction(0, "Dismiss", dismissPendingIntent)
+            .addAction(0, "Snooze", snoozePendingIntent)
             .setOngoing(true)
             .build()
     }

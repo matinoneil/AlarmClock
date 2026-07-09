@@ -242,6 +242,29 @@ entry #1.
     policy note in AlarmDatabase -- destructive fallback is now last-resort
     only, and any future version bump without a Migration wipes all alarms.
 
+13. **An interrupted ring vanished forever -- fatal for one-shots.** One-shot
+    alarms flip to `enabled = false` in the DB the instant they fire (0.2),
+    so a process kill, crash, or reboot mid-ring left them silent and off
+    with nothing to bring them back. Fix: a SharedPreferences marker
+    (`alarm_ringing_state`) set when ringing starts and cleared only on an
+    explicit dismiss/snooze (deliberately NOT in onDestroy, which also runs
+    on system kills). Recovery on two paths: the service is START_STICKY, so
+    a null-intent restart resumes the marked alarm; and BootReceiver re-fires
+    it after a reboot/app-update. Both paths honor a 30-minute grace window --
+    resurrecting an alarm hours later (phone was off all night) would be
+    worse than staying quiet. BootReceiver clears the marker *before*
+    restarting the service so a crash-looping service can't re-trigger from
+    boot forever. The notification also gained a Snooze action; previously
+    Dismiss was the only option there, which was the sole control surface
+    when Android downgrades the full-screen intent to a heads-up (screen on,
+    no overlay permission). Snooze intents now carry the alarm id so snoozing
+    works even from a freshly restarted process where the in-memory id is gone.
+    Marker writes use commit(), not apply(): the async apply() can lose the
+    write in an abrupt kill -- the exact event the marker must survive -- and a
+    lost *clear* would re-ring a dismissed alarm at next boot. The timestamp is
+    stamped fresh on every real firing and preserved only on resumes, so an old
+    interrupted ring can't age a new ring out of its recovery window.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
