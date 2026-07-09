@@ -261,7 +261,21 @@ class AlarmRingtoneService : Service() {
     private fun stopRinging() {
         rampJob?.cancel()
         rampJob = null
-        mediaPlayer?.apply { stop(); release() }
+        // stop() throws IllegalStateException if the player slipped into the Error
+        // state mid-ring (e.g. an async playback error); dismissing must not crash
+        // over cleanup of a player that's already effectively dead.
+        mediaPlayer?.let { player ->
+            try {
+                player.stop()
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaPlayer.stop() failed during dismiss; releasing anyway", e)
+            }
+            try {
+                player.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaPlayer.release() failed during dismiss", e)
+            }
+        }
         mediaPlayer = null
         vibrator?.cancel()
         vibrator = null

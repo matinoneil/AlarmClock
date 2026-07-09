@@ -215,6 +215,15 @@ entry #1.
     the settings-launch code is only half the flow; the manifest
     declaration is what makes the app eligible.
 
+11. **Preventive guards from a full-codebase review (no reported symptom).**
+    Three unguarded calls violated the "never crash rather than ring" rule:
+    `setAlarmClock()`/`setExactAndAllowWhileIdle()` throw SecurityException if
+    the user revokes "Alarms & reminders" on Android 12/13 (would have crashed
+    the boot-time reschedule loop, silently killing every alarm); both now
+    degrade to an inexact `set()`. And `MediaPlayer.stop()` in `stopRinging()`
+    throws IllegalStateException if the player hit an async error mid-ring,
+    crashing the dismiss; now guarded, release() attempted regardless.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

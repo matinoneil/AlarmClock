@@ -7,10 +7,12 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmDatabase
 
+private const val TAG = "UpcomingAlarmManager"
 private const val UPCOMING_CHANNEL_ID = "upcoming_alarm_channel"
 private const val UPCOMING_NOTIFICATION_ID = 2001
 private const val UPCOMING_CHECK_REQUEST_CODE = 999001
@@ -60,7 +62,19 @@ class UpcomingAlarmManager(private val context: Context) {
 
     private fun scheduleCheckAt(millis: Long) {
         val pendingIntent = checkPendingIntent(create = true) ?: return
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, millis, pendingIntent)
+        // Same exact-alarm permission caveat as AlarmScheduler: revocable on
+        // Android 12/13. This one only decides when the *notification* appears,
+        // so an inexact fallback (possibly a few minutes late) is perfectly fine.
+        try {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, millis, pendingIntent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Exact upcoming-check denied; scheduling inexactly instead", e)
+            try {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, millis, pendingIntent)
+            } catch (e2: Exception) {
+                Log.e(TAG, "Could not schedule upcoming-alarm check at all", e2)
+            }
+        }
     }
 
     private fun cancelCheckAlarm() {

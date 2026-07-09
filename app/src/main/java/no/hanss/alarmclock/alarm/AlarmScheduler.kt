@@ -4,8 +4,11 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import java.util.Calendar
 import no.hanss.alarmclock.data.Alarm
+
+private const val TAG = "AlarmScheduler"
 
 const val EXTRA_ALARM_ID = "extra_alarm_id"
 
@@ -44,8 +47,24 @@ class AlarmScheduler(private val context: Context) {
         // setAlarmClock() shows the little alarm icon in the status bar and is the most
         // reliable way to fire exactly on time even under Doze, without needing the user
         // to grant battery-optimization exemptions.
-        val info = AlarmManager.AlarmClockInfo(triggerAtMillis, pendingIntent)
-        alarmManager.setAlarmClock(info, pendingIntent)
+        //
+        // Guarded because on Android 12/13 the "Alarms & reminders" special access
+        // (SCHEDULE_EXACT_ALARM) can be revoked by the user, after which this throws
+        // SecurityException -- including from BootReceiver while rescheduling every
+        // alarm at boot, which would crash the whole reschedule loop. Degrade to an
+        // inexact set() (may fire minutes late under Doze) rather than not arming
+        // the alarm at all.
+        try {
+            val info = AlarmManager.AlarmClockInfo(triggerAtMillis, pendingIntent)
+            alarmManager.setAlarmClock(info, pendingIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "setAlarmClock failed (exact-alarm permission revoked?); falling back to inexact set()", e)
+            try {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            } catch (e2: Exception) {
+                Log.e(TAG, "Fallback inexact set() also failed; alarm $alarmId is NOT armed", e2)
+            }
+        }
     }
 
     private fun intentFor(alarmId: Long): Intent =
