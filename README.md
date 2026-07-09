@@ -9,18 +9,25 @@ don't really offer.
 
 ## Alarm series
 
-A series is defined by a start time, an interval, and a duration — for example
-"from 07:00, every 5 minutes, for 45 minutes". That one definition expands into
-ten real alarms: 07:00, 07:05, 07:10 ... 07:45.
+If you need several alarms to actually wake up, the usual options are bad. Snoozing
+doesn't work — the moment you hit dismiss instead of snooze, half asleep, the chain
+is dead and nothing else is coming. Setting ten separate alarms works, but now your
+wake-up time is hardcoded ten times: the day your schedule shifts — working from
+home instead of going in, an earlier meeting — you're editing ten alarms one by one,
+and again when it shifts back.
 
-The point is that each generated alarm is completely independent. Dismissing the
-07:00 alarm does nothing to the 07:05 one — it will still ring, and so will every
-one after it, until each is dismissed on its own. This is different from tapping
-snooze repeatedly (which only ever gives you one upcoming alarm, and stops the
-moment you hit dismiss instead), and different from creating ten alarms by hand
-(which you'd have to edit ten times to change anything).
+A series solves both. It's defined by a start time, an interval, and a duration —
+"from 07:00, every 5 minutes, for 45 minutes" — and expands into ten real alarms:
+07:00, 07:05 ... 07:45. Each one is fully independent: dismissing 07:00 does nothing
+to 07:05, which rings anyway, as does every alarm after it, until each is dismissed
+on its own. There is no snooze chain to accidentally kill.
 
-The series stays editable as one unit:
+And because all ten are generated from one definition, moving the whole wake-up
+routine to a different time is a single edit — change the start time and every
+alarm regenerates around it. Wednesday at the office means 06:00; back home
+Thursday, two taps and the same series rings from 07:00 again.
+
+The series stays editable as one unit in other ways too:
 
 - Change the start time, interval, or duration and the whole set regenerates.
 - One switch enables or disables every alarm in the series.
