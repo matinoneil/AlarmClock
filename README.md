@@ -1,64 +1,66 @@
 # AlarmClock
 
-**An Android alarm clock that treats ringing as sacred.** Kotlin + Jetpack Compose,
-developed entirely from a phone — no laptop, no local SDK, just GitHub Actions as the
-build machine.
+An Android alarm clock app built with Kotlin and Jetpack Compose. Requires
+Android 8.0+ (API 26).
 
-Every design decision follows one rule: **an alarm must never crash or go silent
-instead of ringing.** Broken ringtone URI? It falls back to the system default. Volume
-ramp blocked by Do Not Disturb? It rings at full volume instead. Phone died mid-ring?
-The alarm comes back after reboot. The full bug-by-bug history behind that rule lives
-in [PROJECT_NOTES.md](PROJECT_NOTES.md).
-
-## What it does
+## Features
 
 - **Single alarms** — a time, optional weekday repeat, per-alarm ringtone, snooze
   length, and vibration.
-- **Alarm series** — one entry that expands into many independent alarms: every N
-  minutes from a start time, for a set duration (07:00–07:45 every 5 minutes = 10
-  separate alarms). Dismissing one never touches the others; edit the series and the
-  whole set regenerates. For the heavy sleepers.
-- **Volume ramp** — start quiet and climb to full volume over as many seconds as you
-  like, instead of a heart attack at 07:00 sharp.
-- **Ringing UI that actually appears** — full-screen over the lock screen, and (with
-  the overlay permission) over whatever you're doing when the screen is already on,
-  where stock Android silently downgrades alarms to a heads-up notification.
-- **Survives real life** — reboots, app updates, and interrupted rings all reschedule
-  or resume; snoozes persist across all of it. Skip just the next occurrence of a
-  repeating alarm straight from its upcoming notification.
-- **Home screen widget** showing your next alarm, plus themed (Material You) icon
-  support on Android 13+.
+- **Alarm series** — one entry that expands into multiple independent alarms: every
+  N minutes from a start time, for a set duration (07:00–07:45 every 5 minutes = 10
+  separate alarms). Dismissing one doesn't affect the others; editing the series
+  regenerates the whole set.
+- **Volume ramp** — alarms can start quiet and climb to full volume over a
+  configurable number of seconds.
+- **Full-screen ringing UI** — shows over the lock screen, and (with the overlay
+  permission) over other apps while the phone is in use, where Android otherwise
+  downgrades alarms to a heads-up notification.
+- **Skip next occurrence** — a repeating alarm's upcoming notification can dismiss
+  just the next ring without disabling the alarm.
+- **Reliability** — alarms are rescheduled after reboots and app updates, snoozes
+  persist across both, and a ring interrupted by a crash or reboot resumes. Failure
+  cases degrade rather than go silent: a broken ringtone URI falls back to the
+  system default, and a blocked volume ramp rings at full volume instead.
+- **Home screen widget** showing the next alarm, and a themed-icon (Material You)
+  compatible launcher icon on Android 13+.
 
 ## Install
 
-Grab the APK from the [latest release](../../releases/latest) and sideload it. Builds
-are signed release builds; updates install straight over the previous version.
+Download the APK from the [latest release](../../releases/latest) and sideload it.
+Builds are signed release builds, so updates install over the previous version.
 
-Android 8.0+ (API 26). On first launches the app walks you through the permissions
-alarms genuinely need, one per launch: exact alarms, notifications, full-screen
-intent, and "display over other apps".
+On first launches the app requests the permissions alarms depend on, one per
+launch: exact alarms, notifications, full-screen intent, and "display over other
+apps".
 
-> **Sideload quirk:** Android 13+ blocks the overlay permission for non-Play-Store
-> apps behind "Restricted settings". To grant it: Settings → Apps → AlarmClock →
-> three-dot menu → *Allow restricted settings*, then grant normally. Everything rings
-> fine without it — you just get a heads-up instead of the full takeover when the
-> screen is already on.
+**Note on the overlay permission:** Android 13+ blocks "display over other apps"
+for sideloaded apps behind "Restricted settings". To grant it: Settings → Apps →
+AlarmClock → three-dot menu → *Allow restricted settings*, then grant the
+permission normally. Without it everything still rings — only the screen-on,
+in-use case falls back to a heads-up notification.
 
-## Build it yourself
+## Building
 
-Open the folder in Android Studio (Koala+) and run, or fork it and let
-[the workflow](.github/workflows/build-apk.yml) build for you — every push produces
-an installable APK under the Actions tab. Publishing a GitHub Release tags the build
-with the release's version automatically (tag `V1.7` → version `1.7` in app settings).
+Open the project folder in Android Studio (Koala or newer) and run, or use the
+GitHub Actions workflow at `.github/workflows/build-apk.yml`: every push to `main`
+builds an installable APK, available under the Actions tab. When a build is
+triggered by publishing a GitHub Release, the app's version name is derived from
+the release tag (tag `V1.7` → version `1.7`) and the version code from the Actions
+run number.
 
-## Under the hood
+## Architecture
 
-Room + a repository as the single source of truth, a `StateFlow`-driven Compose UI,
-and `AlarmManager` entries keyed by database id. A foreground service owns the ring:
-sound, vibration, ramp, snooze, dismiss, and crash recovery via a persisted
-ringing-state marker. `BootReceiver` rebuilds everything after reboots and app
-updates. Schema changes ship with real Room migrations — your alarms survive updates.
+- **`data/`** — Room entities (`Alarm`, `AlarmSeries`), DAOs, and `AlarmRepository`,
+  the single place that talks to both the database and the scheduler. Schema
+  changes ship with real Room migrations.
+- **`alarm/`** — `AlarmScheduler` (wraps `AlarmManager`, entries keyed by database
+  id), `AlarmReceiver`, `BootReceiver` (rebuilds schedules after reboots and app
+  updates), `AlarmRingtoneService` (foreground service owning sound, vibration,
+  ramp, snooze, dismiss, and interrupted-ring recovery), and `OverlayAlarmWindow`.
+- **`ui/`** — Compose screens: alarm list, single-alarm and series editors, and
+  `RingingActivity` for the full-screen ringing UI.
+- **`viewmodel/`** — `AlarmViewModel`, exposing a `StateFlow` of alarms and series.
+- **`widget/`** — the next-alarm home screen widget.
 
-Curious why something is built the way it is? [PROJECT_NOTES.md](PROJECT_NOTES.md)
-is the honest engineering log: every bug, every fix that caused the next bug, and the
-working agreements that keep a phone-only project shippable.
+Design history and working notes live in [PROJECT_NOTES.md](PROJECT_NOTES.md).
