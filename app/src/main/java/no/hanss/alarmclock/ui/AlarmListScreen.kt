@@ -82,10 +82,11 @@ fun AlarmListScreen(
 
     Scaffold(
         topBar = {
-            // Static large title on purpose -- the collapsing scroll behavior
-            // resizes the app bar every scroll frame, remeasuring the whole
-            // Scaffold + LazyColumn per frame (see PROJECT_NOTES entry #17).
-            LargeTopAppBar(title = { Text("Alarms") })
+            // Compact pinned bar: the static LargeTopAppBar kept ~152dp of
+            // permanent headroom above the title once its collapse behavior
+            // was removed for perf (entries #17/#19); the space belongs to
+            // the alarm list instead.
+            TopAppBar(title = { Text("Alarms") })
         },
         floatingActionButton = {
             Box {

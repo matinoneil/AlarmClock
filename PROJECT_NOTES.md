@@ -366,14 +366,15 @@ entry #1.
     action, but if that ever annoys, the fix is comparing against `existing`
     before forcing the flag.
 
-19. **[OPEN] Dead space above the "Alarms" title.** Side effect of #17:
-    the static LargeTopAppBar keeps its full expanded height (~152dp)
-    permanently now that the collapse behavior is gone, wasting a large
-    band above the title on the list screen. Intended fix: swap to a
-    regular pinned TopAppBar so the space goes back to the alarm list.
-    (A collapsing large bar is viable again now that builds ship
-    non-debuggable, but the simple compact bar is what was asked for and
-    carries zero perf risk.)
+19. **Dead space above the "Alarms" title.** Side effect of #17: a
+    LargeTopAppBar without a scroll behavior keeps its full expanded
+    height (~152dp) permanently, wasting a large band above the title on
+    the list screen — half a design choice (#16's large-title look) and
+    half an accident (#17 removed the collapse that justified the height).
+    Fix: plain pinned TopAppBar (64dp); the space goes to the alarm list.
+    If the big-title aesthetic is ever wanted back, a collapsing
+    LargeTopAppBar is viable again now that shipped builds are
+    non-debuggable — but test on-device first, per #17.
 
 ## Restarting this project in a new chat
 
