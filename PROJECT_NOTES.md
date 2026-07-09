@@ -366,6 +366,15 @@ entry #1.
     action, but if that ever annoys, the fix is comparing against `existing`
     before forcing the flag.
 
+19. **[OPEN] Dead space above the "Alarms" title.** Side effect of #17:
+    the static LargeTopAppBar keeps its full expanded height (~152dp)
+    permanently now that the collapse behavior is gone, wasting a large
+    band above the title on the list screen. Intended fix: swap to a
+    regular pinned TopAppBar so the space goes back to the alarm list.
+    (A collapsing large bar is viable again now that builds ship
+    non-debuggable, but the simple compact bar is what was asked for and
+    carries zero perf risk.)
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
