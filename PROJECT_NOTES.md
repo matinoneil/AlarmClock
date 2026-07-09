@@ -49,6 +49,20 @@ confirms.
   Always tell Martin to revoke it (Settings → Developer settings → Personal
   access tokens) after the session, regardless of whether anything looks
   wrong. Tokens only need `repo` scope for this repository.
+- **Release-note bullets are single unwrapped lines.** GitHub's release
+  renderer joins manually-wrapped lines and keeps the continuation indent,
+  producing stray multi-space gaps mid-sentence. One line per bullet, however
+  long; let the renderer wrap.
+- **Published release tags are immutable.** Never move/re-point a tag that
+  has shipped — a follow-up fix gets a patch tag (`V1.5.1` after `V1.5`),
+  not a rewritten `V1.5`. Moving tags silently changes what a version means
+  depending on download date, and the workflow only fires on release
+  *creation* anyway, so a moved tag wouldn't even rebuild.
+- **Never bulk-overwrite a fresh clone from an older session workspace.** The
+  repo routinely advances between sessions; a session-local working copy may
+  be several fixes behind. Apply changes onto a fresh clone. (A wholesale
+  rm+cp sync from a stale workspace very nearly reverted entries #3–#8's
+  fixes once.)
 - **Alarm-critical code must never crash or go silent rather than ring.**
   This project's whole bug history (below) is essentially variations on this
   principle being violated and then restored. When touching
@@ -62,6 +76,57 @@ confirms.
 
 Chronological. Read top-to-bottom for the reasoning trail — several entries
 exist specifically because an earlier fix in this list caused them.
+
+Entries 0.x are backfilled from the original build-out chat and predate
+entry #1.
+
+0.1. **Full-screen ringing only worked when the phone was locked.** Two
+   platform behaviors, not bugs in the app: `startActivity()` from a
+   background service is silently blocked when the app isn't foregrounded
+   with the screen on (the original code did exactly this and appeared to
+   work only because the locked case took a different path), and
+   full-screen-intent notifications are *deliberately* downgraded by Android
+   to heads-up when the device is unlocked and in active use (same as
+   incoming calls). The only reliable "take over the screen while in use"
+   path is an overlay window (`SYSTEM_ALERT_WINDOW`). Sideload caveat:
+   Android 13+ blocks granting that permission behind "Restricted
+   settings" (app info → ⋮ → Allow restricted settings) for any
+   non-Play-Store install. Without the permission everything still rings —
+   only the screen-on case degrades to heads-up.
+
+0.2. **"Dismiss next alarm" (upcoming-alarm notification) no-op'd — twice.**
+   Root cause both times: the notification recomputes "what's next" purely
+   from the DB row, so any fix that doesn't persist state is invisible to it.
+   First attempt only re-armed AlarmManager for a later time → recompute
+   found the same untouched occurrence and re-posted immediately. Real fix:
+   persist `skipOccurrenceMillis` (exact epoch of the skipped occurrence),
+   honor it inside next-trigger computation, clear it when a legitimate
+   occurrence fires. Second gap: one-shot alarms (no repeat days) have no
+   next occurrence to skip *to* — dismiss must set `enabled = false` in the
+   DB. Same session also made one-shots flip to disabled after ringing at
+   all (previously the list toggle stayed "on" for an alarm that would never
+   ring again).
+
+0.3. **Debug keystore is committed on purpose.** AGP generates a different
+   debug key per machine/CI-run, so every Actions build was
+   signature-mismatched with the installed app (uninstall required per
+   update). Fixed keystore in `keystore/`, standard `android`/`android`
+   credentials — not secrets. Public-repo trade-off, consciously accepted:
+   anyone can extract the key and sign an APK Android treats as "same app",
+   but exploiting that requires targeted sideloading onto the specific
+   device; there's no update channel to poison. Landing this required one
+   manual uninstall on-device.
+
+0.4. **App version comes from the release tag.** `versionName`/`versionCode`
+   are Gradle properties (`-PversionNameOverride`/`-PversionCodeOverride`);
+   the workflow injects them only for release-triggered builds (tag →
+   versionName, Actions run number → versionCode, which must be a
+   monotonically increasing int and can't come from the tag). Plain pushes
+   keep the hardcoded gradle defaults, so artifact builds from `main` show a
+   stale version — expected. Known nit: the workflow strips the tag prefix
+   with `${TAG#v}`, which only matches lowercase `v`; the capital-`V`
+   tagging convention above passes through unstripped, so the app would show
+   "V1.5.6" verbatim. Unfixed as of this entry.
 
 1. **Volume ramp inaudible/duration had no effect.** Original ramp stepped
    real `AudioManager` `STREAM_ALARM` volume index. Devices often have only
