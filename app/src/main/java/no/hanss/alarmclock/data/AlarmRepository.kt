@@ -75,14 +75,20 @@ class AlarmRepository(context: Context) {
         existing.forEach { scheduler.cancel(it) }
         alarmDao.deleteAlarmsForSeries(seriesId)
 
-        val newAlarms = saved.expandTimes().mapIndexed { index, (h, m) ->
+        val newAlarms = saved.expandTimes().mapIndexed { index, (h, m, dayShift) ->
             Alarm(
                 seriesId = seriesId,
                 offsetMinutes = index * saved.intervalMinutes,
                 hour = h,
                 minute = m,
                 label = saved.name,
-                daysOfWeek = saved.daysOfWeek,
+                // Times that wrapped past midnight belong to the *following* day: a
+                // Monday series starting 23:50 with a 00:05 member must ring in the
+                // night to Tuesday, not Monday 00:05 (almost a day early). Shift each
+                // ISO weekday by the wrap distance. One-shot series (empty set) are
+                // already correct: "next future occurrence" naturally lands wrapped
+                // times on the following day.
+                daysOfWeek = saved.daysOfWeek.map { d -> ((d - 1 + dayShift) % 7) + 1 }.toSet(),
                 enabled = saved.enabled,
                 vibrate = saved.vibrate,
                 soundUri = saved.soundUri,

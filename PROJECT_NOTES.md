@@ -265,6 +265,15 @@ entry #1.
     stamped fresh on every real firing and preserved only on resumes, so an old
     interrupted ring can't age a new ring out of its recovery window.
 
+14. **Series times wrapping past midnight fired on the wrong day.** A
+    repeating series like Monday 23:50, interval 15, duration 30 expanded to
+    members at 00:05 and 00:20 that kept "Monday" as their repeat day -- so
+    they rang Monday morning, almost a full day before the 23:50 member,
+    instead of in the night to Tuesday. expandTimes() now reports each
+    member's day shift and saveSeries rotates the ISO weekdays accordingly.
+    One-shot series were unaffected: "next future occurrence" already lands
+    wrapped times on the following day by construction.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

@@ -26,14 +26,20 @@ data class AlarmSeries(
     val volumeRampSeconds: Int = 0,
     val snoozeMinutes: Int = 10
 ) {
-    /** All (hour, minute) pairs this series expands to, in order, wrapping past midnight if needed. */
-    fun expandTimes(): List<Pair<Int, Int>> {
-        val times = mutableListOf<Pair<Int, Int>>()
-        var totalStart = startHour * 60 + startMinute
+    /**
+     * All (hour, minute, dayShift) triples this series expands to, in order. dayShift
+     * is how many days past the start day the time lands on once the series wraps
+     * past midnight: 0 for same-day times, 1 after the first wrap (e.g. start 23:50,
+     * interval 15 -> (23,50,0), (0,5,1), (0,20,1)). Callers scheduling repeat days
+     * must shift them by dayShift, or wrapped times fire almost a day early.
+     */
+    fun expandTimes(): List<Triple<Int, Int, Int>> {
+        val times = mutableListOf<Triple<Int, Int, Int>>()
+        val totalStart = startHour * 60 + startMinute
         var offset = 0
         while (offset <= durationMinutes) {
-            val total = (totalStart + offset).mod(24 * 60)
-            times.add(total / 60 to total % 60)
+            val total = totalStart + offset
+            times.add(Triple((total / 60) % 24, total % 60, total / (24 * 60)))
             offset += intervalMinutes
         }
         return times
