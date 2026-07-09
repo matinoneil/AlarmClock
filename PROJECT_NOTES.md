@@ -126,7 +126,7 @@ entry #1.
    stale version — expected. Known nit: the workflow strips the tag prefix
    with `${TAG#v}`, which only matches lowercase `v`; the capital-`V`
    tagging convention above passes through unstripped, so the app would show
-   "V1.5.6" verbatim. Unfixed as of this entry.
+   "V1.5.6" verbatim. Fixed in entry #9.
 
 1. **Volume ramp inaudible/duration had no effect.** Original ramp stepped
    real `AudioManager` `STREAM_ALARM` volume index. Devices often have only
@@ -192,6 +192,14 @@ entry #1.
    had no `FLAG_ACTIVITY_NEW_TASK`/`CLEAR_TOP`/`SINGLE_TOP`, so tapping it
    stacked a second `MainActivity` instance on top of any already-open one.
    Fixed by adding those flags to the widget's `PendingIntent`.
+
+9. **App displayed the raw tag ("V1.5.7") as its version.** The known nit
+   from 0.4: the workflow's `${TAG#v}` prefix-strip only matches lowercase
+   `v`, but the tagging convention is capital `V`, so every release since
+   the version-override mechanism landed shipped with the `V` embedded in
+   `versionName`. Fix: `${TAG#[vV]}` — glob bracket pattern strips either
+   case. Workflow-only change; takes effect from the next release tag, no
+   app code touched.
 
 ## Restarting this project in a new chat
 
