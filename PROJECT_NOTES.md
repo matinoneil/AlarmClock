@@ -350,6 +350,17 @@ entry #1.
     local `assembleDebug` artifacts are for inspection only, not perf
     judgment.
 
+18. **[OPEN] Saving an edited alarm should enable it.** Requested UX change,
+    reversing an earlier deliberate choice: the edit screens currently
+    preserve the existing on/off state on save ("only default to 'on' for a
+    brand-new alarm"). In practice, editing an alarm almost always means
+    intending to use it — the common flow is grabbing a disabled alarm,
+    changing its time, saving, and expecting it to ring. Intended change:
+    pressing Save in either edit screen (single alarm and series alike,
+    for consistency) sets `enabled = true`. The list-screen toggle remains
+    the way to disable. Save goes through the existing repository path, so
+    scheduling and the #12 snooze-clearing behavior are untouched.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
