@@ -219,9 +219,10 @@ fun AlarmEditScreen(
                         soundUri = soundUri,
                         volumeRampSeconds = rampSeconds,
                         snoozeMinutes = snoozeMinutes,
-                        // Preserve whatever the enabled state already was when editing;
-                        // only default to "on" for a brand-new alarm.
-                        enabled = existing?.enabled ?: true
+                        // Saving always enables: editing an alarm nearly always
+                        // means intending to use it (see PROJECT_NOTES entry
+                        // #18). Disabling is done from the list toggle.
+                        enabled = true
                     )
                     viewModel.saveAlarm(alarm)
                     onDone()

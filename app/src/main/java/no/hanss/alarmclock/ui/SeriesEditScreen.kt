@@ -275,9 +275,10 @@ fun SeriesEditScreen(
                         soundUri = soundUri,
                         volumeRampSeconds = rampSeconds,
                         snoozeMinutes = snoozeMinutes,
-                        // Preserve whatever the enabled state already was when editing;
-                        // only default to "on" for a brand-new series.
-                        enabled = existing?.enabled ?: true
+                        // Saving always enables, matching single-alarm behavior
+                        // (PROJECT_NOTES entry #18). Disabling is done from the
+                        // list toggle.
+                        enabled = true
                     )
                     viewModel.saveSeries(series)
                     onDone()

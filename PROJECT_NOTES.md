@@ -350,16 +350,21 @@ entry #1.
     local `assembleDebug` artifacts are for inspection only, not perf
     judgment.
 
-18. **[OPEN] Saving an edited alarm should enable it.** Requested UX change,
-    reversing an earlier deliberate choice: the edit screens currently
-    preserve the existing on/off state on save ("only default to 'on' for a
-    brand-new alarm"). In practice, editing an alarm almost always means
-    intending to use it — the common flow is grabbing a disabled alarm,
-    changing its time, saving, and expecting it to ring. Intended change:
-    pressing Save in either edit screen (single alarm and series alike,
-    for consistency) sets `enabled = true`. The list-screen toggle remains
-    the way to disable. Save goes through the existing repository path, so
-    scheduling and the #12 snooze-clearing behavior are untouched.
+18. **Saving an edited alarm now enables it.** Requested UX change, reversing
+    an earlier deliberate choice (the edit screens used to preserve the
+    existing on/off state on save). In practice, editing an alarm almost
+    always means intending to use it — the common flow is grabbing a
+    disabled alarm, changing its time, saving, and expecting it to ring.
+    Pressing Save in either edit screen (single alarm and series alike, for
+    consistency) now sets `enabled = true`; the list-screen toggle remains
+    the way to disable. One-line change per screen at the save call site;
+    save still goes through the existing repository path, so scheduling and
+    the #12 snooze-clearing behavior are untouched, and a series save
+    regenerates its children as always — now enabled. Note the asymmetry
+    left on purpose: opening an alarm and saving *without* changing
+    anything also enables it; deemed acceptable since Save is an explicit
+    action, but if that ever annoys, the fix is comparing against `existing`
+    before forcing the flag.
 
 ## Restarting this project in a new chat
 
