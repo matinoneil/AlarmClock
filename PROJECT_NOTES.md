@@ -376,6 +376,26 @@ entry #1.
     LargeTopAppBar is viable again now that shipped builds are
     non-debuggable — but test on-device first, per #17.
 
+20. **[OPEN] Review finding: silent catch in AlarmRingtoneService.** Full
+    codebase review (same spirit as #11) found the codebase healthy overall,
+    but the catch wrapping the DB read + startRinging() in onStartCommand
+    swallows the exception with only a comment — the sole spot in the file
+    violating the log-never-swallow rule. Intended fix: add the Log.e.
+    Review observations logged for the record, no code change planned
+    without a decision: (a) editing a series while one of its child alarms
+    is ringing deletes the child row, so Snooze on that ring silently
+    no-ops (Dismiss unaffected); (b) a series with tiny interval + huge
+    duration can generate hundreds of AlarmManager entries with no cap or
+    warning; (c) on a fresh install the POST_NOTIFICATIONS runtime dialog
+    and the first settings screen from the permission chain still appear
+    together (#15 only serialized the settings screens); (d) restoring the
+    pre-ramp stream volume on dismiss overwrites any manual volume-button
+    change made mid-ring; (e) serviceScope deliberately has no cancel in
+    onDestroy — cancelling would abort the async snooze DB write triggered
+    just before stopSelf, so its absence is load-bearing; (f) compose BOM
+    2024.06 / targetSdk 34 are aging — upgrades work but each deserves its
+    own on-device-tested release, not a drive-by.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
