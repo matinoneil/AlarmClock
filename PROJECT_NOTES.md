@@ -8,26 +8,39 @@ accurate and cheap to do via a clone. This file is for the *why*, the
 history, and standing working agreements that a fresh read of the code won't
 surface.
 
-**Maintenance rule: every push that fixes a bug or changes behavior should
-add a short entry to the "Bug/change history" section below**, following the
-existing entries' format (what broke, why, what the fix actually was, any
-rejected approaches worth remembering). Keep entries terse — a paragraph, not
-an essay. This file is what replaces re-explaining context in chat every
+**Maintenance rule — two-phase bug logging.** When a bug is identified and
+about to be worked on: **first** add an entry to the "Bug/change history"
+section below, titled with an `[OPEN]` prefix and describing the symptom,
+suspected cause, and intended approach — and push that alone, *before*
+touching any code. Then do the fix, and in the same commit as the fix,
+remove the `[OPEN]` prefix and rewrite the entry in the established format
+(what broke, why, what the fix actually was, any rejected approaches worth
+remembering). Rationale: a chat session can die mid-fix (it has — see entry
+#13's origin), and a pushed `[OPEN]` entry means any fresh session knows
+exactly what was in flight instead of reverse-engineering intent from a
+half-edited working tree. Cost is one extra push per bug; accepted. Trivial
+typo-level changes and pure doc edits are exempt. Batch reviews may push
+several `[OPEN]` entries in one go. Keep entries terse — a paragraph, not an
+essay. This file is what replaces re-explaining context in chat every
 session, so it needs to stay current or that purpose is defeated.
 
 ## Who's doing what
 
-Martin develops this entirely from his phone (Termux + git + GitHub Actions),
-no local Android SDK, no emulator. Claude (via this tool environment) also
-has no Android SDK/emulator access and cannot compile or run the app —
-changes are written from reading the code + Android API docs/source comments
-via web search, and are only actually verified once Martin installs a real
-build on his phone. Treat any "this should work" as unverified until Martin
-confirms.
+Division of labor: **Claude makes all code changes and pushes them; the
+maintainer creates the GitHub release (which triggers the CI build) and
+live-tests the resulting APK on the phone.** There is no local development
+environment anymore — no Termux, no local git, no Android SDK, no emulator,
+on either side. Claude (via its tool environment) cannot compile or run the
+app — changes are written from reading the code + Android API docs/source
+comments via web search, and are only actually verified once the maintainer
+installs a real build on the phone. Treat any "this should work" as
+unverified until the maintainer confirms. Since pushed code only reaches a
+device through a release, assume everything on `main` past the latest tag is
+untested.
 
 ## Standing working agreements
 
-- **Don't wait on CI after pushing.** Martin verifies the build himself; no
+- **Don't wait on CI after pushing.** The maintainer verifies the build; no
   need to poll `actions/runs` or sleep-and-check after `git push`. Push and
   move on to the next thing (including release text — see below).
 - **Write release text immediately after every push, unprompted.** Don't wait
@@ -46,7 +59,7 @@ confirms.
   The CI workflow already builds for any release regardless of the
   pre-release flag, so switching later needs no workflow changes.
 - **Any GitHub token pasted into a chat is burned the moment it's sent.**
-  Always tell Martin to revoke it (Settings → Developer settings → Personal
+  Always tell the maintainer to revoke it (Settings → Developer settings → Personal
   access tokens) after the session, regardless of whether anything looks
   wrong. Tokens only need `repo` scope for this repository.
 - **Release-note bullets are single unwrapped lines.** GitHub's release
@@ -137,7 +150,7 @@ entry #1.
 2. **Fix attempt: pure software gain (`MediaPlayer.setVolume`) — regression.**
    Smooth and duration-accurate, but several Android OEMs ignore/clamp
    per-track gain specifically for `USAGE_ALARM` audio (safety measure so
-   alarms can't be silenced by an app). Made the ramp inaudible on Martin's
+   alarms can't be silenced by an app). Made the ramp inaudible on the test
    device. Lesson: don't trust `setVolume()` alone for alarm audio.
 
 3. **Snooze bug.** One-shot alarms get `enabled = false` in the DB the
