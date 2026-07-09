@@ -17,6 +17,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
 private const val CHANNEL_ID = "alarm_channel"
 private const val NOTIFICATION_ID = 1001
+private const val TAG = "AlarmRingtoneService"
 
 const val ACTION_DISMISS = "no.hanss.alarmclock.action.DISMISS"
 const val ACTION_SNOOZE = "no.hanss.alarmclock.action.SNOOZE"
@@ -95,6 +97,37 @@ class AlarmRingtoneService : Service() {
         return START_STICKY
     }
 
+    /**
+     * Builds, prepares, and starts a MediaPlayer for [uri]. Returns null instead of
+     * throwing if anything fails -- most commonly a stale content:// URI whose
+     * underlying MediaStore row was deleted or reassigned, which surfaces as an
+     * IOException/IllegalArgumentException from setDataSource or prepare(). The
+     * caller is expected to fall back to a known-good sound (the default ringtone)
+     * when this returns null, rather than let the alarm ring with no sound at all.
+     */
+    private fun createPlayer(uri: Uri, rampSeconds: Int): MediaPlayer? {
+        return try {
+            MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                setDataSource(this@AlarmRingtoneService, uri)
+                isLooping = true
+                // Start silent (or near it) if we're about to ramp, so there's no
+                // flash of full volume before the ramp coroutine kicks in.
+                if (rampSeconds > 0) setVolume(0f, 0f)
+                prepare()
+                start()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to create/start MediaPlayer for $uri", e)
+            null
+        }
+    }
+
     private suspend fun startRinging(alarm: Alarm?) {
         val soundUri: Uri = alarm?.soundUri?.let { Uri.parse(it) }
             ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
@@ -132,27 +165,30 @@ class AlarmRingtoneService : Service() {
                 audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
                 targetVolume.coerceIn(1, maxVolume)
             } catch (e: SecurityException) {
+                Log.w(TAG, "Stream volume change denied (likely DND/notification policy access not granted); ramp disabled for this alarm", e)
                 0
             } catch (e: Exception) {
+                Log.w(TAG, "Failed to set up volume ramp; ringing at normal volume instead", e)
                 0
             }
         }
         val effectiveRampSeconds = if (totalHardwareSteps > 0) rampSeconds else 0
 
-        mediaPlayer = MediaPlayer().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
-            setDataSource(this@AlarmRingtoneService, soundUri)
-            isLooping = true
-            // Start silent (or near it) if we're about to ramp, so there's no flash
-            // of full volume before the ramp coroutine below kicks in.
-            if (effectiveRampSeconds > 0) setVolume(0f, 0f)
-            prepare()
-            start()
+        mediaPlayer = createPlayer(soundUri, effectiveRampSeconds)
+            ?: run {
+                // The configured sound couldn't be played -- most likely a stale
+                // content:// URI: a custom ringtone or song that was later deleted,
+                // moved, or had its underlying MediaStore row reassigned by a
+                // library rescan, silently invalidating the URI saved with the
+                // alarm. Ring with the device's actual default alarm sound rather
+                // than not ringing at all.
+                Log.w(TAG, "Configured alarm sound failed to load, falling back to default ringtone")
+                val fallbackUri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+                createPlayer(fallbackUri, effectiveRampSeconds)
+            }
+
+        if (mediaPlayer == null) {
+            Log.e(TAG, "Failed to start any alarm sound, including the fallback default ringtone")
         }
 
         if (effectiveRampSeconds > 0) {
