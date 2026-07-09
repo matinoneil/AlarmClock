@@ -274,6 +274,16 @@ entry #1.
     One-shot series were unaffected: "next future occurrence" already lands
     wrapped times on the following day by construction.
 
+15. **First run stacked up to four settings screens on top of each other.**
+    The permission checks in MainActivity each fired their own startActivity
+    back-to-back (exact alarms, full-screen intent, DND access, overlay), so
+    a fresh install buried the user under a pile of settings screens. Now an
+    else-if chain requests only the first missing one per launch, ordered by
+    how alarm-critical the permission is; the next comes up on the next
+    launch. Still no per-permission "asked before" persistence -- an
+    ungranted permission reprompts every launch, which is deliberate for now
+    since all four materially affect whether/how alarms ring.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

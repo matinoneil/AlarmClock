@@ -41,45 +41,42 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
 
                 LaunchedEffect(Unit) {
+                    // One settings screen per app launch (first missing one wins,
+                    // ordered by how alarm-critical the permission is) -- firing
+                    // several startActivity calls back-to-back stacks the screens on
+                    // top of each other, which is disorienting on a fresh install.
+                    // The next missing one comes up on the next launch.
+                    val notificationManager =
+                        getSystemService(android.app.NotificationManager::class.java)
                     if (!viewModel.canScheduleExactAlarms() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                             data = Uri.parse("package:$packageName")
                         }
                         startActivity(intent)
-                    }
-
-                    // Android 14+ lets the user revoke full-screen-intent notifications
-                    // per app. Without it, alarms fall back to a plain heads-up notification
-                    // instead of the full-screen ringing UI.
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        val notificationManager =
-                            getSystemService(android.app.NotificationManager::class.java)
-                        if (!notificationManager.canUseFullScreenIntent()) {
-                            val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
-                                data = Uri.parse("package:$packageName")
-                            }
-                            startActivity(intent)
+                    } else if (
+                        // Android 14+ lets the user revoke full-screen-intent
+                        // notifications per app. Without it, alarms fall back to a
+                        // plain heads-up notification instead of the ringing UI.
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                        !notificationManager.canUseFullScreenIntent()
+                    ) {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                            data = Uri.parse("package:$packageName")
                         }
-                    }
-
-                    // Changing the alarm volume for the ramp feature throws a
-                    // SecurityException on many devices if Do Not Disturb/a focus
-                    // mode is active and this permission hasn't been granted -- the
-                    // ramp then silently falls back to a plain, non-ramped alarm.
-                    // This is a manual per-app toggle in system settings, not a
-                    // runtime permission dialog, same as the overlay permission below.
-                    val notificationManager =
-                        getSystemService(android.app.NotificationManager::class.java)
-                    if (!notificationManager.isNotificationPolicyAccessGranted) {
-                        val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                         startActivity(intent)
-                    }
-
-                    // "Display over other apps" lets the ringing screen draw over
-                    // whatever the user is doing even when the phone is unlocked and
-                    // actively in use, which the full-screen-intent notification alone
-                    // can't guarantee (Android downgrades those to heads-up in that case).
-                    if (!Settings.canDrawOverlays(this@MainActivity)) {
+                    } else if (!notificationManager.isNotificationPolicyAccessGranted) {
+                        // Changing the alarm volume for the ramp feature throws a
+                        // SecurityException on many devices if Do Not Disturb/a focus
+                        // mode is active and this permission hasn't been granted -- the
+                        // ramp then silently falls back to a plain, non-ramped alarm.
+                        // This is a manual per-app toggle in system settings, not a
+                        // runtime permission dialog, same as the overlay one below.
+                        startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                    } else if (!Settings.canDrawOverlays(this@MainActivity)) {
+                        // "Display over other apps" lets the ringing screen draw over
+                        // whatever the user is doing even when the phone is unlocked and
+                        // actively in use, which the full-screen-intent notification alone
+                        // can't guarantee (Android downgrades those to heads-up then).
                         val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                             data = Uri.parse("package:$packageName")
                         }
