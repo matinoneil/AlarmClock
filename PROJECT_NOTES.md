@@ -297,6 +297,20 @@ entry #1.
     ungranted permission reprompts every launch, which is deliberate for now
     since all four materially affect whether/how alarms ring.
 
+16. **[OPEN] UI modernization pass (icon, app screens, ringing UI).** Not a
+    bug — a visual refresh requested to bring the app to current standards.
+    Intended scope: replace the template purple palette/typography with a
+    proper brand theme (warm amber + deep indigo fallback; dynamic color
+    stays the default on Android 12+), expanded type scale, restyled
+    list/edit screens (large collapsing app bar, tonal cards, circular
+    day-of-week toggles replacing FilterChips), redesigned ringing screen
+    (gradient background, oversized tabular time, pulsing icon, prominent
+    dismiss), matching visual refresh of OverlayAlarmWindow (visuals only —
+    no behavioral/OS-call changes, per the never-crash rule), a redesigned
+    adaptive launcher icon with a monochrome layer for Android 13+ themed
+    icons, and a dark values-night activity theme to kill the white startup
+    flash. No DB, scheduling, or service-logic changes intended.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
