@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,42 +42,6 @@ fun AlarmListContent(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
-    var pendingDeleteAlarm by remember { mutableStateOf<Alarm?>(null) }
-    var pendingDeleteSeries by remember { mutableStateOf<AlarmSeries?>(null) }
-
-    pendingDeleteAlarm?.let { alarm ->
-        AlertDialog(
-            onDismissRequest = { pendingDeleteAlarm = null },
-            title = { Text("Delete alarm?") },
-            text = { Text("The ${String.format("%02d:%02d", alarm.hour, alarm.minute)} alarm will be removed. This can't be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteAlarm(alarm)
-                    pendingDeleteAlarm = null
-                }) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteAlarm = null }) { Text("Cancel") }
-            }
-        )
-    }
-
-    pendingDeleteSeries?.let { series ->
-        AlertDialog(
-            onDismissRequest = { pendingDeleteSeries = null },
-            title = { Text("Delete alarm series?") },
-            text = { Text("\"${series.name}\" and all ${series.expandTimes().size} of its alarms will be removed. This can't be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteSeries(series)
-                    pendingDeleteSeries = null
-                }) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteSeries = null }) { Text("Cancel") }
-            }
-        )
-    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -98,8 +61,7 @@ fun AlarmListContent(
                     SeriesCard(
                         series = series,
                         onClick = { onEditSeries(series) },
-                        onToggle = { viewModel.setSeriesEnabled(series, it) },
-                        onDelete = { pendingDeleteSeries = series }
+                        onToggle = { viewModel.setSeriesEnabled(series, it) }
                     )
                 }
                 item { Spacer(modifier = Modifier.height(4.dp)) }
@@ -118,8 +80,7 @@ fun AlarmListContent(
                     AlarmCard(
                         alarm = alarm,
                         onClick = { onEditAlarm(alarm) },
-                        onToggle = { viewModel.setAlarmEnabled(alarm, it) },
-                        onDelete = { pendingDeleteAlarm = alarm }
+                        onToggle = { viewModel.setAlarmEnabled(alarm, it) }
                     )
                 }
             }
@@ -186,8 +147,7 @@ internal fun ListCard(
 private fun AlarmCard(
     alarm: Alarm,
     onClick: () -> Unit,
-    onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onToggle: (Boolean) -> Unit
 ) {
     ListCard(enabled = alarm.enabled, onClick = onClick) {
         Column(
@@ -208,14 +168,6 @@ private fun AlarmCard(
             )
         }
         Switch(checked = alarm.enabled, onCheckedChange = onToggle)
-        Spacer(modifier = Modifier.width(4.dp))
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Outlined.Delete,
-                contentDescription = "Delete",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 
@@ -223,8 +175,7 @@ private fun AlarmCard(
 private fun SeriesCard(
     series: AlarmSeries,
     onClick: () -> Unit,
-    onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onToggle: (Boolean) -> Unit
 ) {
     val times = series.expandTimes()
     val startLabel = String.format("%02d:%02d", series.startHour, series.startMinute)
@@ -256,13 +207,5 @@ private fun SeriesCard(
             )
         }
         Switch(checked = series.enabled, onCheckedChange = onToggle)
-        Spacer(modifier = Modifier.width(4.dp))
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Outlined.Delete,
-                contentDescription = "Delete",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }

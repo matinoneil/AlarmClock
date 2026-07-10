@@ -450,6 +450,15 @@ entry #1.
     meaningless). Known pre-existing limitation unchanged: one notification
     id means simultaneous rings (alarm + timer) were never really supported.
 
+24. **Removed the per-row trash icon from the list cards (alarms, series,
+    timers).** Requested UX change: deletion is rare, and the always-visible
+    icon cost row width and invited accidental taps next to the toggle.
+    Deleting now lives solely in each edit screen's top-bar action (all three
+    editors already had it, with the same confirmation dialog), so the
+    list-level confirm dialogs and onDelete plumbing went too. If quick
+    deletion is ever missed, the natural re-add is long-press or swipe on the
+    card rather than bringing the icon back.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
