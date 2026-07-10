@@ -36,6 +36,21 @@ The series stays editable as one unit in other ways too:
 - The editor shows a live preview of exactly which times will be created.
 - The series name auto-fills from the start time until you type your own.
 
+## Timers
+
+The second tab holds **saved, reusable timers**. A timer is created once — duration,
+optional label, sound, vibration — and then lives in the list like an alarm does,
+started and stopped with the same switch. Keep a 5 min and a 10 min preset around
+instead of re-creating them every time.
+
+While a timer runs, its card counts down live, and a quiet notification shows the
+ticking countdown with three buttons: **+30 s**, **−30 s**, and **Stop** — the
+countdown can be adjusted or cancelled without opening the app. The notification
+never makes a sound; the ring at the end is as loud as any alarm, with the same
+full-screen ringing UI. Timers are dismiss-only (no snooze), a running timer
+survives reboots and app updates, and one that would have ended while the phone
+was off is quietly reset instead of ringing hours late.
+
 ## Other features
 
 - **Single alarms** — a time, optional weekday repeat, per-alarm ringtone, snooze
@@ -80,16 +95,23 @@ run number.
 
 ## Architecture
 
-- **`data/`** — Room entities (`Alarm`, `AlarmSeries`), DAOs, and `AlarmRepository`,
-  the single place that talks to both the database and the scheduler. Schema
-  changes ship with real Room migrations.
+- **`data/`** — Room entities (`Alarm`, `AlarmSeries`, `TimerPreset`), DAOs, and
+  `AlarmRepository`, the single place that talks to both the database and the
+  schedulers. Schema changes ship with real Room migrations.
 - **`alarm/`** — `AlarmScheduler` (wraps `AlarmManager`, entries keyed by database
   id), `AlarmReceiver`, `BootReceiver` (rebuilds schedules after reboots and app
   updates), `AlarmRingtoneService` (foreground service owning sound, vibration,
   ramp, snooze, dismiss, and interrupted-ring recovery), and `OverlayAlarmWindow`.
-- **`ui/`** — Compose screens: alarm list, single-alarm and series editors, and
-  `RingingActivity` for the full-screen ringing UI.
-- **`viewmodel/`** — `AlarmViewModel`, exposing a `StateFlow` of alarms and series.
+  Timers mirror the alarm path at exact-millisecond precision with
+  `TimerScheduler` and `TimerReceiver` (which also handles the notification's
+  adjust/stop buttons) and ring through the same service;
+  `TimerNotificationManager` posts the countdown notification, whose live timer
+  is OS-rendered — a running timer costs no process time at all.
+- **`ui/`** — Compose screens: the tabbed home screen (alarms and timers),
+  single-alarm, series, and timer editors, and `RingingActivity` for the
+  full-screen ringing UI. Deleting lives in each editor, not the lists.
+- **`viewmodel/`** — `AlarmViewModel`, exposing a `StateFlow` of alarms, series,
+  and timers.
 - **`widget/`** — the next-alarm home screen widget.
 
 A series becomes real alarms via `AlarmSeries.expandTimes()`; saving a series
