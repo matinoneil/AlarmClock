@@ -574,6 +574,12 @@ entry #1.
     diagnosing build failures means review, so prevention is cheap and cure
     is slow.
 
+32. **Don't wait on CI.** Per Martin: after pushing (or creating a release),
+    do NOT poll the Actions run for completion -- he watches the Actions tab
+    himself and will report failures. Push, state what was pushed, move on.
+    (Checking the API for the failure *reason* when Martin reports a broken
+    build is still fine -- it's the sleep-and-poll loop that's unwanted.)
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
