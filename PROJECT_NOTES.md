@@ -483,6 +483,20 @@ entry #1.
     the remaining time in the title from a lightweight ticker, which was
     deliberately avoided first-pass for battery reasons.
 
+26. **Countdown notification was buried in the "Silent" section.** #25 used
+    IMPORTANCE_LOW, which on modern Android means no status bar icon and a
+    slot in the collapsed Silent section (two swipes to see) -- the opposite
+    of what a live countdown is for. Fix: IMPORTANCE_DEFAULT channel with
+    sound null + vibration off (soundless but prominent), PRIORITY_DEFAULT
+    on the builder, and setSilent(true) removed -- that flag alone re-demotes
+    a notification to the Silent section on Android 10+ regardless of
+    channel importance, which is easy to miss. Channels are immutable once
+    created on a device, so this needed a new channel id
+    (running_timer_channel_v2); createChannel() deletes the legacy id so it
+    doesn't linger in the app's notification settings. Lesson: pick channel
+    importance deliberately at feature time -- fixing it later always costs a
+    channel-id migration.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

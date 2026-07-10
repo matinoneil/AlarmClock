@@ -10,7 +10,14 @@ import androidx.core.app.NotificationCompat
 import no.hanss.alarmclock.MainActivity
 import no.hanss.alarmclock.data.TimerPreset
 
-private const val RUNNING_TIMER_CHANNEL_ID = "running_timer_channel"
+// "_v2": the first release of this feature (V1.9.0) shipped an IMPORTANCE_LOW
+// channel, which Android files under the collapsed "Silent" section with no
+// status bar icon -- exactly what the countdown notification shouldn't be.
+// Channels are immutable once created on a device, so raising the importance
+// required a NEW channel id; the old one is deleted in createChannel() so it
+// doesn't linger as a dead entry in the app's notification settings.
+private const val RUNNING_TIMER_CHANNEL_ID = "running_timer_channel_v2"
+private const val LEGACY_RUNNING_TIMER_CHANNEL_ID = "running_timer_channel"
 // One notification per running timer so several countdowns can coexist.
 // Base offset keeps clear of the ringing (1001) and upcoming (2001) ids.
 private const val RUNNING_TIMER_NOTIFICATION_BASE = 3000
@@ -74,12 +81,17 @@ class TimerNotificationManager(private val context: Context) {
             .setUsesChronometer(true)
             .setChronometerCountDown(true)
             .setShowWhen(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            // Default priority so the notification gets a status bar icon and
+            // sits in the main shade section instead of the collapsed "Silent"
+            // one. No setSilent(): that flag would demote it right back on
+            // Android 10+. Soundlessness comes from the channel having no
+            // sound/vibration, and onlyAlertOnce keeps the +-30 s re-posts
+            // from causing any repeated alert behavior.
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_STOPWATCH)
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setSilent(true)
             .addAction(0, "+30 s", actionIntent(ACTION_TIMER_ADD_30))
             .addAction(0, "\u221230 s", actionIntent(ACTION_TIMER_MINUS_30))
             .addAction(0, "Stop", actionIntent(ACTION_TIMER_STOP))
@@ -99,14 +111,17 @@ class TimerNotificationManager(private val context: Context) {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            // Remove the V1.9.0 IMPORTANCE_LOW channel on devices that have it.
+            manager.deleteNotificationChannel(LEGACY_RUNNING_TIMER_CHANNEL_ID)
             val channel = NotificationChannel(
-                RUNNING_TIMER_CHANNEL_ID, "Running timer", NotificationManager.IMPORTANCE_LOW
+                RUNNING_TIMER_CHANNEL_ID, "Running timer", NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Shows while a timer is counting down"
                 setSound(null, null)
+                enableVibration(false)
             }
-            context.getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(channel)
+            manager.createNotificationChannel(channel)
         }
     }
 }
