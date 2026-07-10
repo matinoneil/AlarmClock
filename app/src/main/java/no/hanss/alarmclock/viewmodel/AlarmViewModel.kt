@@ -22,6 +22,12 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AlarmRepository(application)
 
+    init {
+        // Safety net: end any pause that expired while nothing was alive to
+        // end it (see AlarmRepository.reconcileExpiredPauses).
+        viewModelScope.launch { repository.reconcileExpiredPauses() }
+    }
+
     val uiState = combine(
         repository.observeStandaloneAlarms(),
         repository.observeSeries(),

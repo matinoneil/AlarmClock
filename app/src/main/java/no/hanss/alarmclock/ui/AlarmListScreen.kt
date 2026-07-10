@@ -39,6 +39,11 @@ private fun ringsInLabel(deltaMillis: Long): String {
     }
 }
 
+/** "Mon 13 Jul" for the pause-until subtitle. */
+internal fun pausedUntilLabel(untilMillis: Long): String =
+    java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault())
+        .format(java.util.Date(untilMillis))
+
 private fun dayLabel(days: Set<Int>): String {
     if (days.isEmpty()) return "One-time"
     val names = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -90,6 +95,7 @@ fun AlarmListContent(
                 items(state.series, key = { "s${it.id}" }) { series ->
                     SeriesCard(
                         series = series,
+                        nowMillis = nowMillis,
                         onClick = { onEditSeries(series) },
                         onToggle = { viewModel.setSeriesEnabled(series, it) }
                     )
@@ -227,6 +233,7 @@ private fun AlarmCard(
 @Composable
 private fun SeriesCard(
     series: AlarmSeries,
+    nowMillis: Long,
     onClick: () -> Unit,
     onToggle: (Boolean) -> Unit
 ) {
@@ -234,12 +241,16 @@ private fun SeriesCard(
     val startLabel = String.format("%02d:%02d", series.startHour, series.startMinute)
     val (endH, endM) = times.last()
     val endLabel = String.format("%02d:%02d", endH, endM)
+    // A paused series won't ring, so the card reads as off: switch unchecked,
+    // dimmed, low container. Flipping the switch on = resume now.
+    val paused = series.isPausedAt(nowMillis)
+    val effectiveOn = series.enabled && !paused
 
-    ListCard(enabled = series.enabled, onClick = onClick) {
+    ListCard(enabled = effectiveOn, onClick = onClick) {
         Column(
             modifier = Modifier
                 .weight(1f)
-                .alpha(if (series.enabled) 1f else 0.5f)
+                .alpha(if (effectiveOn) 1f else 0.5f)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -253,12 +264,17 @@ private fun SeriesCard(
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                "$startLabel – $endLabel, every ${series.intervalMinutes} min " +
-                    "(${times.size} alarms) · ${dayLabel(series.daysOfWeek)}",
+                if (paused) {
+                    "Paused until ${pausedUntilLabel(series.pausedUntilMillis!!)} · " +
+                        "$startLabel – $endLabel · ${dayLabel(series.daysOfWeek)}"
+                } else {
+                    "$startLabel – $endLabel, every ${series.intervalMinutes} min " +
+                        "(${times.size} alarms) · ${dayLabel(series.daysOfWeek)}"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = series.enabled, onCheckedChange = onToggle)
+        Switch(checked = effectiveOn, onCheckedChange = onToggle)
     }
 }

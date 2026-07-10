@@ -24,8 +24,16 @@ data class AlarmSeries(
     val vibrate: Boolean = true,
     val soundUri: String? = null,
     val volumeRampSeconds: Int = 0,
-    val snoozeMinutes: Int = 10
+    val snoozeMinutes: Int = 10,
+    // Epoch millis the series automatically resumes at (LOCAL midnight of the
+    // first day it should ring again), or null when not paused. Only meaningful
+    // while enabled=true: a paused series is "enabled, temporarily silenced" --
+    // its children are disabled until an unpause path re-enables them.
+    val pausedUntilMillis: Long? = null
 ) {
+    fun isPausedAt(nowMillis: Long): Boolean =
+        pausedUntilMillis?.let { it > nowMillis } == true
+
     /**
      * All (hour, minute, dayShift) triples this series expands to, in order. dayShift
      * is how many days past the start day the time lands on once the series wraps

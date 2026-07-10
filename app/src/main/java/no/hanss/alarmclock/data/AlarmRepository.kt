@@ -3,6 +3,8 @@ package no.hanss.alarmclock.data
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import no.hanss.alarmclock.alarm.AlarmScheduler
+import no.hanss.alarmclock.alarm.SeriesUnpauseOps
+import no.hanss.alarmclock.alarm.SeriesUnpauseScheduler
 import no.hanss.alarmclock.alarm.TimerNotificationManager
 import no.hanss.alarmclock.alarm.TimerScheduler
 import no.hanss.alarmclock.alarm.UpcomingAlarmManager
@@ -17,6 +19,7 @@ class AlarmRepository(context: Context) {
     private val scheduler = AlarmScheduler(context)
     private val timerScheduler = TimerScheduler(context)
     private val timerNotifications = TimerNotificationManager(context)
+    private val unpauseScheduler = SeriesUnpauseScheduler(context)
     private val upcomingAlarmManager = UpcomingAlarmManager(context)
 
     fun observeStandaloneAlarms(): Flow<List<Alarm>> = alarmDao.observeStandaloneAlarms()
@@ -70,10 +73,16 @@ class AlarmRepository(context: Context) {
      * current start time / interval / duration, and (re)scheduling all of them.
      */
     suspend fun saveSeries(series: AlarmSeries): Long {
-        val seriesId = if (series.id == 0L) seriesDao.insert(series) else {
-            seriesDao.update(series); series.id
+        // A pause date that's already behind us means "not paused": store null
+        // rather than a stale timestamp every reader must re-interpret.
+        val effective = if (series.pausedUntilMillis?.let { it <= System.currentTimeMillis() } == true) {
+            series.copy(pausedUntilMillis = null)
+        } else series
+        val seriesId = if (effective.id == 0L) seriesDao.insert(effective) else {
+            seriesDao.update(effective); effective.id
         }
-        val saved = series.copy(id = seriesId)
+        val saved = effective.copy(id = seriesId)
+        val paused = saved.isPausedAt(System.currentTimeMillis())
 
         // Cancel + remove previous child alarms, then regenerate from scratch. Simplest
         // way to keep things consistent when start/interval/duration change.
@@ -102,22 +111,36 @@ class AlarmRepository(context: Context) {
                 snoozeMinutes = saved.snoozeMinutes
             )
         }
-        val ids = alarmDao.insertAll(newAlarms)
-        if (saved.enabled) {
-            newAlarms.zip(ids).forEach { (a, id) -> scheduler.schedule(a.copy(id = id)) }
+        // While paused, children exist but sit disabled until an unpause path
+        // (AlarmManager entry, boot, or app-open reconcile) re-enables them.
+        val childrenEnabled = saved.enabled && !paused
+        val toInsert = if (childrenEnabled) newAlarms else newAlarms.map { it.copy(enabled = false) }
+        val ids = alarmDao.insertAll(toInsert)
+        if (childrenEnabled) {
+            toInsert.zip(ids).forEach { (a, id) -> scheduler.schedule(a.copy(id = id)) }
+        }
+        if (paused) {
+            unpauseScheduler.schedule(seriesId, saved.pausedUntilMillis!!)
+        } else {
+            unpauseScheduler.cancel(seriesId)
         }
         notifyChanged()
         return seriesId
     }
 
     suspend fun deleteSeries(series: AlarmSeries) {
+        unpauseScheduler.cancel(series.id)
         alarmDao.getAlarmsForSeries(series.id).forEach { scheduler.cancel(it) }
         seriesDao.delete(series) // cascades to child alarms via foreign key
         notifyChanged()
     }
 
     suspend fun setSeriesEnabled(series: AlarmSeries, enabled: Boolean) {
-        val updated = series.copy(enabled = enabled)
+        // The switch always clears a pause: toggling ON while paused means
+        // "resume now"; toggling OFF makes the auto-resume moot -- a plainly
+        // disabled series must never spring back to life on its own.
+        val updated = series.copy(enabled = enabled, pausedUntilMillis = null)
+        unpauseScheduler.cancel(series.id)
         seriesDao.update(updated)
         val children = alarmDao.getAlarmsForSeries(series.id)
         children.forEach { child ->
@@ -126,6 +149,20 @@ class AlarmRepository(context: Context) {
             if (enabled) scheduler.schedule(updatedChild) else scheduler.cancel(updatedChild)
         }
         notifyChanged()
+    }
+
+    /**
+     * Safety net for pauses that should have ended while nothing was around to
+     * end them (force-stop killed the AlarmManager entry, clock jumped, ...).
+     * Called on app open; BootReceiver runs the same logic for reboots.
+     */
+    suspend fun reconcileExpiredPauses() {
+        val now = System.currentTimeMillis()
+        seriesDao.getAllPausedSeries().forEach { series ->
+            if ((series.pausedUntilMillis ?: 0L) <= now) {
+                SeriesUnpauseOps.unpause(appContext, series.id)
+            }
+        }
     }
 
     // --- Timer presets ---

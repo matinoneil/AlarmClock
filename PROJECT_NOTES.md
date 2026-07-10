@@ -521,24 +521,30 @@ entry #1.
     all, assume next patch number on the current line and let Martin decide
     when a line bump (1.8 -> 1.9) happens.
 
-29. **[OPEN] Feature: pause a series until a date ("disable until Monday").**
-    Requested for vacation weeks: temporarily silence a wake-up series with
-    a guaranteed automatic resume, so re-enabling can't be forgotten.
-    Intended approach: `pausedUntilMillis` on AlarmSeries (DB v6->7, ALTER
-    TABLE -- alarms untouched), meaning "resumes at local midnight of the
-    chosen date, so that date's alarms ring". While paused the series row
-    stays enabled=true but children are disabled + cancelled (effective
-    state = enabled && not paused). Resume is triple-redundant per the
-    never-silent philosophy: (1) an AlarmManager setAndAllowWhileIdle entry
-    (exempt from the exact-alarm permission, no status bar icon; possible
-    Doze delay of minutes is harmless at midnight) firing a new
-    SeriesUnpauseReceiver; (2) BootReceiver unpauses expired pauses and
-    re-arms future ones (AlarmManager entries die with reboots); (3) a
-    reconcile pass on app open. Manual unpause: the series switch clears
-    the pause (on-while-paused = resume now; off = plain disabled, pause
-    cleared). Pause is set from a date picker in SeriesEditScreen; saving
-    with a past/cleared date stores null. DatePicker returns UTC-midnight
-    millis -- must convert date parts to LOCAL midnight (classic pitfall).
+29. **Feature: pause a series until a date ("disable until Monday").** For
+    vacation weeks: SeriesEditScreen gained a Pause section with a Material3
+    date picker (selectable from tomorrow; the picker returns UTC-midnight
+    millis, converted to LOCAL midnight of the chosen date -- the classic
+    pitfall -- meaning "that date's alarms ring again"). Model:
+    `pausedUntilMillis` on AlarmSeries (DB v6->7 ALTER TABLE; alarms
+    untouched); a paused series keeps enabled=true but its children are
+    saved disabled and unscheduled, so effective state = enabled && not
+    paused, which is what the card shows (switch off, dimmed, "Paused until
+    Mon 13 Jul" subtitle). Resume is triple-redundant because a pause that
+    fails to end is a missed wake-up: (1) SeriesUnpauseScheduler arms
+    setAndAllowWhileIdle at the resume time (exempt from the exact-alarm
+    permission, no status-bar icon; worst-case Doze delay of minutes is
+    harmless at midnight) firing SeriesUnpauseReceiver; (2) BootReceiver
+    unpauses overdue pauses and re-arms future ones after reboots; (3)
+    AlarmViewModel init reconciles on every app open (covers force-stop,
+    which silently wipes AlarmManager entries). All three funnel through one
+    SeriesUnpauseOps.unpause so a series can only resume one way, and it
+    tolerates racing (already-resumed rows are a no-op). The list switch
+    always clears a pause: ON while paused = resume now; OFF = plainly
+    disabled -- a disabled series must never spring back to life on its own.
+    Saving with a pause keeps the #18 save-enables rule intact
+    (enabled-but-silenced); a pause date already in the past is stored as
+    null rather than a stale timestamp every reader must re-interpret.
 
 ## Restarting this project in a new chat
 

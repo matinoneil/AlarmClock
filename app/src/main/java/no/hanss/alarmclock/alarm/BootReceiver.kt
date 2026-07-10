@@ -37,6 +37,20 @@ class BootReceiver : BroadcastReceiver() {
                 // the device was off is quietly reset to idle instead of ringing
                 // late -- blasting a kitchen timer long after its moment is noise,
                 // not a wake-up (same reasoning as the alarm resume grace window).
+                // Paused series: the resume AlarmManager entry died with the
+                // reboot. Re-arm future resumes; run overdue ones right now --
+                // a pause that fails to end is a missed wake-up, the single
+                // worst failure this app can have.
+                val now0 = System.currentTimeMillis()
+                db.alarmSeriesDao().getAllPausedSeries().forEach { series ->
+                    val until = series.pausedUntilMillis ?: return@forEach
+                    if (until <= now0) {
+                        SeriesUnpauseOps.unpause(context, series.id)
+                    } else {
+                        SeriesUnpauseScheduler(context).schedule(series.id, until)
+                    }
+                }
+
                 val timerDao = db.timerDao()
                 val timerScheduler = TimerScheduler(context)
                 val timerNotifications = TimerNotificationManager(context)

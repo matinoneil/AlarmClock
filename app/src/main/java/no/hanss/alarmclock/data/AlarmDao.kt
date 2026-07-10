@@ -62,6 +62,9 @@ interface TimerDao {
 
 @Dao
 interface AlarmSeriesDao {
+    @Query("SELECT * FROM alarm_series WHERE pausedUntilMillis IS NOT NULL")
+    suspend fun getAllPausedSeries(): List<AlarmSeries>
+
     @Query("SELECT * FROM alarm_series ORDER BY startHour, startMinute")
     fun observeSeries(): Flow<List<AlarmSeries>>
 

@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class], version = 6, exportSchema = false)
+@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class], version = 7, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
@@ -21,6 +21,12 @@ abstract class AlarmDatabase : RoomDatabase() {
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE alarms ADD COLUMN snoozeUntilMillis INTEGER")
+            }
+        }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE alarm_series ADD COLUMN pausedUntilMillis INTEGER")
             }
         }
 
@@ -55,7 +61,7 @@ abstract class AlarmDatabase : RoomDatabase() {
                     // wiped alarm list is still better than an alarm app that crashes
                     // on database open and can't ring at all. If a wipe is ever
                     // unavoidable, the release notes must flag it loudly.
-                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .fallbackToDestructiveMigration()
                     .build().also { INSTANCE = it }
             }
