@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.AlarmDatabase
+import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
 private const val TAG = "SeriesUnpause"
 

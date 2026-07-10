@@ -558,6 +558,22 @@ entry #1.
     match what will actually ring. Rounds/ticks identically to #27 (shared
     minute ticker and formatter).
 
+31. **Build broken by #29: missing import in SeriesUnpauseReceiver.kt.** The
+    new file called AlarmWidgetUpdater.updateAll() without importing it from
+    the widget package -- unresolved reference, so the V1.8.4 release build
+    (and everything after) failed. Root cause: the file was written from
+    memory of BootReceiver's body without copying its import list, and the
+    development sandbox cannot compile Android projects, so the error only
+    surfaced in CI. Fix: the one-line import; a scan of every file changed
+    since V1.8.3 found no siblings. Lesson for future sessions: when
+    creating a NEW file that mirrors an existing one, diff its imports
+    against the file it mirrors before pushing -- cross-package symbols
+    (widget.AlarmWidgetUpdater, MainActivity) are the ones that bite, since
+    same-package references resolve silently. The Actions log download API
+    is blocked from the sandbox (results-receiver host not allowlisted);
+    diagnosing build failures means review, so prevention is cheap and cure
+    is slow.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
