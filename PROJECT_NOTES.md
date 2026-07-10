@@ -580,6 +580,25 @@ entry #1.
     (Checking the API for the failure *reason* when Martin reports a broken
     build is still fine -- it's the sleep-and-poll loop that's unwanted.)
 
+33. **[OPEN] Paused series presents as "off", and the switch destroys the
+    pause.** Reported by Martin: enabling a series then pausing it from the
+    editor "just turns the series off". Root cause: #29 deliberately styled
+    the paused card identically to disabled (switch unchecked, 0.5 alpha,
+    low container) -- so a successful pause is indistinguishable from the
+    feature failing; worse, the obvious reaction (tap the "off" switch back
+    on) is defined as resume-now and silently destroys the pause,
+    completing the illusion. Also the "until <date>" wording is ambiguous
+    (does Monday's alarm ring when paused "until Monday"? It does -- resume
+    is 00:00 of the picked day). Fix plan: paused card keeps the switch ON
+    (it reflects `enabled`; paused is enabled-but-silenced), gets a
+    distinct tertiary-colored "Paused - rings again Mon 13 Jul" line and
+    mid (0.75) alpha instead of the disabled look; switch OFF still
+    disables and clears the pause (a master off must kill the auto-
+    resume); rewrite every string from "until <date>" to "rings again
+    <date>", including a custom DatePicker title ("Pick the first day
+    alarms ring again") so the semantics are answered in the picker itself.
+    Resume-now moves to the editor's Clear + Save.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
