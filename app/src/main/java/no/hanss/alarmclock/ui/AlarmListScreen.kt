@@ -16,10 +16,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
+import no.hanss.alarmclock.alarm.AlarmScheduler
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmSeries
 import no.hanss.alarmclock.ui.theme.ClockTextStyle
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
+
+/** "in 32 min", "in 7 h 5 min", "in 2 d 6 h" -- rounded UP so an alarm never
+ * reads "in 0 min" while still pending, and the value flips exactly as each
+ * whole minute of lead time is used up. */
+private fun ringsInLabel(deltaMillis: Long): String {
+    val totalMinutes = ((deltaMillis + 59_999) / 60_000L).coerceAtLeast(1)
+    val days = totalMinutes / (24 * 60)
+    val hours = (totalMinutes % (24 * 60)) / 60
+    val minutes = totalMinutes % 60
+    return "in " + when {
+        days > 0 -> if (hours > 0) "$days d $hours h" else "$days d"
+        hours > 0 -> if (minutes > 0) "$hours h $minutes min" else "$hours h"
+        else -> "$minutes min"
+    }
+}
 
 private fun dayLabel(days: Set<Int>): String {
     if (days.isEmpty()) return "One-time"
@@ -42,6 +60,18 @@ fun AlarmListContent(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val scheduler = remember(context) { AlarmScheduler(context.applicationContext) }
+
+    // Minute-granularity clock driving the "rings in" labels, aligned to wall
+    // clock minute boundaries so every card flips in step with the real time.
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L - (System.currentTimeMillis() % 60_000L))
+            nowMillis = System.currentTimeMillis()
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -77,8 +107,15 @@ fun AlarmListContent(
                     )
                 }
                 items(state.standaloneAlarms, key = { it.id }) { alarm ->
+                    // peekNextTriggerTime honors snooze, skip-next, and weekday
+                    // repeats, so the label always matches what will really ring.
+                    val nextTrigger = if (alarm.enabled) {
+                        remember(alarm, nowMillis) { scheduler.peekNextTriggerTime(alarm) }
+                    } else null
                     AlarmCard(
                         alarm = alarm,
+                        nextTriggerMillis = nextTrigger,
+                        nowMillis = nowMillis,
                         onClick = { onEditAlarm(alarm) },
                         onToggle = { viewModel.setAlarmEnabled(alarm, it) }
                     )
@@ -146,9 +183,26 @@ internal fun ListCard(
 @Composable
 private fun AlarmCard(
     alarm: Alarm,
+    nextTriggerMillis: Long?,
+    nowMillis: Long,
     onClick: () -> Unit,
     onToggle: (Boolean) -> Unit
 ) {
+    val subtitle = buildString {
+        if (alarm.label.isNotBlank()) {
+            append(alarm.label)
+            append(" · ")
+        }
+        append(dayLabel(alarm.daysOfWeek))
+        if (nextTriggerMillis != null) {
+            append(" · ")
+            // A snoozed alarm's next ring IS the snooze time; say so, since
+            // "07:00 ... in 4 min" at 09:26 would otherwise look like a bug.
+            val snoozed = alarm.snoozeUntilMillis?.let { it > nowMillis } == true
+            if (snoozed) append("snoozed, ")
+            append(ringsInLabel(nextTriggerMillis - nowMillis))
+        }
+    }
     ListCard(enabled = alarm.enabled, onClick = onClick) {
         Column(
             modifier = Modifier
@@ -161,8 +215,7 @@ private fun AlarmCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                if (alarm.label.isNotBlank()) "${alarm.label} · ${dayLabel(alarm.daysOfWeek)}"
-                else dayLabel(alarm.daysOfWeek),
+                subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

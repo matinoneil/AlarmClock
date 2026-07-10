@@ -497,6 +497,19 @@ entry #1.
     importance deliberately at feature time -- fixing it later always costs a
     channel-id migration.
 
+27. **Feature: "rings in" label on alarm cards.** Enabled standalone alarms
+    now append "in 7 h 32 min" (or "snoozed, in 4 min") to the card
+    subtitle, driven by AlarmScheduler.peekNextTriggerTime so it honors
+    snooze, skip-next, and weekday repeats -- the label always matches what
+    will actually ring, and doubles as an at-a-glance catch for the classic
+    "set 7 PM instead of 7 AM" mistake. A single minute-granularity ticker
+    in AlarmListContent, aligned to wall clock minute boundaries, drives all
+    cards; the value rounds UP so a pending alarm never reads "in 0 min".
+    Disabled alarms show nothing. Series cards intentionally left alone for
+    now (their subtitle is already the densest line in the app); if wanted
+    later, the natural form is "next 07:05 in 6 h" from the earliest
+    still-pending child.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
