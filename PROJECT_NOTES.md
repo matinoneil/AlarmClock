@@ -510,6 +510,12 @@ entry #1.
     later, the natural form is "next 07:05 in 6 h" from the earliest
     still-pending child.
 
+28. **Release text formatting: no tag/commit footer.** Per Martin: release
+    texts must NOT end with the "Tag: Vx.y.z · Commit: abc1234" line.
+    Provide the release notes body only; the target tag/commit can be
+    mentioned conversationally in chat when useful, but never inside the
+    release text block itself.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
