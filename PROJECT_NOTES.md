@@ -601,6 +601,27 @@ entry #1.
     asked" and the other is "not doing anything"; the user's only feedback
     channel is that pixel difference.
 
+34. **[OPEN] Feature: Settings screen (default sounds, apply-to-all, backup/
+    restore).** Requested: cog icon in the top bar to the right of the
+    tabs, opening a settings screen with (a) separate default sounds for
+    alarms and timers, (b) a one-tap "apply to all" for each (Martin uses
+    one alarm file everywhere), and (c) backup/restore of all alarms,
+    series, and timers. Intended approach: SettingsStore wrapping
+    SharedPreferences for the two default URIs; defaults are applied at
+    CREATION time (new-item editors prefill from the setting; ring-time
+    null still falls back to the system default, unchanged). Apply-to-all =
+    bulk UPDATE queries over alarms + series (or timers) -- sound doesn't
+    affect scheduling, so no re-arming needed. Backup = versioned JSON via
+    org.json (no new dependency) through SAF CreateDocument/OpenDocument:
+    series (with pause), standalone alarms, timers (exported idle), and the
+    two defaults; transient state (snooze, skip-next, running countdowns)
+    is deliberately excluded. Restore REPLACES everything after a confirm
+    dialog: cancel all scheduled entries, wipe tables, re-insert -- series
+    through saveSeries so children regenerate and pauses re-arm through the
+    normal path. Known caveat to document: ringtone content:// URIs may not
+    resolve after a device change; the ring path already falls back to the
+    system default, so a stale URI degrades safely.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
