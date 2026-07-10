@@ -521,6 +521,25 @@ entry #1.
     all, assume next patch number on the current line and let Martin decide
     when a line bump (1.8 -> 1.9) happens.
 
+29. **[OPEN] Feature: pause a series until a date ("disable until Monday").**
+    Requested for vacation weeks: temporarily silence a wake-up series with
+    a guaranteed automatic resume, so re-enabling can't be forgotten.
+    Intended approach: `pausedUntilMillis` on AlarmSeries (DB v6->7, ALTER
+    TABLE -- alarms untouched), meaning "resumes at local midnight of the
+    chosen date, so that date's alarms ring". While paused the series row
+    stays enabled=true but children are disabled + cancelled (effective
+    state = enabled && not paused). Resume is triple-redundant per the
+    never-silent philosophy: (1) an AlarmManager setAndAllowWhileIdle entry
+    (exempt from the exact-alarm permission, no status bar icon; possible
+    Doze delay of minutes is harmless at midnight) firing a new
+    SeriesUnpauseReceiver; (2) BootReceiver unpauses expired pauses and
+    re-arms future ones (AlarmManager entries die with reboots); (3) a
+    reconcile pass on app open. Manual unpause: the series switch clears
+    the pause (on-while-paused = resume now; off = plain disabled, pause
+    cleared). Pause is set from a date picker in SeriesEditScreen; saving
+    with a past/cleared date stores null. DatePicker returns UTC-midnight
+    millis -- must convert date parts to LOCAL midnight (classic pitfall).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
