@@ -172,7 +172,18 @@ fun SeriesEditScreen(
                 TextButton(onClick = { showPausePicker = false }) { Text("Cancel") }
             }
         ) {
-            DatePicker(state = pickerState)
+            // The title answers the ambiguity in-flow: the picked day is the
+            // first day alarms RING, not the last silent day (#33).
+            DatePicker(
+                state = pickerState,
+                title = {
+                    Text(
+                        "Pick the first day alarms ring again",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(start = 24.dp, top = 16.dp)
+                    )
+                }
+            )
         }
     }
 
@@ -282,9 +293,9 @@ fun SeriesEditScreen(
                 val activePause = pausedUntil?.takeIf { it > System.currentTimeMillis() }
                 Text(
                     if (activePause != null)
-                        "Paused until ${pausedUntilLabel(activePause)} — alarms are silent and resume automatically that day."
+                        "Paused — alarms are silent and ring again ${pausedUntilLabel(activePause)}, automatically."
                     else
-                        "Silence this series until a chosen date. It resumes by itself — nothing to remember.",
+                        "Silence this series for a while. Pick the first day alarms should ring again — it resumes by itself that day.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -296,8 +307,8 @@ fun SeriesEditScreen(
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
-                            if (activePause != null) "Until ${pausedUntilLabel(activePause)}"
-                            else "Pause until…",
+                            if (activePause != null) "Rings again ${pausedUntilLabel(activePause)}"
+                            else "Pause…",
                             maxLines = 1
                         )
                     }

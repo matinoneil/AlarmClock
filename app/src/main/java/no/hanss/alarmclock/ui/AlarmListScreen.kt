@@ -253,16 +253,18 @@ private fun SeriesCard(
     val startLabel = String.format("%02d:%02d", series.startHour, series.startMinute)
     val (endH, endM) = times.last()
     val endLabel = String.format("%02d:%02d", endH, endM)
-    // A paused series won't ring, so the card reads as off: switch unchecked,
-    // dimmed, low container. Flipping the switch on = resume now.
+    // Paused is enabled-but-silenced, NOT off: the switch stays on (it
+    // reflects `enabled`), the card keeps the enabled container, and a
+    // distinct colored line says when it rings again. Styling it as "off"
+    // made a successful pause look like a failure, and invited the switch
+    // tap that destroys the pause (#33).
     val paused = series.isPausedAt(nowMillis)
-    val effectiveOn = series.enabled && !paused
 
-    ListCard(enabled = effectiveOn, onClick = onClick) {
+    ListCard(enabled = series.enabled, onClick = onClick) {
         Column(
             modifier = Modifier
                 .weight(1f)
-                .alpha(if (effectiveOn) 1f else 0.5f)
+                .alpha(if (!series.enabled) 0.5f else if (paused) 0.75f else 1f)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -275,10 +277,16 @@ private fun SeriesCard(
                 Text(series.name, style = MaterialTheme.typography.headlineSmall)
             }
             Spacer(modifier = Modifier.height(2.dp))
+            if (paused) {
+                Text(
+                    "Paused — rings again ${pausedUntilLabel(series.pausedUntilMillis!!)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
             Text(
                 if (paused) {
-                    "Paused until ${pausedUntilLabel(series.pausedUntilMillis!!)} · " +
-                        "$startLabel – $endLabel · ${dayLabel(series.daysOfWeek)}"
+                    "$startLabel – $endLabel · ${dayLabel(series.daysOfWeek)}"
                 } else if (nextTriggerMillis != null) {
                     // "rings in" replaces the alarm count while live -- the
                     // count is static trivia, the countdown is what catches a
@@ -294,6 +302,9 @@ private fun SeriesCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = effectiveOn, onCheckedChange = onToggle)
+        // ON while paused: the series is enabled, just silenced. Turning it
+        // OFF disables it AND cancels the auto-resume (a master off must
+        // never spring back to life on its own).
+        Switch(checked = series.enabled, onCheckedChange = onToggle)
     }
 }
