@@ -459,6 +459,20 @@ entry #1.
     deletion is ever missed, the natural re-add is long-press or swipe on the
     card rather than bringing the icon back.
 
+25. **[OPEN] Feature: ongoing notification for running timers with +30 s /
+    -30 s / Stop actions.** Requested. Intended approach: a new
+    TimerNotificationManager posting one silent (IMPORTANCE_LOW), ongoing
+    notification per running timer (id 3000 + timer id, so several running
+    timers coexist), using setWhen(runningUntilMillis) +
+    setUsesChronometer(true) + setChronometerCountDown(true) so the visible
+    countdown ticks live with NO process running -- the OS renders it. Three
+    actions broadcast to TimerReceiver with new intent actions: +30 s and
+    -30 s adjust runningUntilMillis in the DB and re-arm TimerScheduler
+    (-30 s past zero ends the countdown and rings immediately); Stop behaves
+    exactly like the list toggle off. Notification lifecycle: posted on
+    start and on boot re-arm, updated on adjust, cancelled on stop, fire,
+    delete, and edit-of-running (which already stops the countdown).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
