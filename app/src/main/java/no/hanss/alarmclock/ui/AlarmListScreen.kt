@@ -93,8 +93,19 @@ fun AlarmListContent(
                     )
                 }
                 items(state.series, key = { "s${it.id}" }) { series ->
+                    // The series' true next ring is the earliest next trigger of
+                    // its enabled children -- child-level snoozes and skip-next
+                    // are honored because peekNextTriggerTime reads them.
+                    val nextTrigger = if (series.enabled && !series.isPausedAt(nowMillis)) {
+                        remember(series, state.seriesChildAlarms, nowMillis) {
+                            state.seriesChildAlarms
+                                .filter { it.seriesId == series.id && it.enabled }
+                                .minOfOrNull { scheduler.peekNextTriggerTime(it) }
+                        }
+                    } else null
                     SeriesCard(
                         series = series,
+                        nextTriggerMillis = nextTrigger,
                         nowMillis = nowMillis,
                         onClick = { onEditSeries(series) },
                         onToggle = { viewModel.setSeriesEnabled(series, it) }
@@ -233,6 +244,7 @@ private fun AlarmCard(
 @Composable
 private fun SeriesCard(
     series: AlarmSeries,
+    nextTriggerMillis: Long?,
     nowMillis: Long,
     onClick: () -> Unit,
     onToggle: (Boolean) -> Unit
@@ -267,7 +279,14 @@ private fun SeriesCard(
                 if (paused) {
                     "Paused until ${pausedUntilLabel(series.pausedUntilMillis!!)} · " +
                         "$startLabel – $endLabel · ${dayLabel(series.daysOfWeek)}"
+                } else if (nextTriggerMillis != null) {
+                    // "rings in" replaces the alarm count while live -- the
+                    // count is static trivia, the countdown is what catches a
+                    // wrongly-set series at a glance (#27, extended here).
+                    "$startLabel – $endLabel, every ${series.intervalMinutes} min · " +
+                        "${ringsInLabel(nextTriggerMillis - nowMillis)} · ${dayLabel(series.daysOfWeek)}"
                 } else {
+                    // Disabled, or a one-shot series whose alarms all fired.
                     "$startLabel – $endLabel, every ${series.intervalMinutes} min " +
                         "(${times.size} alarms) · ${dayLabel(series.daysOfWeek)}"
                 },

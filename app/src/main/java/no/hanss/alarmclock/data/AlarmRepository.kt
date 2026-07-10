@@ -24,6 +24,7 @@ class AlarmRepository(context: Context) {
 
     fun observeStandaloneAlarms(): Flow<List<Alarm>> = alarmDao.observeStandaloneAlarms()
     fun observeSeries(): Flow<List<AlarmSeries>> = seriesDao.observeSeries()
+    fun observeSeriesChildAlarms(): Flow<List<Alarm>> = alarmDao.observeSeriesChildAlarms()
     fun observeTimers(): Flow<List<TimerPreset>> = timerDao.observeTimers()
     fun observeAlarmsForSeries(seriesId: Long): Flow<List<Alarm>> = alarmDao.observeAlarmsForSeries(seriesId)
 

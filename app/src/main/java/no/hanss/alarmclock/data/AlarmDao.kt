@@ -11,6 +11,9 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms WHERE seriesId = :seriesId ORDER BY offsetMinutes")
     fun observeAlarmsForSeries(seriesId: Long): Flow<List<Alarm>>
 
+    @Query("SELECT * FROM alarms WHERE seriesId IS NOT NULL")
+    fun observeSeriesChildAlarms(): Flow<List<Alarm>>
+
     @Query("SELECT * FROM alarms WHERE seriesId = :seriesId ORDER BY offsetMinutes")
     suspend fun getAlarmsForSeries(seriesId: Long): List<Alarm>
 

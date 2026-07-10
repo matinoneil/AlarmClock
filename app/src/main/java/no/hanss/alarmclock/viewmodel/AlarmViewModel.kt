@@ -15,6 +15,9 @@ import no.hanss.alarmclock.data.TimerPreset
 data class AlarmListUiState(
     val standaloneAlarms: List<Alarm> = emptyList(),
     val series: List<AlarmSeries> = emptyList(),
+    // Children of all series, for per-series "rings in" (a child's snooze or
+    // skip-next can make the true next ring differ from the series definition).
+    val seriesChildAlarms: List<Alarm> = emptyList(),
     val timers: List<TimerPreset> = emptyList()
 )
 
@@ -31,8 +34,9 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     val uiState = combine(
         repository.observeStandaloneAlarms(),
         repository.observeSeries(),
+        repository.observeSeriesChildAlarms(),
         repository.observeTimers()
-    ) { alarms, series, timers -> AlarmListUiState(alarms, series, timers) }
+    ) { alarms, series, children, timers -> AlarmListUiState(alarms, series, children, timers) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AlarmListUiState())
 
     fun canScheduleExactAlarms(): Boolean = repository.canScheduleExactAlarms()

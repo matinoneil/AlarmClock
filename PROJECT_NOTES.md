@@ -546,6 +546,18 @@ entry #1.
     (enabled-but-silenced); a pause date already in the past is stored as
     null rather than a stale timestamp every reader must re-interpret.
 
+30. **"Rings in" on series cards, replacing the alarm count.** Follow-up to
+    #27 per Martin: an active series now shows "07:00 - 07:45, every 5 min ·
+    in 6 h 12 min · Weekdays" -- the "(10 alarms)" count only appears when
+    there's no live countdown (series disabled, or a one-shot series whose
+    alarms have all fired; paused series keep their "Paused until" line).
+    The value is the earliest peekNextTriggerTime across the series'
+    ENABLED children, fed by a new observeSeriesChildAlarms flow in the
+    uiState combine -- computing from the series definition instead would
+    have ignored child-level snoozes and skip-next, and the label must
+    match what will actually ring. Rounds/ticks identically to #27 (shared
+    minute ticker and formatter).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
