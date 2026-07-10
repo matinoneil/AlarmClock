@@ -39,10 +39,14 @@ class BootReceiver : BroadcastReceiver() {
                 // not a wake-up (same reasoning as the alarm resume grace window).
                 val timerDao = db.timerDao()
                 val timerScheduler = TimerScheduler(context)
+                val timerNotifications = TimerNotificationManager(context)
                 val now = System.currentTimeMillis()
                 timerDao.getAllRunningTimers().forEach { timer ->
                     if ((timer.runningUntilMillis ?: 0L) > now) {
                         timerScheduler.schedule(timer)
+                        // Notifications don't survive a reboot; bring the
+                        // countdown notification back with the re-armed timer.
+                        timerNotifications.post(timer)
                     } else {
                         Log.w(TAG, "Timer ${timer.id} expired while the device was off; resetting to idle")
                         timerDao.update(timer.copy(runningUntilMillis = null))

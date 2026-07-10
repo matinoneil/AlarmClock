@@ -1,0 +1,112 @@
+package no.hanss.alarmclock.alarm
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import no.hanss.alarmclock.MainActivity
+import no.hanss.alarmclock.data.TimerPreset
+
+private const val RUNNING_TIMER_CHANNEL_ID = "running_timer_channel"
+// One notification per running timer so several countdowns can coexist.
+// Base offset keeps clear of the ringing (1001) and upcoming (2001) ids.
+private const val RUNNING_TIMER_NOTIFICATION_BASE = 3000
+
+/**
+ * Silent, ongoing notification shown while a timer preset is counting down,
+ * with +30 s / -30 s / Stop actions (handled by [TimerReceiver]).
+ *
+ * The visible countdown uses the notification chronometer
+ * (setWhen(endMillis) + setChronometerCountDown), which the OS renders and
+ * ticks itself -- no service, coroutine, or repeated re-posting needed, so a
+ * running timer still costs nothing while the app's process is dead. That's
+ * also why the actions are broadcasts rather than service intents: nothing is
+ * running to receive anything else.
+ */
+class TimerNotificationManager(private val context: Context) {
+
+    fun post(timer: TimerPreset) {
+        val until = timer.runningUntilMillis ?: return
+        createChannel()
+
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            timer.id.toInt(),
+            Intent(context, MainActivity::class.java).apply {
+                // Same flag set as the widget tap (entry #8): without these a
+                // tap stacks a second MainActivity on any already-open one.
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Same component + same request code, distinct actions: filterEquals
+        // treats them as three separate PendingIntents (same trick as the
+        // ringing notification's dismiss/snooze pair).
+        fun actionIntent(action: String): PendingIntent = PendingIntent.getBroadcast(
+            context,
+            timer.id.toInt(),
+            Intent(context, TimerReceiver::class.java).apply {
+                this.action = action
+                putExtra(EXTRA_TIMER_ID, timer.id)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = until }
+        val ringsAt = String.format(
+            "Rings at %02d:%02d",
+            cal.get(java.util.Calendar.HOUR_OF_DAY),
+            cal.get(java.util.Calendar.MINUTE)
+        )
+
+        val notification = NotificationCompat.Builder(context, RUNNING_TIMER_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle(timer.label.takeIf { it.isNotBlank() } ?: "Timer")
+            .setContentText(ringsAt)
+            // Live countdown, rendered by the system: the timestamp slot shows
+            // a chronometer counting down to setWhen.
+            .setWhen(until)
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
+            .setShowWhen(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_STOPWATCH)
+            .setContentIntent(contentIntent)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .addAction(0, "+30 s", actionIntent(ACTION_TIMER_ADD_30))
+            .addAction(0, "\u221230 s", actionIntent(ACTION_TIMER_MINUS_30))
+            .addAction(0, "Stop", actionIntent(ACTION_TIMER_STOP))
+            .build()
+
+        context.getSystemService(NotificationManager::class.java)
+            .notify(notificationId(timer.id), notification)
+    }
+
+    fun cancel(timerId: Long) {
+        context.getSystemService(NotificationManager::class.java)
+            .cancel(notificationId(timerId))
+    }
+
+    private fun notificationId(timerId: Long): Int =
+        RUNNING_TIMER_NOTIFICATION_BASE + timerId.toInt()
+
+    private fun createChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                RUNNING_TIMER_CHANNEL_ID, "Running timer", NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows while a timer is counting down"
+                setSound(null, null)
+            }
+            context.getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(channel)
+        }
+    }
+}

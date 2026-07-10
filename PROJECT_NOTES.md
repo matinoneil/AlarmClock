@@ -459,19 +459,29 @@ entry #1.
     deletion is ever missed, the natural re-add is long-press or swipe on the
     card rather than bringing the icon back.
 
-25. **[OPEN] Feature: ongoing notification for running timers with +30 s /
-    -30 s / Stop actions.** Requested. Intended approach: a new
-    TimerNotificationManager posting one silent (IMPORTANCE_LOW), ongoing
-    notification per running timer (id 3000 + timer id, so several running
-    timers coexist), using setWhen(runningUntilMillis) +
-    setUsesChronometer(true) + setChronometerCountDown(true) so the visible
-    countdown ticks live with NO process running -- the OS renders it. Three
-    actions broadcast to TimerReceiver with new intent actions: +30 s and
-    -30 s adjust runningUntilMillis in the DB and re-arm TimerScheduler
-    (-30 s past zero ends the countdown and rings immediately); Stop behaves
-    exactly like the list toggle off. Notification lifecycle: posted on
-    start and on boot re-arm, updated on adjust, cancelled on stop, fire,
-    delete, and edit-of-running (which already stops the countdown).
+25. **Feature: ongoing notification for running timers with +30 s / -30 s /
+    Stop actions.** One silent (IMPORTANCE_LOW, own channel), ongoing
+    notification per running timer (id 3000 + timer id, clear of the ringing
+    1001 and upcoming 2001 ids, so several countdowns coexist), posted by a
+    new TimerNotificationManager. The visible countdown is the notification
+    chronometer (setWhen(runningUntilMillis) + setUsesChronometer +
+    setChronometerCountDown): the OS renders and ticks it, so a running
+    timer still costs zero process time -- which is also why the three
+    buttons are broadcasts to TimerReceiver (nothing else is alive to
+    receive them). They share the fire PendingIntent's component and request
+    code but carry distinct actions, so filterEquals keeps all four apart.
+    +30/-30 re-derive everything from the DB row (a tap racing a natural
+    fire or an in-app stop finds an idle row and just tidies the
+    notification); -30 past zero disarms the stale AlarmManager entry and
+    reuses the exact fire path so a timer only ever ends in a ring one way.
+    Stop is byte-for-byte the list toggle's off behavior. Lifecycle: posted
+    on start and on boot re-arm (notifications don't survive reboots),
+    updated on adjust, cancelled on stop/fire/delete/edit-of-running.
+    Untested caveat flagged for on-device review: whether the collapsed
+    notification shows the chronometer prominently varies by OEM skin --
+    if it's unreadable on the real device, the fallback is re-posting with
+    the remaining time in the title from a lightweight ticker, which was
+    deliberately avoided first-pass for battery reasons.
 
 ## Restarting this project in a new chat
 

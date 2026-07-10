@@ -3,6 +3,7 @@ package no.hanss.alarmclock.data
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import no.hanss.alarmclock.alarm.AlarmScheduler
+import no.hanss.alarmclock.alarm.TimerNotificationManager
 import no.hanss.alarmclock.alarm.TimerScheduler
 import no.hanss.alarmclock.alarm.UpcomingAlarmManager
 import no.hanss.alarmclock.widget.AlarmWidgetUpdater
@@ -15,6 +16,7 @@ class AlarmRepository(context: Context) {
     private val timerDao = db.timerDao()
     private val scheduler = AlarmScheduler(context)
     private val timerScheduler = TimerScheduler(context)
+    private val timerNotifications = TimerNotificationManager(context)
     private val upcomingAlarmManager = UpcomingAlarmManager(context)
 
     fun observeStandaloneAlarms(): Flow<List<Alarm>> = alarmDao.observeStandaloneAlarms()
@@ -139,7 +141,10 @@ class AlarmRepository(context: Context) {
      * auto-running on save would be surprising when setting up several presets.
      */
     suspend fun saveTimer(timer: TimerPreset): Long {
-        if (timer.id != 0L) timerScheduler.cancel(timer.id)
+        if (timer.id != 0L) {
+            timerScheduler.cancel(timer.id)
+            timerNotifications.cancel(timer.id)
+        }
         val toSave = timer.copy(runningUntilMillis = null)
         val id = if (toSave.id == 0L) timerDao.insert(toSave) else {
             timerDao.update(toSave); toSave.id
@@ -149,6 +154,7 @@ class AlarmRepository(context: Context) {
 
     suspend fun deleteTimer(timer: TimerPreset) {
         timerScheduler.cancel(timer.id)
+        timerNotifications.cancel(timer.id)
         timerDao.delete(timer)
     }
 
@@ -159,8 +165,10 @@ class AlarmRepository(context: Context) {
             val updated = timer.copy(runningUntilMillis = until)
             timerDao.update(updated)
             timerScheduler.schedule(updated)
+            timerNotifications.post(updated)
         } else {
             timerScheduler.cancel(timer.id)
+            timerNotifications.cancel(timer.id)
             timerDao.update(timer.copy(runningUntilMillis = null))
         }
     }
