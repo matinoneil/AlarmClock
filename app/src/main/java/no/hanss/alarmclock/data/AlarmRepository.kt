@@ -3,6 +3,7 @@ package no.hanss.alarmclock.data
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import no.hanss.alarmclock.alarm.AlarmScheduler
+import no.hanss.alarmclock.alarm.TimerScheduler
 import no.hanss.alarmclock.alarm.UpcomingAlarmManager
 import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
@@ -11,11 +12,14 @@ class AlarmRepository(context: Context) {
     private val db = AlarmDatabase.getInstance(context)
     private val alarmDao = db.alarmDao()
     private val seriesDao = db.alarmSeriesDao()
+    private val timerDao = db.timerDao()
     private val scheduler = AlarmScheduler(context)
+    private val timerScheduler = TimerScheduler(context)
     private val upcomingAlarmManager = UpcomingAlarmManager(context)
 
     fun observeStandaloneAlarms(): Flow<List<Alarm>> = alarmDao.observeStandaloneAlarms()
     fun observeSeries(): Flow<List<AlarmSeries>> = seriesDao.observeSeries()
+    fun observeTimers(): Flow<List<TimerPreset>> = timerDao.observeTimers()
     fun observeAlarmsForSeries(seriesId: Long): Flow<List<Alarm>> = alarmDao.observeAlarmsForSeries(seriesId)
 
     suspend fun getSeries(id: Long): AlarmSeries? = seriesDao.getSeries(id)
@@ -120,6 +124,45 @@ class AlarmRepository(context: Context) {
             if (enabled) scheduler.schedule(updatedChild) else scheduler.cancel(updatedChild)
         }
         notifyChanged()
+    }
+
+    // --- Timer presets ---
+
+    suspend fun getTimer(id: Long): TimerPreset? = timerDao.getTimer(id)
+
+    /**
+     * Creates or updates a timer preset. Editing always resets the timer to idle
+     * (mirroring how editing an alarm clears an in-flight snooze): a countdown
+     * started against the pre-edit duration would ring at a now-meaningless time.
+     * Deliberately does NOT auto-start the timer (divergence from the alarms'
+     * save-enables rule #18): the toggle is what starts a countdown, and
+     * auto-running on save would be surprising when setting up several presets.
+     */
+    suspend fun saveTimer(timer: TimerPreset): Long {
+        if (timer.id != 0L) timerScheduler.cancel(timer.id)
+        val toSave = timer.copy(runningUntilMillis = null)
+        val id = if (toSave.id == 0L) timerDao.insert(toSave) else {
+            timerDao.update(toSave); toSave.id
+        }
+        return id
+    }
+
+    suspend fun deleteTimer(timer: TimerPreset) {
+        timerScheduler.cancel(timer.id)
+        timerDao.delete(timer)
+    }
+
+    /** Starts (running = true) or stops the preset's countdown. */
+    suspend fun setTimerRunning(timer: TimerPreset, running: Boolean) {
+        if (running) {
+            val until = System.currentTimeMillis() + timer.durationSeconds.coerceAtLeast(1) * 1000L
+            val updated = timer.copy(runningUntilMillis = until)
+            timerDao.update(updated)
+            timerScheduler.schedule(updated)
+        } else {
+            timerScheduler.cancel(timer.id)
+            timerDao.update(timer.copy(runningUntilMillis = null))
+        }
     }
 
     fun canScheduleExactAlarms(): Boolean = scheduler.canScheduleExactAlarms()

@@ -25,11 +25,29 @@ class BootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val dao = AlarmDatabase.getInstance(context).alarmDao()
+                val db = AlarmDatabase.getInstance(context)
+                val dao = db.alarmDao()
                 val scheduler = AlarmScheduler(context)
                 dao.getAllEnabledAlarms().forEach { scheduler.schedule(it) }
                 UpcomingAlarmManager(context).refresh()
                 AlarmWidgetUpdater.updateAll(context)
+
+                // Running timers: AlarmManager entries died with the reboot too.
+                // Re-arm any countdown still in the future; one that expired while
+                // the device was off is quietly reset to idle instead of ringing
+                // late -- blasting a kitchen timer long after its moment is noise,
+                // not a wake-up (same reasoning as the alarm resume grace window).
+                val timerDao = db.timerDao()
+                val timerScheduler = TimerScheduler(context)
+                val now = System.currentTimeMillis()
+                timerDao.getAllRunningTimers().forEach { timer ->
+                    if ((timer.runningUntilMillis ?: 0L) > now) {
+                        timerScheduler.schedule(timer)
+                    } else {
+                        Log.w(TAG, "Timer ${timer.id} expired while the device was off; resetting to idle")
+                        timerDao.update(timer.copy(runningUntilMillis = null))
+                    }
+                }
 
                 // If an alarm was ringing when the device shut down (or the app was
                 // updated mid-ring), resume it -- especially critical for one-shots,
@@ -41,11 +59,17 @@ class BootReceiver : BroadcastReceiver() {
                 val interruptedId = prefs.getLong(KEY_RINGING_ID, -1L)
                 val age = System.currentTimeMillis() - prefs.getLong(KEY_RINGING_SINCE, 0L)
                 if (interruptedId != -1L) {
-                    prefs.edit().remove(KEY_RINGING_ID).remove(KEY_RINGING_SINCE).apply()
+                    val wasTimer = prefs.getBoolean(KEY_RINGING_IS_TIMER, false)
+                    prefs.edit()
+                        .remove(KEY_RINGING_ID)
+                        .remove(KEY_RINGING_SINCE)
+                        .remove(KEY_RINGING_IS_TIMER)
+                        .apply()
                     if (age in 0..RING_RESUME_GRACE_MILLIS) {
-                        Log.w(TAG, "Resuming alarm $interruptedId that was interrupted mid-ring")
+                        Log.w(TAG, "Resuming ${if (wasTimer) "timer" else "alarm"} $interruptedId that was interrupted mid-ring")
                         val serviceIntent = Intent(context, AlarmRingtoneService::class.java).apply {
-                            putExtra(EXTRA_ALARM_ID, interruptedId)
+                            if (wasTimer) putExtra(EXTRA_TIMER_ID, interruptedId)
+                            else putExtra(EXTRA_ALARM_ID, interruptedId)
                         }
                         context.startForegroundService(serviceIntent)
                     }

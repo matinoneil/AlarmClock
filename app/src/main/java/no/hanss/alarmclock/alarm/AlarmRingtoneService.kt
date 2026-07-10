@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmDatabase
+import no.hanss.alarmclock.data.formatTimerDuration
 import no.hanss.alarmclock.ui.RingingActivity
 import no.hanss.alarmclock.widget.AlarmWidgetUpdater
 
@@ -45,6 +46,9 @@ const val ACTION_SNOOZE = "no.hanss.alarmclock.action.SNOOZE"
 const val RINGING_PREFS = "alarm_ringing_state"
 const val KEY_RINGING_ID = "ringing_alarm_id"
 const val KEY_RINGING_SINCE = "ringing_since"
+// Whether the marked ring is a timer (KEY_RINGING_ID is then a timer id, not an
+// alarm id) -- the recovery paths must re-fire with the matching intent extra.
+const val KEY_RINGING_IS_TIMER = "ringing_is_timer"
 // Don't resurrect a ring older than this -- blasting an alarm long after its
 // moment (e.g. the phone was off for hours) is worse than staying quiet.
 const val RING_RESUME_GRACE_MILLIS = 30 * 60 * 1000L
@@ -57,6 +61,10 @@ class AlarmRingtoneService : Service() {
     private var rampJob: Job? = null
     private var overlayWindow: OverlayAlarmWindow? = null
     private var currentAlarmId: Long = -1L
+    // True while the current ring came from a timer preset rather than an alarm.
+    // Timers are dismiss-only: snooze semantics don't map onto a countdown, and a
+    // stray ACTION_SNOOZE must not resurrect a bogus alarm from a timer snapshot.
+    private var isTimerRing: Boolean = false
     // In-memory copy of the Alarm as it was when ringing started. Exists so snooze
     // can still work if the DB row vanishes mid-ring -- a series edit regenerates
     // (deletes + reinserts) every child row, and the user can also delete an alarm
@@ -77,14 +85,23 @@ class AlarmRingtoneService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_SNOOZE -> {
-                // Prefer the id from the intent: after a process death the in-memory
-                // currentAlarmId is gone, but the notification/activity intents carry it.
-                handleSnooze(intent.getLongExtra(EXTRA_ALARM_ID, currentAlarmId))
+                // A ringing timer has no snooze surface, but a stale snooze
+                // PendingIntent could still deliver this action; treat it as a
+                // dismiss rather than resurrecting a nonsense alarm.
+                if (isTimerRing) {
+                    handleDismiss()
+                } else {
+                    // Prefer the id from the intent: after a process death the in-memory
+                    // currentAlarmId is gone, but the notification/activity intents carry it.
+                    handleSnooze(intent.getLongExtra(EXTRA_ALARM_ID, currentAlarmId))
+                }
                 return START_NOT_STICKY
             }
         }
 
-        var alarmId = intent?.getLongExtra(EXTRA_ALARM_ID, -1L) ?: -1L
+        val timerIdExtra = intent?.getLongExtra(EXTRA_TIMER_ID, -1L) ?: -1L
+        var isTimer = timerIdExtra != -1L
+        var alarmId = if (isTimer) timerIdExtra else intent?.getLongExtra(EXTRA_ALARM_ID, -1L) ?: -1L
 
         // A null intent means START_STICKY restarted us after the process was killed
         // mid-ring. Resume the interrupted alarm from the persisted marker (if it's
@@ -94,8 +111,9 @@ class AlarmRingtoneService : Service() {
             val storedId = prefs.getLong(KEY_RINGING_ID, -1L)
             val age = System.currentTimeMillis() - prefs.getLong(KEY_RINGING_SINCE, 0L)
             if (storedId != -1L && age in 0..RING_RESUME_GRACE_MILLIS) {
-                Log.w(TAG, "Resuming alarm $storedId after unexpected service restart")
+                Log.w(TAG, "Resuming ring $storedId after unexpected service restart")
                 alarmId = storedId
+                isTimer = prefs.getBoolean(KEY_RINGING_IS_TIMER, false)
             }
         }
 
@@ -104,6 +122,7 @@ class AlarmRingtoneService : Service() {
             return START_NOT_STICKY
         }
         currentAlarmId = alarmId
+        isTimerRing = isTimer
 
         // Persist the marker before anything can fail. On the null-intent resume
         // path keep the original timestamp, so the grace window counts from the
@@ -119,6 +138,7 @@ class AlarmRingtoneService : Service() {
             prefs.edit()
                 .putLong(KEY_RINGING_ID, alarmId)
                 .putLong(KEY_RINGING_SINCE, System.currentTimeMillis())
+                .putBoolean(KEY_RINGING_IS_TIMER, isTimer)
                 .commit()
         }
 
@@ -129,12 +149,31 @@ class AlarmRingtoneService : Service() {
         // When the screen is already on and the phone is actively in use, Android
         // downgrades this to a heads-up notification instead (same as it does for
         // incoming calls) -- the overlay window below is what covers that case.
-        startForeground(NOTIFICATION_ID, buildNotification(alarmId))
+        startForeground(NOTIFICATION_ID, buildNotification(alarmId, isTimer))
 
         serviceScope.launch {
             try {
-                val alarm = AlarmDatabase.getInstance(applicationContext).alarmDao().getAlarm(alarmId)
-                startRinging(alarm)
+                if (isTimer) {
+                    // Ring a timer through the exact same pipeline as an alarm by
+                    // building a transient (never persisted) Alarm from the preset.
+                    // A missing row (deleted mid-run) still rings with defaults --
+                    // the countdown was started expecting a ring.
+                    val timer = AlarmDatabase.getInstance(applicationContext).timerDao().getTimer(alarmId)
+                    val synthetic = Alarm(
+                        id = -1L,
+                        hour = 0,
+                        minute = 0,
+                        label = timer?.label?.takeIf { it.isNotBlank() } ?: "Timer",
+                        vibrate = timer?.vibrate ?: true,
+                        soundUri = timer?.soundUri,
+                        volumeRampSeconds = 0
+                    )
+                    val display = timer?.let { formatTimerDuration(it.durationSeconds) } ?: ""
+                    startRinging(synthetic, isTimer = true, overrideTimeLabel = display)
+                } else {
+                    val alarm = AlarmDatabase.getInstance(applicationContext).alarmDao().getAlarm(alarmId)
+                    startRinging(alarm)
+                }
             } catch (e: Exception) {
                 // The full-screen notification/dismiss action is already up at this
                 // point regardless, so the person can still dismiss even if sound
@@ -178,8 +217,10 @@ class AlarmRingtoneService : Service() {
         }
     }
 
-    private suspend fun startRinging(alarm: Alarm?) {
-        ringingSnapshot = alarm
+    private suspend fun startRinging(alarm: Alarm?, isTimer: Boolean = false, overrideTimeLabel: String? = null) {
+        // Timers keep no snapshot: the snapshot exists solely so alarm snooze can
+        // resurrect a vanished row, and timers have no snooze.
+        ringingSnapshot = if (isTimer) null else alarm
         val soundUri: Uri = alarm?.soundUri?.let { Uri.parse(it) }
             ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
         val rampSeconds = alarm?.volumeRampSeconds ?: 0
@@ -287,12 +328,18 @@ class AlarmRingtoneService : Service() {
         }
 
         if (Settings.canDrawOverlays(applicationContext)) {
-            val timeLabel = if (alarm != null) String.format("%02d:%02d", alarm.hour, alarm.minute) else ""
-            val labelText = alarm?.label?.takeIf { it.isNotBlank() } ?: "Alarm"
+            val timeLabel = overrideTimeLabel
+                ?: if (alarm != null) String.format("%02d:%02d", alarm.hour, alarm.minute) else ""
+            val labelText = alarm?.label?.takeIf { it.isNotBlank() } ?: if (isTimer) "Timer" else "Alarm"
             val snoozeLabel = "Snooze ${(alarm?.snoozeMinutes ?: 10).coerceAtLeast(1)} min"
             withContext(Dispatchers.Main) {
                 overlayWindow = OverlayAlarmWindow(applicationContext).also {
-                    it.show(timeLabel, labelText, snoozeLabel, onDismiss = { handleDismiss() }, onSnooze = { handleSnooze() })
+                    it.show(
+                        timeLabel, labelText, snoozeLabel,
+                        onDismiss = { handleDismiss() },
+                        onSnooze = { handleSnooze() },
+                        showSnooze = !isTimer
+                    )
                 }
             }
         }
@@ -320,6 +367,7 @@ class AlarmRingtoneService : Service() {
         getSharedPreferences(RINGING_PREFS, Context.MODE_PRIVATE).edit()
             .remove(KEY_RINGING_ID)
             .remove(KEY_RINGING_SINCE)
+            .remove(KEY_RINGING_IS_TIMER)
             .commit()
     }
 
@@ -436,9 +484,9 @@ class AlarmRingtoneService : Service() {
         }
     }
 
-    private fun buildNotification(alarmId: Long): android.app.Notification {
+    private fun buildNotification(alarmId: Long, isTimer: Boolean = false): android.app.Notification {
         val fullScreenIntent = Intent(this, RingingActivity::class.java).apply {
-            putExtra(EXTRA_ALARM_ID, alarmId)
+            if (isTimer) putExtra(EXTRA_TIMER_ID, alarmId) else putExtra(EXTRA_ALARM_ID, alarmId)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -470,18 +518,20 @@ class AlarmRingtoneService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("Alarm")
+            .setContentTitle(if (isTimer) "Timer" else "Alarm")
             .setContentText("Tap to open")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(fullScreenPendingIntent)
             .addAction(0, "Dismiss", dismissPendingIntent)
-            .addAction(0, "Snooze", snoozePendingIntent)
             .setOngoing(true)
-            .build()
+        // Timers are dismiss-only: "snooze" has no sensible countdown meaning, and
+        // the snooze path is alarm-shaped (it persists to the alarms table).
+        if (!isTimer) builder.addAction(0, "Snooze", snoozePendingIntent)
+        return builder.build()
     }
 
     private fun createNotificationChannel() {

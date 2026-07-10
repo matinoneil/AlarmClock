@@ -40,6 +40,27 @@ interface AlarmDao {
 }
 
 @Dao
+interface TimerDao {
+    @Query("SELECT * FROM timers ORDER BY durationSeconds, id")
+    fun observeTimers(): Flow<List<TimerPreset>>
+
+    @Query("SELECT * FROM timers WHERE id = :id")
+    suspend fun getTimer(id: Long): TimerPreset?
+
+    @Query("SELECT * FROM timers WHERE runningUntilMillis IS NOT NULL")
+    suspend fun getAllRunningTimers(): List<TimerPreset>
+
+    @Insert
+    suspend fun insert(timer: TimerPreset): Long
+
+    @Update
+    suspend fun update(timer: TimerPreset)
+
+    @Delete
+    suspend fun delete(timer: TimerPreset)
+}
+
+@Dao
 interface AlarmSeriesDao {
     @Query("SELECT * FROM alarm_series ORDER BY startHour, startMinute")
     fun observeSeries(): Flow<List<AlarmSeries>>

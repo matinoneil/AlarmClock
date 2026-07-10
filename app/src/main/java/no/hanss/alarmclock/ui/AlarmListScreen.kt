@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Repeat
@@ -32,17 +31,18 @@ private fun dayLabel(days: Set<Int>): String {
     return days.sorted().joinToString(", ") { names[it - 1] }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The Alarms tab body. Lives inside HomeScreen's Scaffold (which owns the tab
+ * row and the + FAB), so there's no Scaffold here -- see HomeScreen.kt.
+ */
 @Composable
-fun AlarmListScreen(
+fun AlarmListContent(
     viewModel: AlarmViewModel,
-    onAddAlarm: () -> Unit,
     onEditAlarm: (Alarm) -> Unit,
-    onAddSeries: () -> Unit,
-    onEditSeries: (AlarmSeries) -> Unit
+    onEditSeries: (AlarmSeries) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
-    var showAddMenu by remember { mutableStateOf(false) }
     var pendingDeleteAlarm by remember { mutableStateOf<Alarm?>(null) }
     var pendingDeleteSeries by remember { mutableStateOf<AlarmSeries?>(null) }
 
@@ -80,44 +80,11 @@ fun AlarmListScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            // Compact pinned bar: the static LargeTopAppBar kept ~152dp of
-            // permanent headroom above the title once its collapse behavior
-            // was removed for perf (entries #17/#19); the space belongs to
-            // the alarm list instead.
-            TopAppBar(title = { Text("Alarms") })
-        },
-        floatingActionButton = {
-            Box {
-                FloatingActionButton(
-                    onClick = { showAddMenu = true },
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add")
-                }
-                DropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
-                    DropdownMenuItem(
-                        leadingIcon = { Icon(Icons.Outlined.Alarm, contentDescription = null) },
-                        text = { Text("Single alarm") },
-                        onClick = { showAddMenu = false; onAddAlarm() }
-                    )
-                    DropdownMenuItem(
-                        leadingIcon = { Icon(Icons.Outlined.Repeat, contentDescription = null) },
-                        text = { Text("Alarm series") },
-                        onClick = { showAddMenu = false; onAddSeries() }
-                    )
-                }
-            }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
             if (state.series.isNotEmpty()) {
                 item {
                     Text(
@@ -185,12 +152,12 @@ fun AlarmListScreen(
                     }
                 }
             }
-        }
     }
 }
 
+// (ListCard is shared with the Timers tab -- see TimerListScreen.kt.)
 @Composable
-private fun ListCard(
+internal fun ListCard(
     enabled: Boolean,
     onClick: () -> Unit,
     content: @Composable RowScope.() -> Unit

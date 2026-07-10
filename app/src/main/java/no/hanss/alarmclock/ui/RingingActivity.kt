@@ -36,18 +36,22 @@ import no.hanss.alarmclock.alarm.ACTION_DISMISS
 import no.hanss.alarmclock.alarm.ACTION_SNOOZE
 import no.hanss.alarmclock.alarm.AlarmRingtoneService
 import no.hanss.alarmclock.alarm.EXTRA_ALARM_ID
+import no.hanss.alarmclock.alarm.EXTRA_TIMER_ID
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmDatabase
+import no.hanss.alarmclock.data.formatTimerDuration
 import no.hanss.alarmclock.ui.theme.AlarmClockTheme
 import no.hanss.alarmclock.ui.theme.ClockTextStyle
 
 class RingingActivity : ComponentActivity() {
 
     private var alarmId: Long = -1L
+    private var timerId: Long = -1L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
+        timerId = intent.getLongExtra(EXTRA_TIMER_ID, -1L)
 
         // Show over the lock screen and turn the screen on.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -64,14 +68,33 @@ class RingingActivity : ComponentActivity() {
 
         setContent {
             AlarmClockTheme {
-                var alarm by remember { mutableStateOf<Alarm?>(null) }
-                LaunchedEffect(alarmId) {
-                    alarm = AlarmDatabase.getInstance(this@RingingActivity).alarmDao().getAlarm(alarmId)
+                val isTimer = timerId != -1L
+                var label by remember { mutableStateOf(if (isTimer) "Timer" else "Alarm") }
+                var time by remember { mutableStateOf("") }
+                var snoozeMinutes by remember { mutableStateOf(10) }
+                LaunchedEffect(alarmId, timerId) {
+                    val db = AlarmDatabase.getInstance(this@RingingActivity)
+                    if (isTimer) {
+                        // A missing row (deleted mid-run) keeps the defaults --
+                        // the ring itself is the service's job, this is display only.
+                        db.timerDao().getTimer(timerId)?.let { timer ->
+                            label = timer.label.takeIf { it.isNotBlank() } ?: "Timer"
+                            time = formatTimerDuration(timer.durationSeconds)
+                        }
+                    } else {
+                        db.alarmDao().getAlarm(alarmId)?.let { alarm ->
+                            label = alarm.label.takeIf { it.isNotBlank() } ?: "Alarm"
+                            time = String.format("%02d:%02d", alarm.hour, alarm.minute)
+                            snoozeMinutes = alarm.snoozeMinutes.coerceAtLeast(1)
+                        }
+                    }
                 }
                 RingingScreen(
-                    label = alarm?.label?.takeIf { it.isNotBlank() } ?: "Alarm",
-                    time = alarm?.let { String.format("%02d:%02d", it.hour, it.minute) } ?: "",
-                    snoozeMinutes = alarm?.snoozeMinutes?.coerceAtLeast(1) ?: 10,
+                    label = label,
+                    time = time,
+                    snoozeMinutes = snoozeMinutes,
+                    // Timers are dismiss-only; snooze has no countdown meaning.
+                    showSnooze = !isTimer,
                     onDismiss = { sendServiceAction(ACTION_DISMISS) },
                     onSnooze = { sendServiceAction(ACTION_SNOOZE) }
                 )
@@ -95,7 +118,8 @@ fun RingingScreen(
     time: String,
     snoozeMinutes: Int,
     onDismiss: () -> Unit,
-    onSnooze: () -> Unit
+    onSnooze: () -> Unit,
+    showSnooze: Boolean = true
 ) {
     val primary = MaterialTheme.colorScheme.primary
     // Gradient is forced dark regardless of what the (possibly dynamic) scheme
@@ -175,16 +199,18 @@ fun RingingScreen(
                 ) {
                     Text("Dismiss", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Spacer(modifier = Modifier.height(14.dp))
-                TextButton(
-                    onClick = onSnooze,
-                    modifier = Modifier.fillMaxWidth().height(56.dp)
-                ) {
-                    Text(
-                        "Snooze $snoozeMinutes min",
-                        fontSize = 17.sp,
-                        color = onColor.copy(alpha = 0.9f)
-                    )
+                if (showSnooze) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    TextButton(
+                        onClick = onSnooze,
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
+                        Text(
+                            "Snooze $snoozeMinutes min",
+                            fontSize = 17.sp,
+                            color = onColor.copy(alpha = 0.9f)
+                        )
+                    }
                 }
             }
         }

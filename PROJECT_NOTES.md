@@ -423,26 +423,32 @@ entry #1.
     cap the ask at 2 attempts via a SharedPreferences counter, after which
     the chain proceeds to the settings screens.
 
-23. **[OPEN] Feature: Timers tab with saved timer presets.** Requested: a
-    second "Timers" tab next to the "Alarms" title (selected tab highlighted,
-    other dimmed, animated content switch), same + FAB, same card layout and
-    activate-switch as alarms, and reusable saved timers (e.g. a 5 min and a
-    10 min preset) with a creation/edit page. Intended approach: new `timers`
-    Room table (DB v5->6 with a real Migration -- alarms table untouched) with
-    `runningUntilMillis` persisting a running countdown; a `TimerScheduler` +
-    `TimerReceiver` mirroring the alarm path (exact millis, guarded
-    setAlarmClock with inexact fallback) feeding the existing
-    AlarmRingtoneService via a new EXTRA_TIMER_ID (synthetic in-memory Alarm
-    for the ring; dismiss-only, no snooze for timers); BootReceiver re-arms
-    running timers still in the future and quietly resets expired ones to
-    idle (ringing a kitchen timer hours late is noise, per the #13
-    philosophy); ringing-marker recovery extended with an is-timer flag. UI:
-    list screen refactored into a HomeScreen owning the tab row, FAB, and an
-    AnimatedContent slide between AlarmListContent and the new
-    TimerListContent; new TimerEditScreen (h/m/s fields, label, sound,
-    vibrate). Saving a timer does NOT auto-start it (deliberate divergence
-    from #18: starting is the toggle's job; auto-running on save would be
-    surprising when setting up several presets).
+23. **Feature: Timers tab with saved timer presets.** A "Timers" tab now sits
+    next to "Alarms" (selected tab bold/full-strength, other dimmed, animated
+    color + horizontal slide via AnimatedContent; the tab row lives in a new
+    HomeScreen that owns the single Scaffold and the shared + FAB, with
+    AlarmListScreen refactored into a Scaffold-less AlarmListContent).
+    Presets are a new `timers` Room table (DB v5->6 with a real CREATE TABLE
+    Migration -- the alarms tables are untouched, so existing alarms survive);
+    a running countdown persists its exact end epoch in `runningUntilMillis`,
+    armed by TimerScheduler/TimerReceiver mirroring the alarm path (guarded
+    setAlarmClock -> inexact set() fallback; no PendingIntent request-code
+    collision with alarms despite shared ids, since the receiver component
+    differs). The ring reuses AlarmRingtoneService via EXTRA_TIMER_ID and a
+    transient synthetic Alarm -- full-screen UI, overlay, marker-based
+    interrupted-ring recovery (marker gained an is-timer flag) all carry over.
+    Deliberate choices: timers are dismiss-only (snooze has no countdown
+    meaning and the snooze path is alarm-shaped; a stray ACTION_SNOOZE during
+    a timer ring is treated as dismiss); a timer that fires with its row gone
+    still rings with defaults; BootReceiver re-arms running timers still in
+    the future but quietly resets expired ones to idle (a kitchen timer
+    ringing hours late is noise, per #13's philosophy); saving a preset does
+    NOT auto-start it, diverging from the alarms' save-enables rule #18,
+    since the toggle is what starts a countdown and auto-running on save
+    would surprise anyone setting up several presets; editing a running
+    preset stops it (a countdown against the pre-edit duration is
+    meaningless). Known pre-existing limitation unchanged: one notification
+    id means simultaneous rings (alarm + timer) were never really supported.
 
 ## Restarting this project in a new chat
 

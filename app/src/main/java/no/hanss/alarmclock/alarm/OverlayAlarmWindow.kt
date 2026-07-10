@@ -34,7 +34,7 @@ class OverlayAlarmWindow(private val context: Context) {
 
     private fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 
-    fun show(timeLabel: String, label: String, snoozeLabel: String, onDismiss: () -> Unit, onSnooze: () -> Unit) {
+    fun show(timeLabel: String, label: String, snoozeLabel: String, onDismiss: () -> Unit, onSnooze: () -> Unit, showSnooze: Boolean = true) {
         if (rootView != null) return // already showing
 
         val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -112,12 +112,15 @@ class OverlayAlarmWindow(private val context: Context) {
             dismissButton,
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(72))
         )
-        container.addView(
-            snoozeButton,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56)).apply {
-                topMargin = dp(14)
-            }
-        )
+        // Timers are dismiss-only; snooze has no countdown meaning.
+        if (showSnooze) {
+            container.addView(
+                snoozeButton,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56)).apply {
+                    topMargin = dp(14)
+                }
+            )
+        }
 
         rootView = container
         windowManager.addView(container, params)

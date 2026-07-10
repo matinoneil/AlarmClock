@@ -8,11 +8,12 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Alarm::class, AlarmSeries::class], version = 5, exportSchema = false)
+@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class], version = 6, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun alarmSeriesDao(): AlarmSeriesDao
+    abstract fun timerDao(): TimerDao
 
     companion object {
         @Volatile private var INSTANCE: AlarmDatabase? = null
@@ -20,6 +21,22 @@ abstract class AlarmDatabase : RoomDatabase() {
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE alarms ADD COLUMN snoozeUntilMillis INTEGER")
+            }
+        }
+
+        // New timers table only -- the alarms/alarm_series tables are untouched,
+        // so existing alarms survive this upgrade (see the policy note below).
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `timers` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`durationSeconds` INTEGER NOT NULL, " +
+                        "`label` TEXT NOT NULL, " +
+                        "`vibrate` INTEGER NOT NULL, " +
+                        "`soundUri` TEXT, " +
+                        "`runningUntilMillis` INTEGER)"
+                )
             }
         }
 
@@ -38,7 +55,7 @@ abstract class AlarmDatabase : RoomDatabase() {
                     // wiped alarm list is still better than an alarm app that crashes
                     // on database open and can't ring at all. If a wipe is ever
                     // unavoidable, the release notes must flag it loudly.
-                    .addMigrations(MIGRATION_4_5)
+                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration()
                     .build().also { INSTANCE = it }
             }

@@ -17,8 +17,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import no.hanss.alarmclock.ui.AlarmEditScreen
-import no.hanss.alarmclock.ui.AlarmListScreen
+import no.hanss.alarmclock.ui.HomeScreen
 import no.hanss.alarmclock.ui.SeriesEditScreen
+import no.hanss.alarmclock.ui.TimerEditScreen
 import no.hanss.alarmclock.ui.theme.AlarmClockTheme
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
 
@@ -97,12 +98,14 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(navController = navController, startDestination = "list") {
                     composable("list") {
-                        AlarmListScreen(
+                        HomeScreen(
                             viewModel = viewModel,
                             onAddAlarm = { navController.navigate("alarm_edit/-1") },
                             onEditAlarm = { navController.navigate("alarm_edit/${it.id}") },
                             onAddSeries = { navController.navigate("series_edit/-1") },
-                            onEditSeries = { navController.navigate("series_edit/${it.id}") }
+                            onEditSeries = { navController.navigate("series_edit/${it.id}") },
+                            onAddTimer = { navController.navigate("timer_edit/-1") },
+                            onEditTimer = { navController.navigate("timer_edit/${it.id}") }
                         )
                     }
                     composable(
@@ -123,6 +126,17 @@ class MainActivity : ComponentActivity() {
                         val seriesId = backStackEntry.arguments?.getLong("seriesId") ?: -1L
                         SeriesEditScreen(
                             seriesId = seriesId,
+                            viewModel = viewModel,
+                            onDone = { navController.popBackStack() }
+                        )
+                    }
+                    composable(
+                        route = "timer_edit/{timerId}",
+                        arguments = listOf(navArgument("timerId") { type = NavType.LongType })
+                    ) { backStackEntry ->
+                        val timerId = backStackEntry.arguments?.getLong("timerId") ?: -1L
+                        TimerEditScreen(
+                            timerId = timerId,
                             viewModel = viewModel,
                             onDone = { navController.popBackStack() }
                         )

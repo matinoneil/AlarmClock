@@ -10,10 +10,12 @@ import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmSeries
 import no.hanss.alarmclock.data.AlarmRepository
+import no.hanss.alarmclock.data.TimerPreset
 
 data class AlarmListUiState(
     val standaloneAlarms: List<Alarm> = emptyList(),
-    val series: List<AlarmSeries> = emptyList()
+    val series: List<AlarmSeries> = emptyList(),
+    val timers: List<TimerPreset> = emptyList()
 )
 
 class AlarmViewModel(application: Application) : AndroidViewModel(application) {
@@ -22,8 +24,9 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     val uiState = combine(
         repository.observeStandaloneAlarms(),
-        repository.observeSeries()
-    ) { alarms, series -> AlarmListUiState(alarms, series) }
+        repository.observeSeries(),
+        repository.observeTimers()
+    ) { alarms, series, timers -> AlarmListUiState(alarms, series, timers) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AlarmListUiState())
 
     fun canScheduleExactAlarms(): Boolean = repository.canScheduleExactAlarms()
@@ -53,5 +56,19 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSeriesEnabled(series: AlarmSeries, enabled: Boolean) = viewModelScope.launch {
         repository.setSeriesEnabled(series, enabled)
+    }
+
+    suspend fun getTimer(id: Long): TimerPreset? = repository.getTimer(id)
+
+    fun saveTimer(timer: TimerPreset) = viewModelScope.launch {
+        repository.saveTimer(timer)
+    }
+
+    fun deleteTimer(timer: TimerPreset) = viewModelScope.launch {
+        repository.deleteTimer(timer)
+    }
+
+    fun setTimerRunning(timer: TimerPreset, running: Boolean) = viewModelScope.launch {
+        repository.setTimerRunning(timer, running)
     }
 }
