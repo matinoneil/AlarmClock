@@ -423,6 +423,27 @@ entry #1.
     cap the ask at 2 attempts via a SharedPreferences counter, after which
     the chain proceeds to the settings screens.
 
+23. **[OPEN] Feature: Timers tab with saved timer presets.** Requested: a
+    second "Timers" tab next to the "Alarms" title (selected tab highlighted,
+    other dimmed, animated content switch), same + FAB, same card layout and
+    activate-switch as alarms, and reusable saved timers (e.g. a 5 min and a
+    10 min preset) with a creation/edit page. Intended approach: new `timers`
+    Room table (DB v5->6 with a real Migration -- alarms table untouched) with
+    `runningUntilMillis` persisting a running countdown; a `TimerScheduler` +
+    `TimerReceiver` mirroring the alarm path (exact millis, guarded
+    setAlarmClock with inexact fallback) feeding the existing
+    AlarmRingtoneService via a new EXTRA_TIMER_ID (synthetic in-memory Alarm
+    for the ring; dismiss-only, no snooze for timers); BootReceiver re-arms
+    running timers still in the future and quietly resets expired ones to
+    idle (ringing a kitchen timer hours late is noise, per the #13
+    philosophy); ringing-marker recovery extended with an is-timer flag. UI:
+    list screen refactored into a HomeScreen owning the tab row, FAB, and an
+    AnimatedContent slide between AlarmListContent and the new
+    TimerListContent; new TimerEditScreen (h/m/s fields, label, sound,
+    vibrate). Saving a timer does NOT auto-start it (deliberate divergence
+    from #18: starting is the toggle's job; auto-running on save would be
+    surprising when setting up several presets).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
