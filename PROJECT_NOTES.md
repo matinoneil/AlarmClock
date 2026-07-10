@@ -514,7 +514,12 @@ entry #1.
     texts must NOT end with the "Tag: Vx.y.z · Commit: abc1234" line.
     Provide the release notes body only; the target tag/commit can be
     mentioned conversationally in chat when useful, but never inside the
-    release text block itself.
+    release text block itself. Also on versioning: Martin increments the
+    patch number for most releases regardless of feature size (timers tab =
+    V1.8, its follow-ups = V1.8.1/.2, the rings-in feature = V1.8.3) --
+    don't suggest semver-style minor bumps; when a suggestion is needed at
+    all, assume next patch number on the current line and let Martin decide
+    when a line bump (1.8 -> 1.9) happens.
 
 ## Restarting this project in a new chat
 
