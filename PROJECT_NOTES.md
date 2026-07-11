@@ -657,6 +657,15 @@ entry #1.
     light/dark and OEM skins; if some skin renders the custom view badly,
     that's the first place to look.
 
+37. **Collapsed timer notification clipped the label line.** The two-line
+    custom layout (#36) didn't fit the collapsed content height on Martin's
+    skin -- the "Timer" line under the chronometer rendered cut off. Fix per
+    Martin: the label TextView is gone; the layout is chronometer-only. A
+    non-blank custom label now rides in the header subText ("Rings at 21:35
+    · Tea"); unlabeled timers show no word at all. Reinforces #36's
+    warning: the collapsed custom-view area is barely one comfortable line
+    tall on some skins -- don't put a second line there.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

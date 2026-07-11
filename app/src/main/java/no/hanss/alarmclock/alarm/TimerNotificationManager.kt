@@ -84,7 +84,6 @@ class TimerNotificationManager(private val context: Context) {
             RemoteViews(context.packageName, R.layout.notification_timer).apply {
                 setChronometerCountDown(R.id.timer_chronometer, true)
                 setChronometer(R.id.timer_chronometer, chronoBase, null, true)
-                setTextViewText(R.id.timer_label, timer.label.takeIf { it.isNotBlank() } ?: "Timer")
             }
 
         val notification = NotificationCompat.Builder(context, RUNNING_TIMER_CHANNEL_ID)
@@ -92,7 +91,11 @@ class TimerNotificationManager(private val context: Context) {
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(contentView())
             .setCustomBigContentView(contentView())
-            .setSubText(ringsAt)
+            // A custom label joins "Rings at" in the header; unlabeled timers
+            // show no word at all -- the countdown speaks for itself (#37).
+            .setSubText(
+                timer.label.takeIf { it.isNotBlank() }?.let { "$ringsAt · $it" } ?: ringsAt
+            )
             // Default priority so the notification gets a status bar icon and
             // sits in the main shade section instead of the collapsed "Silent"
             // one. No setSilent(): that flag would demote it right back on

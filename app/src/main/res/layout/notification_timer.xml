@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Custom collapsed/expanded content for the running-timer notification.
-     The Chronometer is the star: OS-rendered and OS-ticked (countDown mode),
-     so the big remaining-time display still costs zero process time. Text
-     appearances come from androidx.core's notification compat styles so the
-     colors adapt to light/dark notification backgrounds across OEM skins. -->
+     Chronometer only: the collapsed content area is too short for a second
+     line on several skins (the label rendered clipped, #37), so any timer
+     label rides in the header subText next to "Rings at" instead. The
+     Chronometer stays OS-rendered and OS-ticked (countDown mode) -- zero
+     process time. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
+    android:gravity="center_vertical"
     android:paddingTop="4dp"
     android:paddingBottom="4dp">
 
@@ -18,12 +20,4 @@
         android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
         android:textSize="28sp"
         android:fontFamily="sans-serif-medium" />
-
-    <TextView
-        android:id="@+id/timer_label"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.Compat.Notification"
-        android:maxLines="1"
-        android:ellipsize="end" />
 </LinearLayout>
