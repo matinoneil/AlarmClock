@@ -20,6 +20,7 @@ class AlarmRepository(context: Context) {
     private val timerScheduler = TimerScheduler(context)
     private val timerNotifications = TimerNotificationManager(context)
     private val unpauseScheduler = SeriesUnpauseScheduler(context)
+    val settings = SettingsStore(context)
     private val upcomingAlarmManager = UpcomingAlarmManager(context)
 
     fun observeStandaloneAlarms(): Flow<List<Alarm>> = alarmDao.observeStandaloneAlarms()
@@ -209,6 +210,74 @@ class AlarmRepository(context: Context) {
             timerNotifications.cancel(timer.id)
             timerDao.update(timer.copy(runningUntilMillis = null))
         }
+    }
+
+    // --- Settings: default sounds & apply-to-all ---
+
+    /** Bulk sound swap; no re-arming needed -- sound doesn't affect scheduling. */
+    suspend fun applySoundToAllAlarms(soundUri: String?) {
+        alarmDao.updateAllAlarmSounds(soundUri)
+        seriesDao.updateAllSeriesSounds(soundUri)
+    }
+
+    suspend fun applySoundToAllTimers(soundUri: String?) {
+        timerDao.updateAllTimerSounds(soundUri)
+    }
+
+    suspend fun countAlarmsAndSeries(): Pair<Int, Int> =
+        alarmDao.getAllAlarms().size to seriesDao.getAllSeries().size
+
+    suspend fun countTimers(): Int = timerDao.getAllTimers().size
+
+    // --- Backup / restore ---
+
+    suspend fun exportBackupJson(): String = BackupSerializer.toJson(
+        BackupSerializer.BackupData(
+            standaloneAlarms = alarmDao.getAllStandaloneAlarms(),
+            series = seriesDao.getAllSeries(),
+            timers = timerDao.getAllTimers(),
+            defaultAlarmSoundUri = settings.defaultAlarmSoundUri,
+            defaultTimerSoundUri = settings.defaultTimerSoundUri
+        )
+    )
+
+    /**
+     * REPLACES everything with the backup's contents (callers must confirm
+     * with the user first). Every scheduled entry is cancelled before the
+     * wipe so nothing orphaned can ring, then series go back in through
+     * saveSeries -- children regenerate and pauses re-arm (or null out, if
+     * the resume date passed while the backup sat on disk) through the one
+     * normal path. Returns (alarms, series, timers) counts restored.
+     */
+    suspend fun restoreBackupJson(json: String): Triple<Int, Int, Int> {
+        val data = BackupSerializer.fromJson(json) // throws on malformed input BEFORE any destruction
+
+        // Disarm the world.
+        alarmDao.getAllAlarms().forEach { scheduler.cancel(it) }
+        timerDao.getAllTimers().forEach {
+            timerScheduler.cancel(it.id)
+            timerNotifications.cancel(it.id)
+        }
+        seriesDao.getAllSeries().forEach { unpauseScheduler.cancel(it.id) }
+
+        alarmDao.deleteAllAlarms()
+        seriesDao.deleteAllSeries()
+        timerDao.deleteAllTimers()
+
+        data.series.forEach { saveSeries(it) }
+        data.standaloneAlarms.forEach { alarm ->
+            val id = alarmDao.insert(alarm)
+            // Unlike saveStandaloneAlarm (editor path, always-enabled), restore
+            // must honor the backed-up enabled flag.
+            if (alarm.enabled) scheduler.schedule(alarm.copy(id = id))
+        }
+        data.timers.forEach { timerDao.insert(it) }
+
+        settings.defaultAlarmSoundUri = data.defaultAlarmSoundUri
+        settings.defaultTimerSoundUri = data.defaultTimerSoundUri
+
+        notifyChanged()
+        return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)
     }
 
     fun canScheduleExactAlarms(): Boolean = scheduler.canScheduleExactAlarms()

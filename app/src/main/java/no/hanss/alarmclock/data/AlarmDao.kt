@@ -23,6 +23,18 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms WHERE enabled = 1")
     suspend fun getAllEnabledAlarms(): List<Alarm>
 
+    @Query("SELECT * FROM alarms WHERE seriesId IS NULL ORDER BY hour, minute")
+    suspend fun getAllStandaloneAlarms(): List<Alarm>
+
+    @Query("SELECT * FROM alarms")
+    suspend fun getAllAlarms(): List<Alarm>
+
+    @Query("UPDATE alarms SET soundUri = :soundUri")
+    suspend fun updateAllAlarmSounds(soundUri: String?)
+
+    @Query("DELETE FROM alarms")
+    suspend fun deleteAllAlarms()
+
     @Insert
     suspend fun insert(alarm: Alarm): Long
 
@@ -47,6 +59,15 @@ interface TimerDao {
     @Query("SELECT * FROM timers ORDER BY durationSeconds, id")
     fun observeTimers(): Flow<List<TimerPreset>>
 
+    @Query("SELECT * FROM timers ORDER BY durationSeconds, id")
+    suspend fun getAllTimers(): List<TimerPreset>
+
+    @Query("UPDATE timers SET soundUri = :soundUri")
+    suspend fun updateAllTimerSounds(soundUri: String?)
+
+    @Query("DELETE FROM timers")
+    suspend fun deleteAllTimers()
+
     @Query("SELECT * FROM timers WHERE id = :id")
     suspend fun getTimer(id: Long): TimerPreset?
 
@@ -67,6 +88,15 @@ interface TimerDao {
 interface AlarmSeriesDao {
     @Query("SELECT * FROM alarm_series WHERE pausedUntilMillis IS NOT NULL")
     suspend fun getAllPausedSeries(): List<AlarmSeries>
+
+    @Query("SELECT * FROM alarm_series ORDER BY startHour, startMinute")
+    suspend fun getAllSeries(): List<AlarmSeries>
+
+    @Query("UPDATE alarm_series SET soundUri = :soundUri")
+    suspend fun updateAllSeriesSounds(soundUri: String?)
+
+    @Query("DELETE FROM alarm_series")
+    suspend fun deleteAllSeries()
 
     @Query("SELECT * FROM alarm_series ORDER BY startHour, startMinute")
     fun observeSeries(): Flow<List<AlarmSeries>>

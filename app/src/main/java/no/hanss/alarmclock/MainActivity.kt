@@ -19,6 +19,7 @@ import androidx.navigation.navArgument
 import no.hanss.alarmclock.ui.AlarmEditScreen
 import no.hanss.alarmclock.ui.HomeScreen
 import no.hanss.alarmclock.ui.SeriesEditScreen
+import no.hanss.alarmclock.ui.SettingsScreen
 import no.hanss.alarmclock.ui.TimerEditScreen
 import no.hanss.alarmclock.ui.theme.AlarmClockTheme
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
@@ -105,7 +106,8 @@ class MainActivity : ComponentActivity() {
                             onAddSeries = { navController.navigate("series_edit/-1") },
                             onEditSeries = { navController.navigate("series_edit/${it.id}") },
                             onAddTimer = { navController.navigate("timer_edit/-1") },
-                            onEditTimer = { navController.navigate("timer_edit/${it.id}") }
+                            onEditTimer = { navController.navigate("timer_edit/${it.id}") },
+                            onOpenSettings = { navController.navigate("settings") }
                         )
                     }
                     composable(
@@ -126,6 +128,12 @@ class MainActivity : ComponentActivity() {
                         val seriesId = backStackEntry.arguments?.getLong("seriesId") ?: -1L
                         SeriesEditScreen(
                             seriesId = seriesId,
+                            viewModel = viewModel,
+                            onDone = { navController.popBackStack() }
+                        )
+                    }
+                    composable("settings") {
+                        SettingsScreen(
                             viewModel = viewModel,
                             onDone = { navController.popBackStack() }
                         )

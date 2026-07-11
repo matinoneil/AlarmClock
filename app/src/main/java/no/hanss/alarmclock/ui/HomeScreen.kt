@@ -19,12 +19,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -63,7 +65,8 @@ fun HomeScreen(
     onAddSeries: () -> Unit,
     onEditSeries: (AlarmSeries) -> Unit,
     onAddTimer: () -> Unit,
-    onEditTimer: (TimerPreset) -> Unit
+    onEditTimer: (TimerPreset) -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     // rememberSaveable so the selected tab survives rotation and returning
     // from an edit screen doesn't dump the user back on Alarms.
@@ -78,6 +81,11 @@ fun HomeScreen(
                         HomeTab("Alarms", selectedTab == TAB_ALARMS) { selectedTab = TAB_ALARMS }
                         Box(Modifier.width(20.dp))
                         HomeTab("Timers", selectedTab == TAB_TIMERS) { selectedTab = TAB_TIMERS }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
                     }
                 }
             )

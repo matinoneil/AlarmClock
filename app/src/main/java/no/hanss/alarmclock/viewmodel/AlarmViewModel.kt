@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmSeries
 import no.hanss.alarmclock.data.AlarmRepository
+import no.hanss.alarmclock.data.BackupSerializer
 import no.hanss.alarmclock.data.TimerPreset
 
 data class AlarmListUiState(
@@ -81,4 +82,20 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     fun setTimerRunning(timer: TimerPreset, running: Boolean) = viewModelScope.launch {
         repository.setTimerRunning(timer, running)
     }
+
+    // --- Settings / backup ---
+
+    val settings get() = repository.settings
+
+    suspend fun applySoundToAllAlarms(soundUri: String?) = repository.applySoundToAllAlarms(soundUri)
+
+    suspend fun applySoundToAllTimers(soundUri: String?) = repository.applySoundToAllTimers(soundUri)
+
+    suspend fun exportBackupJson(): String = repository.exportBackupJson()
+
+    /** Validation only -- throws on malformed input, touches nothing. */
+    fun parseBackupOrThrow(json: String) { BackupSerializer.fromJson(json) }
+
+    suspend fun restoreBackupJson(json: String): Triple<Int, Int, Int> =
+        repository.restoreBackupJson(json)
 }

@@ -60,7 +60,12 @@ fun SeriesEditScreen(
     var durationText by remember { mutableStateOf((existing?.durationMinutes ?: 45).toString()) }
     var vibrate by remember { mutableStateOf(existing?.vibrate ?: true) }
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
-    var soundUri by remember { mutableStateOf(existing?.soundUri) }
+    var soundUri by remember {
+        mutableStateOf(
+            if (seriesId == -1L) no.hanss.alarmclock.data.SettingsStore(context).defaultAlarmSoundUri
+            else existing?.soundUri
+        )
+    }
     var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: 0).toString()) }
     var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: 10).toString()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }

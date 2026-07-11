@@ -57,7 +57,14 @@ fun AlarmEditScreen(
     var label by remember { mutableStateOf(existing?.label ?: "") }
     var vibrate by remember { mutableStateOf(existing?.vibrate ?: true) }
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
-    var soundUri by remember { mutableStateOf(existing?.soundUri) }
+    // New alarms start from the settings default; edits keep the alarm's own
+    // choice (including "null = system default") untouched.
+    var soundUri by remember {
+        mutableStateOf(
+            if (alarmId == -1L) no.hanss.alarmclock.data.SettingsStore(context).defaultAlarmSoundUri
+            else existing?.soundUri
+        )
+    }
     var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: 0).toString()) }
     var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: 10).toString()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
