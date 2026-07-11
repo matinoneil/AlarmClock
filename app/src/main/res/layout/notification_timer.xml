@@ -3,8 +3,9 @@
      Chronometer only: the collapsed content area is too short for a second
      line on several skins (the label rendered clipped, #37), so any timer
      label rides in the header subText next to "Rings at" instead. The
-     Chronometer stays OS-rendered and OS-ticked (countDown mode) -- zero
-     process time. -->
+     Chronometer stays OS-rendered and OS-ticked (countDown mode): zero
+     process time. NOTE: never use a double hyphen inside XML comments,
+     it is illegal XML and aapt2 fails the whole build (entry #38). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"

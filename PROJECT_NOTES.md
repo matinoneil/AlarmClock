@@ -666,6 +666,19 @@ entry #1.
     warning: the collapsed custom-view area is barely one comfortable line
     tall on some skins -- don't put a second line there.
 
+38. **Build broken by #37: "--" inside an XML comment.** The rewritten
+    layout comment in notification_timer.xml used the double-hyphen prose
+    style these notes are written in ("countDown mode -- zero process
+    time"). A double hyphen is ILLEGAL inside XML comments per the XML
+    spec, and aapt2 fails the whole build on it. The Kotlin side of the
+    commit was fine; the diff looked so trivially safe that the XML
+    comment was the last suspect. Fix: rephrased the comment (colon
+    instead). Lesson: these notes' "--" writing style must NEVER leak
+    into XML comments -- Kotlin comments tolerate it, XML does not. When a
+    build breaks on a "can't possibly fail" diff, check the resource
+    files' comments before the code. (V1.8.8's first release was created
+    on the broken commit; deleted and re-created on the fix.)
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
