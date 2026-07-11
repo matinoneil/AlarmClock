@@ -6,8 +6,11 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.SystemClock
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import no.hanss.alarmclock.MainActivity
+import no.hanss.alarmclock.R
 import no.hanss.alarmclock.data.TimerPreset
 
 // "_v2": the first release of this feature (V1.9.0) shipped an IMPORTANCE_LOW
@@ -71,16 +74,25 @@ class TimerNotificationManager(private val context: Context) {
             cal.get(java.util.Calendar.MINUTE)
         )
 
+        // The countdown is the notification's point, so it gets the big text
+        // slot via a custom layout whose Chronometer the OS ticks itself (still
+        // zero process time); "Rings at HH:MM" moves to the small header slot
+        // (subText) where the chronometer used to sit. Chronometer runs on the
+        // elapsedRealtime clock, hence the base conversion.
+        val chronoBase = SystemClock.elapsedRealtime() + (until - System.currentTimeMillis())
+        fun contentView(): RemoteViews =
+            RemoteViews(context.packageName, R.layout.notification_timer).apply {
+                setChronometerCountDown(R.id.timer_chronometer, true)
+                setChronometer(R.id.timer_chronometer, chronoBase, null, true)
+                setTextViewText(R.id.timer_label, timer.label.takeIf { it.isNotBlank() } ?: "Timer")
+            }
+
         val notification = NotificationCompat.Builder(context, RUNNING_TIMER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(timer.label.takeIf { it.isNotBlank() } ?: "Timer")
-            .setContentText(ringsAt)
-            // Live countdown, rendered by the system: the timestamp slot shows
-            // a chronometer counting down to setWhen.
-            .setWhen(until)
-            .setUsesChronometer(true)
-            .setChronometerCountDown(true)
-            .setShowWhen(true)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(contentView())
+            .setCustomBigContentView(contentView())
+            .setSubText(ringsAt)
             // Default priority so the notification gets a status bar icon and
             // sits in the main shade section instead of the collapsed "Silent"
             // one. No setSilent(): that flag would demote it right back on

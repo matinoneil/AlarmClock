@@ -8,6 +8,8 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import no.hanss.alarmclock.data.AlarmDatabase
 
 private const val TAG = "TimerReceiver"
@@ -22,6 +24,15 @@ const val ACTION_TIMER_STOP = "no.hanss.alarmclock.action.TIMER_STOP"
 
 private const val ADJUST_MILLIS = 30_000L
 
+// Serializes fire/adjust/stop across ALL TimerReceiver instances: each
+// broadcast spawns its own coroutine, and without this, near-simultaneous
+// button taps read-modify-write the same row concurrently. The known-worst
+// interleaving (#35): adjust crosses zero and rings while a racing adjust,
+// holding pre-ring state, writes runningUntilMillis back and re-arms -- the
+// timer springs back to life and rings again. Every handler re-reads state
+// inside the lock, so whichever loses the race sees the truth and no-ops.
+private val timerOpsMutex = Mutex()
+
 class TimerReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -32,13 +43,15 @@ class TimerReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                when (action) {
-                    ACTION_TIMER_ADD_30, ACTION_TIMER_MINUS_30 -> adjust(
-                        context, timerId,
-                        if (action == ACTION_TIMER_ADD_30) ADJUST_MILLIS else -ADJUST_MILLIS
-                    )
-                    ACTION_TIMER_STOP -> stop(context, timerId)
-                    else -> fire(context, timerId)
+                timerOpsMutex.withLock {
+                    when (action) {
+                        ACTION_TIMER_ADD_30, ACTION_TIMER_MINUS_30 -> adjust(
+                            context, timerId,
+                            if (action == ACTION_TIMER_ADD_30) ADJUST_MILLIS else -ADJUST_MILLIS
+                        )
+                        ACTION_TIMER_STOP -> stop(context, timerId)
+                        else -> fire(context, timerId)
+                    }
                 }
             } finally {
                 pendingResult.finish()

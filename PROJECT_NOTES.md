@@ -624,23 +624,38 @@ entry #1.
     noted in-app: content:// sound URIs may not resolve on another device;
     the ring path degrades to the system sound.
 
-35. **[OPEN] Timer notification button handlers race each other.** Martin
-    reported that playing with a 10-min timer's +-30 s buttons seemed to
-    activate an 11-min alarm/timer once, unreproducible. Investigation
-    found no path that touches a DIFFERENT preset (request codes and
-    receiver components are all per-id and distinct), but DID find that
-    TimerReceiver's handlers are completely unserialized: every broadcast
-    launches an independent IO coroutine that read-modify-writes the same
-    DB row and re-arms AlarmManager. Interleavings include lost +-30
-    updates and, nastier, adjust-vs-fire: handler A crosses zero and rings
-    (row -> idle) while handler B, holding pre-ring state, writes
+35. **Timer notification button handlers raced each other.** Martin reported
+    that playing with a 10-min timer's +-30 s buttons seemed to activate an
+    11-min alarm/timer once, unreproducible. Investigation found no path
+    that touches a DIFFERENT preset (request codes and receiver components
+    are all per-id and distinct), but DID find that TimerReceiver's
+    handlers were completely unserialized: every broadcast launched an
+    independent IO coroutine that read-modify-wrote the same DB row and
+    re-armed AlarmManager. Interleavings included lost +-30 updates and,
+    nastier, adjust-vs-fire: handler A crosses zero and rings (row ->
+    idle) while handler B, holding pre-ring state, writes
     runningUntilMillis back and re-schedules -- the timer springs back to
-    life and rings again shortly after, i.e. a phantom activation. Fix
-    plan: a single shared Mutex in TimerReceiver serializing fire/adjust/
-    stop, with all state re-read inside the critical section. The "wrong
-    preset" observation itself stays UNVERIFIED -- if it recurs after this
-    fix, it's a different bug and should be re-reported with the exact
-    preset list and tap sequence.
+    life and rings again shortly after, i.e. a phantom activation. Fix: a
+    file-level Mutex serializing fire/adjust/stop across all receiver
+    instances; every handler already re-reads state from the DB, so the
+    race loser now sees the truth and no-ops. (fire() is called from
+    adjust() inside the lock -- the Mutex is non-reentrant, so fire must
+    never itself lock.) The "wrong preset" observation stays UNVERIFIED:
+    if it recurs after this fix it's a different bug -- re-report with the
+    exact preset list and tap sequence.
+
+36. **Timer notification layout: countdown and "rings at" swapped.** Per
+    Martin: the live countdown was in the small header timestamp slot and
+    "Rings at HH:MM" was the body text -- backwards for the notification's
+    whole point. Now a DecoratedCustomViewStyle custom layout
+    (notification_timer.xml) puts a 28sp Chronometer (countDown mode,
+    elapsedRealtime base) in the body with the label under it, and "Rings
+    at HH:MM" moved to setSubText in the small header slot. Still zero
+    process time -- the OS ticks the Chronometer in RemoteViews exactly as
+    it did in the when-slot. Text appearances use androidx.core's
+    TextAppearance.Compat.Notification styles so colors adapt across
+    light/dark and OEM skins; if some skin renders the custom view badly,
+    that's the first place to look.
 
 ## Restarting this project in a new chat
 
