@@ -4,7 +4,12 @@ on:
   push:
     branches: [ main, master ]
   release:
-    types: [ created ]
+    # 'published' fires exactly once whether a release is created directly or
+    # a draft is later published; 'created' missed the draft->publish path
+    # entirely, which left V1.8.10 with no build and no APK (entry #43).
+    # Do NOT list both types: a direct create emits created AND published,
+    # and both would trigger -- double builds, double attach.
+    types: [ published ]
   workflow_dispatch: {}
 
 permissions:

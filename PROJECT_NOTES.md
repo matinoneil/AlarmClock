@@ -734,6 +734,23 @@ entry #1.
     release-event run fired. If the APK is missing after a few minutes,
     publish-PATCH the release to re-fire the workflow.
 
+43. **Root cause of the V1.8.10 APK saga: workflow triggered on release
+    [created] only.** Publishing an existing draft emits 'published', not
+    'created', so the draft-publish PATCH from #42 never triggered a
+    build -- the release sat published, marked Latest, with no APK and no
+    run. Resolution for V1.8.10: delete the release (tag kept) and create
+    a fresh published release on the same tag -- a direct create emits
+    'created', which the workflow version AT THE TAG'S COMMIT still
+    listens for (release-event workflows run the file from the tagged
+    commit, so trigger fixes only help tags that contain them). Permanent
+    fix: trigger changed to types [published], which fires exactly once
+    for both direct creates and draft publishes; deliberately NOT
+    [created, published], since a direct create emits both and would
+    double-build. Also answered: the releases page sorts by release
+    created_at, so a PATCHed old release keeps its timestamp and can sit
+    below newer-created ones despite being marked Latest -- recreation
+    resets it to the top.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
