@@ -704,6 +704,23 @@ entry #1.
     Vertical list scrolling inside pages coexists via the pager's
     orientation locking.
 
+41. **Build broken by #40: Pager needs @ExperimentalFoundationApi on this
+    BOM.** compileReleaseKotlin failed with "This foundation API is
+    experimental" on every Pager reference. Root cause: HorizontalPager /
+    rememberPagerState / PagerState members are still
+    @ExperimentalFoundationApi in foundation 1.6.8 (BOM 2024.06.00); they
+    only stabilize in foundation 1.7. The session confidently assumed
+    "stable since 1.6" -- wrong, and unverifiable in the sandbox since it
+    can't compile. Fix: @OptIn(ExperimentalFoundationApi::class) on
+    HomeScreen. Lessons: (a) when introducing ANY new Compose API family,
+    check its experimental status against the PINNED BOM version, and when
+    in doubt add the OptIn -- a redundant OptIn is a warning, a missing one
+    is a broken build; (b) the Actions log-download endpoints
+    (results-receiver.actions.githubusercontent.com, *.blob.core.windows.net)
+    are blocked by the sandbox allowlist -- Martin pastes the red lines on
+    request, or those hosts can be added to the egress settings for direct
+    access.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

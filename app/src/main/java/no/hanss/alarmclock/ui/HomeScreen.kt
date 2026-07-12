@@ -2,6 +2,7 @@ package no.hanss.alarmclock.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -53,7 +54,9 @@ private const val TAB_TIMERS = 1
  * shared state either way. The tab row deliberately lives outside the pager
  * so it stays fixed while only the list content slides.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+// ExperimentalFoundationApi: Pager is still experimental in foundation 1.6.8
+// (this BOM); it stabilizes in 1.7 (entry #41).
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     viewModel: AlarmViewModel,
