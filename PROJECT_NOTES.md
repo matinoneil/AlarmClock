@@ -692,6 +692,18 @@ entry #1.
     by firing early: a 10-minute timer must ring after 600 s, not 599.
     Same principle as #27's "never in 0 min" rounding for alarms.
 
+40. **Swipe between the Alarms and Timers tabs.** Per Martin: the tab
+    content is now a HorizontalPager instead of AnimatedContent -- swiping
+    the list area drags between tabs with the finger, tab taps
+    animateScrollToPage the same state, and the tab highlight follows
+    pagerState.targetPage so it flips mid-swipe at the halfway point
+    rather than after the settle. PagerState is saveable, preserving the
+    rotation/return-from-editor behavior the old rememberSaveable int
+    provided. The FAB reads currentPage (not targetPage): its action must
+    match the page actually under the finger, not the one being previewed.
+    Vertical list scrolling inside pages coexists via the pager's
+    orientation locking.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

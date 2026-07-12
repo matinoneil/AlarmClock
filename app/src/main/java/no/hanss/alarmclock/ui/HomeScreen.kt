@@ -1,13 +1,7 @@
 package no.hanss.alarmclock.ui
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -15,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -33,11 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,9 +48,10 @@ private const val TAB_TIMERS = 1
 /**
  * The app's main screen: a single Scaffold owning the Alarms/Timers tab row
  * (in the top-bar title position), the shared + FAB (whose action depends on
- * the selected tab), and an animated horizontal slide between the two tab
- * bodies. The tab row deliberately lives outside the AnimatedContent so it
- * stays fixed while only the list content slides.
+ * the selected tab), and a HorizontalPager between the two tab bodies --
+ * tapping a tab animates the pager, and swiping the content drags it, one
+ * shared state either way. The tab row deliberately lives outside the pager
+ * so it stays fixed while only the list content slides.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,19 +65,28 @@ fun HomeScreen(
     onEditTimer: (TimerPreset) -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    // rememberSaveable so the selected tab survives rotation and returning
-    // from an edit screen doesn't dump the user back on Alarms.
-    var selectedTab by rememberSaveable { mutableIntStateOf(TAB_ALARMS) }
+    // Pager state is the single source of truth for which tab is showing;
+    // it's saveable, so rotation and returning from an edit screen keep the
+    // tab. Tabs tap-scroll it, swipes drag it -- same state either way.
+    val pagerState = rememberPagerState(initialPage = TAB_ALARMS, pageCount = { 2 })
+    val scope = rememberCoroutineScope()
     var showAddMenu by remember { mutableStateOf(false) }
+    // targetPage flips as a swipe crosses the halfway point, so the tab
+    // highlight answers mid-drag instead of only after the settle.
+    val selectedTab = pagerState.targetPage
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Row {
-                        HomeTab("Alarms", selectedTab == TAB_ALARMS) { selectedTab = TAB_ALARMS }
+                        HomeTab("Alarms", selectedTab == TAB_ALARMS) {
+                            scope.launch { pagerState.animateScrollToPage(TAB_ALARMS) }
+                        }
                         Box(Modifier.width(20.dp))
-                        HomeTab("Timers", selectedTab == TAB_TIMERS) { selectedTab = TAB_TIMERS }
+                        HomeTab("Timers", selectedTab == TAB_TIMERS) {
+                            scope.launch { pagerState.animateScrollToPage(TAB_TIMERS) }
+                        }
                     }
                 },
                 actions = {
@@ -94,7 +100,7 @@ fun HomeScreen(
             Box {
                 FloatingActionButton(
                     onClick = {
-                        if (selectedTab == TAB_ALARMS) showAddMenu = true else onAddTimer()
+                        if (pagerState.currentPage == TAB_ALARMS) showAddMenu = true else onAddTimer()
                     },
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -117,25 +123,16 @@ fun HomeScreen(
             }
         }
     ) { padding ->
-        AnimatedContent(
-            targetState = selectedTab,
+        // The pager both animates tab taps and follows finger drags; vertical
+        // list scrolling inside the pages is disambiguated by the pager's own
+        // orientation locking.
+        HorizontalPager(
+            state = pagerState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            transitionSpec = {
-                // Slide in the direction of travel: Alarms -> Timers pushes the
-                // content left; going back pushes it right. Paired with a fade
-                // so the crossover doesn't look like a hard shove.
-                val towardTimers = targetState > initialState
-                val enterFrom = if (towardTimers) 1 else -1
-                (slideInHorizontally(tween(260)) { it / 3 * enterFrom } + fadeIn(tween(260)))
-                    .togetherWith(
-                        slideOutHorizontally(tween(260)) { -it / 3 * enterFrom } + fadeOut(tween(200))
-                    )
-            },
-            label = "homeTabContent"
-        ) { tab ->
-            when (tab) {
+                .padding(padding)
+        ) { page ->
+            when (page) {
                 TAB_TIMERS -> TimerListContent(
                     viewModel = viewModel,
                     onEditTimer = onEditTimer
