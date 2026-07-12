@@ -721,6 +721,19 @@ entry #1.
     request, or those hosts can be added to the egress settings for direct
     access.
 
+42. **Release delete-and-recreate can leave a draft that isn't "Latest".**
+    The recreated V1.8.10 ended up in draft state with no release-event
+    workflow run and no APK; drafts are invisible to /releases/tags/{tag},
+    excluded from the Latest badge (V1.8.9 kept it), and display apart on
+    the releases page -- which read as "V1.8.10 shows up after V1.8.9".
+    Cause not fully proven (created via API with draft:false; something in
+    the delete/recreate + workflow interaction flipped it). Fixed by
+    PATCHing draft:false + make_latest:"true". Standing practice from now
+    on: after ANY release recreation, verify three things via the API --
+    the release is not a draft, /releases/latest points at it, and a
+    release-event run fired. If the APK is missing after a few minutes,
+    publish-PATCH the release to re-fire the workflow.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
