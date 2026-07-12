@@ -79,7 +79,12 @@ class TimerNotificationManager(private val context: Context) {
         // zero process time); "Rings at HH:MM" moves to the small header slot
         // (subText) where the chronometer used to sit. Chronometer runs on the
         // elapsedRealtime clock, hence the base conversion.
-        val chronoBase = SystemClock.elapsedRealtime() + (until - System.currentTimeMillis())
+        // +999 ms: the OS Chronometer floors, so an unshifted base displays
+        // 00:00 for the entire final second before the deadline (#39). The
+        // shift makes it render the ceiling instead -- 00:01 until the timer
+        // actually fires, with 00:00 only during real ring startup. The
+        // AlarmManager fire time is untouched: durations stay exact.
+        val chronoBase = SystemClock.elapsedRealtime() + (until - System.currentTimeMillis()) + 999L
         fun contentView(): RemoteViews =
             RemoteViews(context.packageName, R.layout.notification_timer).apply {
                 setChronometerCountDown(R.id.timer_chronometer, true)

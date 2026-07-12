@@ -679,6 +679,19 @@ entry #1.
     files' comments before the code. (V1.8.8's first release was created
     on the broken commit; deleted and re-created on the fix.)
 
+39. **Timer displays sat on 00:00 before ringing.** Reported by Martin: the
+    countdown reaches 00:00 visibly before the ring. Root cause: both the
+    card and the notification chronometer FLOOR the remaining time, so
+    00:00 renders for the entire final second while the deadline hasn't
+    arrived, and ring startup latency (receiver -> service -> sound, a few
+    hundred ms) stacks on top. Fix: ceiling everywhere -- the card computes
+    (remainingMs + 999) / 1000, and the notification shifts the Chronometer
+    base by +999 ms (the OS widget floors, so a shifted base renders the
+    ceiling). Displays now read 00:01 until the timer actually fires;
+    00:00 only shows during genuine ring startup. Deliberately NOT fixed
+    by firing early: a 10-minute timer must ring after 600 s, not 599.
+    Same principle as #27's "never in 0 min" rounding for alarms.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

@@ -117,8 +117,11 @@ private fun TimerCard(
     // full duration. When it reaches zero the receiver flips the row back to
     // idle in the DB, which flows straight back into this card.
     val bigText = if (running) {
-        val remaining = (((timer.runningUntilMillis ?: 0L) - nowMillis) / 1000L).coerceAtLeast(0L)
-        formatTimerDuration(remaining.toInt())
+        // Ceiling, not floor: truncating shows 00:00 for the whole final
+        // second while the deadline hasn't arrived (#39). Rounded up, the
+        // card reads 00:01 until the timer actually fires.
+        val remainingMs = ((timer.runningUntilMillis ?: 0L) - nowMillis).coerceAtLeast(0L)
+        formatTimerDuration(((remainingMs + 999) / 1000L).toInt())
     } else {
         formatTimerDuration(timer.durationSeconds)
     }
