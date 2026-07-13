@@ -751,6 +751,26 @@ entry #1.
     below newer-created ones despite being marked Latest -- recreation
     resets it to the top.
 
+44. **[OPEN] Feature: pause-until-date for standalone alarms.** Requested:
+    the series pause (#29/#33) for single alarms. Intended approach is
+    DELIBERATELY simpler than the series version: no unpause receiver, no
+    reconcile, no redundancy -- a single alarm's pause is just a floor on
+    its next-trigger computation. `pausedUntilMillis` on Alarm (DB v7->8
+    ALTER TABLE); nextTriggerTime lifts its reference point to
+    pausedUntilMillis while the pause is active (snoozes included, so a
+    stale snooze can't ring inside a pause), meaning AlarmManager is armed
+    directly at the first post-pause occurrence and reboots re-arm it like
+    any alarm -- the pause "ends" passively with nothing to fail. Works for
+    repeating alarms (skips occurrences before the date) and one-shots
+    (rings at the first HH:MM on/after the date). UI mirrors #33: shared
+    PauseEditSection extracted from SeriesEditScreen (one copy of the
+    UTC->local midnight conversion) used by both editors; AlarmCard shows
+    the tertiary "Paused - rings again <date>" line, 0.75 alpha, switch
+    stays ON, rings-in suppressed while paused; toggling the switch clears
+    the pause either way (same rule as series). saveStandaloneAlarm nulls
+    a pause date already in the past; backup gains the field (tolerant
+    optional read, format version stays 1).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
