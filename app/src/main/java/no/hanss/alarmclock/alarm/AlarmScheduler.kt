@@ -92,14 +92,22 @@ class AlarmScheduler(private val context: Context) {
      * otherwise land exactly on it.
      */
     private fun nextTriggerTime(alarm: Alarm, referenceMillis: Long = System.currentTimeMillis()): Long {
+        // An active pause floors the reference: nothing before pausedUntilMillis
+        // (local midnight of the resume day) may ring -- including a snooze that
+        // somehow survived into the pause. The pause needs no resume machinery
+        // because of this line alone: the alarm is simply armed at the first
+        // occurrence on/after the resume day (entry #44).
+        val reference = alarm.pausedUntilMillis
+            ?.takeIf { it > referenceMillis }
+            ?: referenceMillis
         // A persisted snooze overrides the regular schedule while it's still in the
         // future. If it's in the past (phone was off through the snooze time), fall
         // through to the normal computation rather than firing hours late;
         // AlarmReceiver clears the field whenever the alarm actually fires.
         alarm.snoozeUntilMillis?.let { snoozeUntil ->
-            if (snoozeUntil > referenceMillis) return snoozeUntil
+            if (snoozeUntil > reference) return snoozeUntil
         }
-        val candidate = rawNextTriggerTime(alarm, referenceMillis)
+        val candidate = rawNextTriggerTime(alarm, reference)
         val skip = alarm.skipOccurrenceMillis
         return if (skip != null && candidate == skip) {
             rawNextTriggerTime(alarm, candidate + 60_000L)

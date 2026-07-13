@@ -205,13 +205,17 @@ private fun AlarmCard(
     onClick: () -> Unit,
     onToggle: (Boolean) -> Unit
 ) {
+    // Paused mirrors the series treatment (#33): enabled-but-silenced, never
+    // "off". Rings-in is suppressed while paused -- the tertiary line already
+    // says exactly when it comes back.
+    val paused = alarm.isPausedAt(nowMillis)
     val subtitle = buildString {
         if (alarm.label.isNotBlank()) {
             append(alarm.label)
             append(" · ")
         }
         append(dayLabel(alarm.daysOfWeek))
-        if (nextTriggerMillis != null) {
+        if (nextTriggerMillis != null && !paused) {
             append(" · ")
             // A snoozed alarm's next ring IS the snooze time; say so, since
             // "07:00 ... in 4 min" at 09:26 would otherwise look like a bug.
@@ -224,13 +228,20 @@ private fun AlarmCard(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .alpha(if (alarm.enabled) 1f else 0.5f)
+                .alpha(if (!alarm.enabled) 0.5f else if (paused) 0.75f else 1f)
         ) {
             Text(
                 String.format("%02d:%02d", alarm.hour, alarm.minute),
                 style = MaterialTheme.typography.displaySmall.merge(ClockTextStyle)
             )
             Spacer(modifier = Modifier.height(2.dp))
+            if (paused) {
+                Text(
+                    "Paused — rings again ${pausedUntilLabel(alarm.pausedUntilMillis!!)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
             Text(
                 subtitle,
                 style = MaterialTheme.typography.bodyMedium,

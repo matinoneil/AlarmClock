@@ -43,7 +43,12 @@ class AlarmRepository(context: Context) {
         // An edit invalidates any in-flight snooze -- ringing at a snooze time
         // computed against the pre-edit schedule would be wrong. (skipOccurrenceMillis
         // is deliberately kept: it only matches if the next occurrence is unchanged.)
-        val toSave = alarm.copy(snoozeUntilMillis = null)
+        // A pause date already behind us means "not paused" (same rule as series).
+        val stalePause = alarm.pausedUntilMillis?.let { it <= System.currentTimeMillis() } == true
+        val toSave = alarm.copy(
+            snoozeUntilMillis = null,
+            pausedUntilMillis = if (stalePause) null else alarm.pausedUntilMillis
+        )
         val id = if (toSave.id == 0L) alarmDao.insert(toSave) else {
             alarmDao.update(toSave); toSave.id
         }
@@ -62,7 +67,9 @@ class AlarmRepository(context: Context) {
     suspend fun setAlarmEnabled(alarm: Alarm, enabled: Boolean) {
         // Toggling is a reset: any pending snooze or skipped occurrence belongs to
         // the alarm's previous life and shouldn't survive an off/on cycle.
-        val updated = alarm.copy(enabled = enabled, snoozeUntilMillis = null, skipOccurrenceMillis = null)
+        // The switch also clears a pause, same rule as series (#33): ON while
+        // paused = resume now; OFF makes the pause moot.
+        val updated = alarm.copy(enabled = enabled, snoozeUntilMillis = null, skipOccurrenceMillis = null, pausedUntilMillis = null)
         alarmDao.update(updated)
         if (enabled) scheduler.schedule(updated) else scheduler.cancel(updated)
         notifyChanged()

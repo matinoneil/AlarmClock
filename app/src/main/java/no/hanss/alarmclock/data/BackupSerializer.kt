@@ -50,6 +50,7 @@ object BackupSerializer {
                     put("soundUri", a.soundUri ?: JSONObject.NULL)
                     put("volumeRampSeconds", a.volumeRampSeconds)
                     put("snoozeMinutes", a.snoozeMinutes)
+                    put("pausedUntilMillis", a.pausedUntilMillis ?: JSONObject.NULL)
                 })
             }
         })
@@ -116,7 +117,9 @@ object BackupSerializer {
                     vibrate = o.optBoolean("vibrate", true),
                     soundUri = o.optStringOrNull("soundUri"),
                     volumeRampSeconds = o.optInt("volumeRampSeconds", 0).coerceAtLeast(0),
-                    snoozeMinutes = o.optInt("snoozeMinutes", 10).coerceAtLeast(1)
+                    snoozeMinutes = o.optInt("snoozeMinutes", 10).coerceAtLeast(1),
+                    // Absent in pre-#44 backups: tolerant optional read.
+                    pausedUntilMillis = if (!o.has("pausedUntilMillis") || o.isNull("pausedUntilMillis")) null else o.getLong("pausedUntilMillis")
                 )
             }
         }

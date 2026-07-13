@@ -59,6 +59,7 @@ fun AlarmEditScreen(
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
     // New alarms start from the settings default; edits keep the alarm's own
     // choice (including "null = system default") untouched.
+    var pausedUntil by remember { mutableStateOf(existing?.pausedUntilMillis) }
     var soundUri by remember {
         mutableStateOf(
             if (alarmId == -1L) no.hanss.alarmclock.data.SettingsStore(context).defaultAlarmSoundUri
@@ -183,6 +184,12 @@ fun AlarmEditScreen(
                 }
             }
 
+            PauseEditSection(
+                pausedUntil = pausedUntil,
+                noun = "alarm",
+                onChange = { pausedUntil = it }
+            )
+
             EditSection(title = "Sound & snooze") {
                 OutlinedTextField(
                     value = rampText,
@@ -226,6 +233,9 @@ fun AlarmEditScreen(
                         soundUri = soundUri,
                         volumeRampSeconds = rampSeconds,
                         snoozeMinutes = snoozeMinutes,
+                        // The pause rides along; the repository nulls a date
+                        // already in the past (#44).
+                        pausedUntilMillis = pausedUntil,
                         // Saving always enables: editing an alarm nearly always
                         // means intending to use it (see PROJECT_NOTES entry
                         // #18). Disabling is done from the list toggle.

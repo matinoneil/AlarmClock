@@ -751,25 +751,31 @@ entry #1.
     below newer-created ones despite being marked Latest -- recreation
     resets it to the top.
 
-44. **[OPEN] Feature: pause-until-date for standalone alarms.** Requested:
-    the series pause (#29/#33) for single alarms. Intended approach is
-    DELIBERATELY simpler than the series version: no unpause receiver, no
-    reconcile, no redundancy -- a single alarm's pause is just a floor on
-    its next-trigger computation. `pausedUntilMillis` on Alarm (DB v7->8
-    ALTER TABLE); nextTriggerTime lifts its reference point to
+44. **Feature: pause-until-date for standalone alarms.** The series pause
+    (#29/#33), now on single alarms -- but DELIBERATELY simpler: no unpause
+    receiver, no reconcile, no redundancy. `pausedUntilMillis` on Alarm
+    (DB v7->8 ALTER TABLE); nextTriggerTime floors its reference point at
     pausedUntilMillis while the pause is active (snoozes included, so a
-    stale snooze can't ring inside a pause), meaning AlarmManager is armed
+    stale snooze can't ring inside a pause), so AlarmManager is armed
     directly at the first post-pause occurrence and reboots re-arm it like
-    any alarm -- the pause "ends" passively with nothing to fail. Works for
-    repeating alarms (skips occurrences before the date) and one-shots
-    (rings at the first HH:MM on/after the date). UI mirrors #33: shared
-    PauseEditSection extracted from SeriesEditScreen (one copy of the
-    UTC->local midnight conversion) used by both editors; AlarmCard shows
-    the tertiary "Paused - rings again <date>" line, 0.75 alpha, switch
-    stays ON, rings-in suppressed while paused; toggling the switch clears
-    the pause either way (same rule as series). saveStandaloneAlarm nulls
-    a pause date already in the past; backup gains the field (tolerant
-    optional read, format version stays 1).
+    any alarm -- the pause ends passively with nothing to fail. Works for
+    repeating alarms (skips occurrences before the resume day) and
+    one-shots (rings at the first HH:MM on/after it). Widget, upcoming
+    notification, and rings-in labels are pause-aware for free since they
+    all read peekNextTriggerTime. UI mirrors #33: shared PauseEditSection
+    extracted from SeriesEditScreen into its own file (ONE copy of the
+    UTC->local-midnight conversion) and used by both editors; AlarmCard
+    shows the tertiary "Paused - rings again <date>" line, 0.75 alpha,
+    switch stays ON, rings-in suppressed while paused; the switch clears a
+    pause either way (same rule as series). saveStandaloneAlarm nulls a
+    past pause date; backup gained the field with a tolerant optional read
+    (pre-#44 backups restore fine, format version unchanged). Process
+    near-miss worth remembering: the Alarm-entity patch in the batch
+    SILENTLY no-op'd (python str.replace with a mismatched anchor), which
+    would have broken the build -- caught only by grep-verifying that every
+    replacement actually landed. That verification (grep each expected
+    marker after a patch batch) is now standing practice alongside #31's
+    import mirroring.
 
 ## Restarting this project in a new chat
 

@@ -70,7 +70,6 @@ fun SeriesEditScreen(
     var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: 10).toString()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pausedUntil by remember { mutableStateOf(existing?.pausedUntilMillis) }
-    var showPausePicker by remember { mutableStateOf(false) }
 
     val interval = intervalText.toIntOrNull()?.coerceAtLeast(1) ?: 5
     val duration = durationText.toIntOrNull()?.coerceAtLeast(0) ?: 45
@@ -120,76 +119,6 @@ fun SeriesEditScreen(
                 RingtoneManager.getRingtone(context, Uri.parse(uriString))?.getTitle(context)
             }.getOrNull()
         } ?: "Default alarm sound"
-    }
-
-    if (showPausePicker) {
-        // DatePicker state is UTC-midnight of the picked date; the pause must
-        // end at LOCAL midnight of that date so that day's alarms ring.
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = pausedUntil,
-            selectableDates = object : SelectableDates {
-                // Allow from tomorrow (local) onward: pausing "until today"
-                // would be a no-op the repository nulls out anyway.
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                    val todayLocal = java.util.Calendar.getInstance()
-                    val pickedUtc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-                        .apply { timeInMillis = utcTimeMillis }
-                    val picked = (todayLocal.clone() as java.util.Calendar).apply {
-                        set(
-                            pickedUtc.get(java.util.Calendar.YEAR),
-                            pickedUtc.get(java.util.Calendar.MONTH),
-                            pickedUtc.get(java.util.Calendar.DAY_OF_MONTH),
-                            0, 0
-                        )
-                        set(java.util.Calendar.SECOND, 0)
-                        set(java.util.Calendar.MILLISECOND, 0)
-                    }
-                    todayLocal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                    todayLocal.set(java.util.Calendar.MINUTE, 0)
-                    todayLocal.set(java.util.Calendar.SECOND, 0)
-                    todayLocal.set(java.util.Calendar.MILLISECOND, 0)
-                    return picked.timeInMillis > todayLocal.timeInMillis
-                }
-            }
-        )
-        DatePickerDialog(
-            onDismissRequest = { showPausePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { utcMillis ->
-                        val utc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-                            .apply { timeInMillis = utcMillis }
-                        val local = java.util.Calendar.getInstance().apply {
-                            clear()
-                            set(
-                                utc.get(java.util.Calendar.YEAR),
-                                utc.get(java.util.Calendar.MONTH),
-                                utc.get(java.util.Calendar.DAY_OF_MONTH),
-                                0, 0, 0
-                            )
-                        }
-                        pausedUntil = local.timeInMillis.takeIf { it > System.currentTimeMillis() }
-                    }
-                    showPausePicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPausePicker = false }) { Text("Cancel") }
-            }
-        ) {
-            // The title answers the ambiguity in-flow: the picked day is the
-            // first day alarms RING, not the last silent day (#33).
-            DatePicker(
-                state = pickerState,
-                title = {
-                    Text(
-                        "Pick the first day alarms ring again",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(start = 24.dp, top = 16.dp)
-                    )
-                }
-            )
-        }
     }
 
     if (showDeleteConfirm && existing != null) {
@@ -294,38 +223,11 @@ fun SeriesEditScreen(
                 )
             }
 
-            EditSection(title = "Pause") {
-                val activePause = pausedUntil?.takeIf { it > System.currentTimeMillis() }
-                Text(
-                    if (activePause != null)
-                        "Paused — alarms are silent and ring again ${pausedUntilLabel(activePause)}, automatically."
-                    else
-                        "Silence this series for a while. Pick the first day alarms should ring again — it resumes by itself that day.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        onClick = { showPausePicker = true },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(
-                            if (activePause != null) "Rings again ${pausedUntilLabel(activePause)}"
-                            else "Pause…",
-                            maxLines = 1
-                        )
-                    }
-                    if (activePause != null) {
-                        OutlinedButton(
-                            onClick = { pausedUntil = null },
-                            modifier = Modifier.height(52.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) { Text("Clear") }
-                    }
-                }
-            }
+            PauseEditSection(
+                pausedUntil = pausedUntil,
+                noun = "series",
+                onChange = { pausedUntil = it }
+            )
 
             EditSection(title = "Sound & snooze") {
                 OutlinedButton(

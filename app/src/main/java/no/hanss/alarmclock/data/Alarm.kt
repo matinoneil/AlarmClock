@@ -52,5 +52,14 @@ data class Alarm(
     // Overrides the weekly schedule while in the future; cleared when the alarm
     // fires, is toggled, or is edited. One-shot snoozes don't use this: they persist
     // a new hour/minute directly instead (see entry #3 in PROJECT_NOTES).
-    val snoozeUntilMillis: Long? = null
-)
+    val snoozeUntilMillis: Long? = null,
+    // Epoch millis (LOCAL midnight of the resume day) before which no occurrence
+    // may ring; null = not paused. Unlike a series pause there is NO resume
+    // machinery: nextTriggerTime simply floors its reference here, so
+    // AlarmManager is armed at the first post-pause occurrence and the pause
+    // ends passively (see entry #44).
+    val pausedUntilMillis: Long? = null
+) {
+    fun isPausedAt(nowMillis: Long): Boolean =
+        pausedUntilMillis?.let { it > nowMillis } == true
+}
