@@ -40,11 +40,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmSeries
+import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.data.TimerPreset
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
 
 private const val TAB_ALARMS = 0
 private const val TAB_TIMERS = 1
+private const val TAB_REMINDERS = 2
 
 /**
  * The app's main screen: a single Scaffold owning the Alarms/Timers tab row
@@ -66,12 +68,14 @@ fun HomeScreen(
     onEditSeries: (AlarmSeries) -> Unit,
     onAddTimer: () -> Unit,
     onEditTimer: (TimerPreset) -> Unit,
+    onAddReminder: () -> Unit,
+    onEditReminder: (Reminder) -> Unit,
     onOpenSettings: () -> Unit
 ) {
     // Pager state is the single source of truth for which tab is showing;
     // it's saveable, so rotation and returning from an edit screen keep the
     // tab. Tabs tap-scroll it, swipes drag it -- same state either way.
-    val pagerState = rememberPagerState(initialPage = TAB_ALARMS, pageCount = { 2 })
+    val pagerState = rememberPagerState(initialPage = TAB_ALARMS, pageCount = { 3 })
     val scope = rememberCoroutineScope()
     var showAddMenu by remember { mutableStateOf(false) }
     // targetPage flips as a swipe crosses the halfway point, so the tab
@@ -90,6 +94,10 @@ fun HomeScreen(
                         HomeTab("Timers", selectedTab == TAB_TIMERS) {
                             scope.launch { pagerState.animateScrollToPage(TAB_TIMERS) }
                         }
+                        Box(Modifier.width(20.dp))
+                        HomeTab("Reminders", selectedTab == TAB_REMINDERS) {
+                            scope.launch { pagerState.animateScrollToPage(TAB_REMINDERS) }
+                        }
                     }
                 },
                 actions = {
@@ -103,7 +111,13 @@ fun HomeScreen(
             Box {
                 FloatingActionButton(
                     onClick = {
-                        if (pagerState.currentPage == TAB_ALARMS) showAddMenu = true else onAddTimer()
+                        // currentPage, not targetPage: the + must act on the
+                        // page under the finger, not one previewed mid-swipe.
+                        when (pagerState.currentPage) {
+                            TAB_TIMERS -> onAddTimer()
+                            TAB_REMINDERS -> onAddReminder()
+                            else -> showAddMenu = true
+                        }
                     },
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -139,6 +153,10 @@ fun HomeScreen(
                 TAB_TIMERS -> TimerListContent(
                     viewModel = viewModel,
                     onEditTimer = onEditTimer
+                )
+                TAB_REMINDERS -> ReminderListContent(
+                    viewModel = viewModel,
+                    onEditReminder = onEditReminder
                 )
                 else -> AlarmListContent(
                     viewModel = viewModel,

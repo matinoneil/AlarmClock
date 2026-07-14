@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import no.hanss.alarmclock.ui.AlarmEditScreen
 import no.hanss.alarmclock.ui.HomeScreen
+import no.hanss.alarmclock.ui.ReminderEditScreen
 import no.hanss.alarmclock.ui.SeriesEditScreen
 import no.hanss.alarmclock.ui.SettingsScreen
 import no.hanss.alarmclock.ui.TimerEditScreen
@@ -107,6 +108,8 @@ class MainActivity : ComponentActivity() {
                             onEditSeries = { navController.navigate("series_edit/${it.id}") },
                             onAddTimer = { navController.navigate("timer_edit/-1") },
                             onEditTimer = { navController.navigate("timer_edit/${it.id}") },
+                            onAddReminder = { navController.navigate("reminder_edit/-1") },
+                            onEditReminder = { navController.navigate("reminder_edit/${it.id}") },
                             onOpenSettings = { navController.navigate("settings") }
                         )
                     }
@@ -145,6 +148,17 @@ class MainActivity : ComponentActivity() {
                         val timerId = backStackEntry.arguments?.getLong("timerId") ?: -1L
                         TimerEditScreen(
                             timerId = timerId,
+                            viewModel = viewModel,
+                            onDone = { navController.popBackStack() }
+                        )
+                    }
+                    composable(
+                        route = "reminder_edit/{reminderId}",
+                        arguments = listOf(navArgument("reminderId") { type = NavType.LongType })
+                    ) { backStackEntry ->
+                        val reminderId = backStackEntry.arguments?.getLong("reminderId") ?: -1L
+                        ReminderEditScreen(
+                            reminderId = reminderId,
                             viewModel = viewModel,
                             onDone = { navController.popBackStack() }
                         )

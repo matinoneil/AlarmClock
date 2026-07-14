@@ -11,6 +11,7 @@ import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmSeries
 import no.hanss.alarmclock.data.AlarmRepository
 import no.hanss.alarmclock.data.BackupSerializer
+import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.data.TimerPreset
 
 data class AlarmListUiState(
@@ -19,7 +20,8 @@ data class AlarmListUiState(
     // Children of all series, for per-series "rings in" (a child's snooze or
     // skip-next can make the true next ring differ from the series definition).
     val seriesChildAlarms: List<Alarm> = emptyList(),
-    val timers: List<TimerPreset> = emptyList()
+    val timers: List<TimerPreset> = emptyList(),
+    val reminders: List<Reminder> = emptyList()
 )
 
 class AlarmViewModel(application: Application) : AndroidViewModel(application) {
@@ -36,8 +38,11 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         repository.observeStandaloneAlarms(),
         repository.observeSeries(),
         repository.observeSeriesChildAlarms(),
-        repository.observeTimers()
-    ) { alarms, series, children, timers -> AlarmListUiState(alarms, series, children, timers) }
+        repository.observeTimers(),
+        repository.observeReminders()
+    ) { alarms, series, children, timers, reminders ->
+        AlarmListUiState(alarms, series, children, timers, reminders)
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AlarmListUiState())
 
     fun canScheduleExactAlarms(): Boolean = repository.canScheduleExactAlarms()
@@ -81,6 +86,26 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setTimerRunning(timer: TimerPreset, running: Boolean) = viewModelScope.launch {
         repository.setTimerRunning(timer, running)
+    }
+
+    // --- Reminders ---
+
+    suspend fun getReminder(id: Long): Reminder? = repository.getReminder(id)
+
+    fun saveReminder(reminder: Reminder) = viewModelScope.launch {
+        repository.saveReminder(reminder)
+    }
+
+    fun deleteReminder(reminder: Reminder) = viewModelScope.launch {
+        repository.deleteReminder(reminder)
+    }
+
+    fun markReminderDone(reminder: Reminder) = viewModelScope.launch {
+        repository.markReminderDone(reminder.id)
+    }
+
+    fun clearDoneReminders() = viewModelScope.launch {
+        repository.clearDoneReminders()
     }
 
     // --- Settings / backup ---

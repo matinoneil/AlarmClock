@@ -60,6 +60,23 @@
             android:exported="false" />
 
         <receiver
+            android:name=".alarm.ReminderReceiver"
+            android:exported="false" />
+
+        <!-- Small floating snooze menu launched from the reminder
+             notification. showWhenLocked so Snooze works from the lock screen;
+             singleInstance + excludeFromRecents + noHistory keep it out of any
+             task the user cares about. -->
+        <activity
+            android:name=".ui.ReminderSnoozeActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:launchMode="singleInstance"
+            android:theme="@style/Theme.AlarmClock.SnoozeDialog" />
+
+        <receiver
             android:name=".alarm.BootReceiver"
             android:exported="true">
             <intent-filter>

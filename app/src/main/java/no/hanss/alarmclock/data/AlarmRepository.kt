@@ -4,6 +4,9 @@ import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import no.hanss.alarmclock.alarm.AlarmScheduler
 import no.hanss.alarmclock.alarm.BedtimeNotificationManager
+import no.hanss.alarmclock.alarm.ReminderNotificationManager
+import no.hanss.alarmclock.alarm.ReminderOps
+import no.hanss.alarmclock.alarm.ReminderScheduler
 import no.hanss.alarmclock.alarm.SeriesUnpauseOps
 import no.hanss.alarmclock.alarm.SeriesUnpauseScheduler
 import no.hanss.alarmclock.alarm.TimerNotificationManager
@@ -17,7 +20,10 @@ class AlarmRepository(context: Context) {
     private val alarmDao = db.alarmDao()
     private val seriesDao = db.alarmSeriesDao()
     private val timerDao = db.timerDao()
+    private val reminderDao = db.reminderDao()
     private val scheduler = AlarmScheduler(context)
+    private val reminderScheduler = ReminderScheduler(context)
+    private val reminderNotifications = ReminderNotificationManager(context)
     private val timerScheduler = TimerScheduler(context)
     private val timerNotifications = TimerNotificationManager(context)
     private val unpauseScheduler = SeriesUnpauseScheduler(context)
@@ -28,6 +34,7 @@ class AlarmRepository(context: Context) {
     fun observeSeries(): Flow<List<AlarmSeries>> = seriesDao.observeSeries()
     fun observeSeriesChildAlarms(): Flow<List<Alarm>> = alarmDao.observeSeriesChildAlarms()
     fun observeTimers(): Flow<List<TimerPreset>> = timerDao.observeTimers()
+    fun observeReminders(): Flow<List<Reminder>> = reminderDao.observeReminders()
     fun observeAlarmsForSeries(seriesId: Long): Flow<List<Alarm>> = alarmDao.observeAlarmsForSeries(seriesId)
 
     suspend fun getSeries(id: Long): AlarmSeries? = seriesDao.getSeries(id)
@@ -259,6 +266,46 @@ class AlarmRepository(context: Context) {
 
     suspend fun countTimers(): Int = timerDao.getAllTimers().size
 
+    // --- Reminders ---
+
+    suspend fun getReminder(id: Long): Reminder? = reminderDao.getReminder(id)
+
+    /**
+     * Save from the editor. Semantics mirror alarm saves: the reminder always
+     * comes back PENDING (editing an active or done one re-arms it -- the
+     * editor's Save means "remind me as configured"), and any in-flight
+     * snooze is cleared, since a snooze computed against the pre-edit
+     * schedule shouldn't survive the edit (#12). A repeating reminder whose
+     * dueAt already passed rolls forward to the next occurrence; the editor
+     * blocks a past one-shot, but a stale row is scheduled as-is and fires
+     * immediately, which beats silently never firing.
+     */
+    suspend fun saveReminder(reminder: Reminder): Long {
+        val now = System.currentTimeMillis()
+        var toSave = reminder.copy(state = Reminder.STATE_PENDING, snoozedUntilMillis = null)
+        if (toSave.isRepeating && toSave.dueAtMillis <= now) {
+            nextOccurrenceAfter(toSave, now)?.let { toSave = toSave.copy(dueAtMillis = it) }
+        }
+        val id = if (toSave.id == 0L) reminderDao.insert(toSave)
+        else {
+            reminderDao.update(toSave); toSave.id
+        }
+        // An edited reminder may have been ACTIVE with its notification up.
+        reminderNotifications.cancel(id)
+        reminderScheduler.schedule(id, toSave.dueAtMillis)
+        return id
+    }
+
+    suspend fun deleteReminder(reminder: Reminder) {
+        reminderScheduler.cancel(reminder.id)
+        reminderNotifications.cancel(reminder.id)
+        reminderDao.delete(reminder)
+    }
+
+    suspend fun markReminderDone(reminderId: Long) = ReminderOps.markDone(appContext, reminderId)
+
+    suspend fun clearDoneReminders() = reminderDao.deleteDoneReminders()
+
     // --- Backup / restore ---
 
     suspend fun exportBackupJson(): String = BackupSerializer.toJson(
@@ -266,6 +313,7 @@ class AlarmRepository(context: Context) {
             standaloneAlarms = alarmDao.getAllStandaloneAlarms(),
             series = seriesDao.getAllSeries(),
             timers = timerDao.getAllTimers(),
+            reminders = reminderDao.getAllReminders(),
             defaultAlarmSoundUri = settings.defaultAlarmSoundUri,
             defaultTimerSoundUri = settings.defaultTimerSoundUri,
             defaultVolumeRampSeconds = settings.defaultVolumeRampSeconds,
@@ -299,11 +347,16 @@ class AlarmRepository(context: Context) {
             timerScheduler.cancel(it.id)
             timerNotifications.cancel(it.id)
         }
+        reminderDao.getAllReminders().forEach {
+            reminderScheduler.cancel(it.id)
+            reminderNotifications.cancel(it.id)
+        }
         seriesDao.getAllSeries().forEach { unpauseScheduler.cancel(it.id) }
 
         alarmDao.deleteAllAlarms()
         seriesDao.deleteAllSeries()
         timerDao.deleteAllTimers()
+        reminderDao.deleteAllReminders()
 
         data.series.forEach { saveSeries(it) }
         data.standaloneAlarms.forEach { alarm ->
@@ -313,6 +366,13 @@ class AlarmRepository(context: Context) {
             if (alarm.enabled) scheduler.schedule(alarm.copy(id = id))
         }
         data.timers.forEach { timerDao.insert(it) }
+        data.reminders.forEach { reminder ->
+            val id = reminderDao.insert(reminder)
+            // Pending reminders re-arm through the boot-style refresh, which
+            // also fires one that came due while the backup sat on disk --
+            // late beats lost, same as the boot path.
+            ReminderOps.refresh(appContext, id)
+        }
 
         settings.defaultAlarmSoundUri = data.defaultAlarmSoundUri
         settings.defaultTimerSoundUri = data.defaultTimerSoundUri

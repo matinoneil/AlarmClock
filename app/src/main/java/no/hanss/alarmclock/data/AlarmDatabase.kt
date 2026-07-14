@@ -8,12 +8,13 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class], version = 8, exportSchema = false)
+@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class, Reminder::class], version = 9, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun alarmSeriesDao(): AlarmSeriesDao
     abstract fun timerDao(): TimerDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         @Volatile private var INSTANCE: AlarmDatabase? = null
@@ -33,6 +34,27 @@ abstract class AlarmDatabase : RoomDatabase() {
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE alarms ADD COLUMN pausedUntilMillis INTEGER")
+            }
+        }
+
+        // New reminders table only -- alarms/series/timers untouched, so
+        // everything saved survives this upgrade (same shape as MIGRATION_5_6).
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reminders` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`text` TEXT NOT NULL, " +
+                        "`dueAtMillis` INTEGER NOT NULL, " +
+                        "`state` INTEGER NOT NULL, " +
+                        "`repeatType` INTEGER NOT NULL, " +
+                        "`repeatInterval` INTEGER NOT NULL, " +
+                        "`repeatDaysOfWeek` TEXT NOT NULL, " +
+                        "`repeatDayOfMonth` INTEGER NOT NULL, " +
+                        "`repeatWeekday` INTEGER NOT NULL, " +
+                        "`repeatWeekOfMonth` INTEGER NOT NULL, " +
+                        "`snoozedUntilMillis` INTEGER)"
+                )
             }
         }
 
@@ -67,7 +89,7 @@ abstract class AlarmDatabase : RoomDatabase() {
                     // wiped alarm list is still better than an alarm app that crashes
                     // on database open and can't ring at all. If a wipe is ever
                     // unavoidable, the release notes must flag it loudly.
-                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .fallbackToDestructiveMigration()
                     .build().also { INSTANCE = it }
             }

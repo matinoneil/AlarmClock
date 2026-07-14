@@ -68,6 +68,15 @@ class BootReceiver : BroadcastReceiver() {
                     }
                 }
 
+                // Reminders: re-arm pending ones, fire overdue ones LATE (a
+                // reminder that came due while the phone was off is still
+                // wanted -- deliberate opposite of the expired-timer reset
+                // above), and re-post the notification for active ones with a
+                // fresh daily re-remind armed. All one path in ReminderOps.
+                db.reminderDao().getAllUndoneReminders().forEach { reminder ->
+                    ReminderOps.refresh(context, reminder.id)
+                }
+
                 // If an alarm was ringing when the device shut down (or the app was
                 // updated mid-ring), resume it -- especially critical for one-shots,
                 // which were already disabled in the DB when they fired and would

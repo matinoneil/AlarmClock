@@ -24,6 +24,7 @@ object BackupSerializer {
         val standaloneAlarms: List<Alarm>,
         val series: List<AlarmSeries>,
         val timers: List<TimerPreset>,
+        val reminders: List<Reminder> = emptyList(),
         val defaultAlarmSoundUri: String?,
         val defaultTimerSoundUri: String?,
         val defaultVolumeRampSeconds: Int = 0,
@@ -107,6 +108,25 @@ object BackupSerializer {
             }
         })
 
+        root.put("reminders", JSONArray().apply {
+            data.reminders.forEach { r ->
+                put(JSONObject().apply {
+                    put("text", r.text)
+                    put("dueAtMillis", r.dueAtMillis)
+                    // State IS carried (done history is worth keeping); the
+                    // snooze override is a moment, not configuration, and is
+                    // deliberately excluded like alarm snoozes.
+                    put("state", r.state)
+                    put("repeatType", r.repeatType)
+                    put("repeatInterval", r.repeatInterval)
+                    put("repeatDaysOfWeek", JSONArray(r.repeatDaysOfWeek.sorted()))
+                    put("repeatDayOfMonth", r.repeatDayOfMonth)
+                    put("repeatWeekday", r.repeatWeekday)
+                    put("repeatWeekOfMonth", r.repeatWeekOfMonth)
+                })
+            }
+        })
+
         return root.toString(2)
     }
 
@@ -119,11 +139,13 @@ object BackupSerializer {
         fun JSONObject.optStringOrNull(key: String): String? =
             if (isNull(key)) null else getString(key)
 
-        fun JSONObject.daysOfWeek(): Set<Int> {
-            val arr = getJSONArray("daysOfWeek")
+        fun JSONObject.daysOfWeekField(key: String): Set<Int> {
+            val arr = getJSONArray(key)
             return (0 until arr.length()).map { arr.getInt(it) }
                 .filter { it in 1..7 }.toSet()
         }
+
+        fun JSONObject.daysOfWeek(): Set<Int> = daysOfWeekField("daysOfWeek")
 
         val settings = root.optJSONObject("settings") ?: JSONObject()
 
@@ -181,10 +203,36 @@ object BackupSerializer {
             }
         }
 
+        // Absent in pre-#50 backups: tolerant optional read of the whole array.
+        val reminders = (root.optJSONArray("reminders") ?: JSONArray()).let { arr ->
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                Reminder(
+                    text = o.optString("text", ""),
+                    dueAtMillis = o.getLong("dueAtMillis"),
+                    // An ACTIVE reminder restores as PENDING: its overdue
+                    // dueAt makes the restore path re-fire it, so it comes
+                    // back showing rather than stuck active-with-no-alarm.
+                    state = when (o.optInt("state", Reminder.STATE_PENDING)) {
+                        Reminder.STATE_DONE -> Reminder.STATE_DONE
+                        else -> Reminder.STATE_PENDING
+                    },
+                    repeatType = o.optInt("repeatType", Reminder.REPEAT_NONE)
+                        .coerceIn(Reminder.REPEAT_NONE, Reminder.REPEAT_YEARLY),
+                    repeatInterval = o.optInt("repeatInterval", 1).coerceAtLeast(1),
+                    repeatDaysOfWeek = if (o.has("repeatDaysOfWeek")) o.daysOfWeekField("repeatDaysOfWeek") else emptySet(),
+                    repeatDayOfMonth = o.optInt("repeatDayOfMonth", 0).coerceIn(0, 31),
+                    repeatWeekday = o.optInt("repeatWeekday", 0).coerceIn(0, 7),
+                    repeatWeekOfMonth = o.optInt("repeatWeekOfMonth", 0).coerceIn(Reminder.LAST_WEEK_OF_MONTH, 4)
+                )
+            }
+        }
+
         return BackupData(
             standaloneAlarms = alarms,
             series = series,
             timers = timers,
+            reminders = reminders,
             defaultAlarmSoundUri = settings.optStringOrNull("defaultAlarmSoundUri"),
             defaultTimerSoundUri = settings.optStringOrNull("defaultTimerSoundUri"),
             // Absent in pre-#45 backups: tolerant optional reads.

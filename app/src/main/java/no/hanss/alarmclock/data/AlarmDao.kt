@@ -90,6 +90,38 @@ interface TimerDao {
 }
 
 @Dao
+interface ReminderDao {
+    // Pending/active first by due time; done history sinks to the bottom,
+    // most recently due first (list-screen order, done in one query).
+    @Query("SELECT * FROM reminders ORDER BY CASE WHEN state = 2 THEN 1 ELSE 0 END, CASE WHEN state = 2 THEN -dueAtMillis ELSE dueAtMillis END")
+    fun observeReminders(): Flow<List<Reminder>>
+
+    @Query("SELECT * FROM reminders ORDER BY dueAtMillis")
+    suspend fun getAllReminders(): List<Reminder>
+
+    @Query("SELECT * FROM reminders WHERE state != 2")
+    suspend fun getAllUndoneReminders(): List<Reminder>
+
+    @Query("SELECT * FROM reminders WHERE id = :id")
+    suspend fun getReminder(id: Long): Reminder?
+
+    @Query("DELETE FROM reminders WHERE state = 2")
+    suspend fun deleteDoneReminders()
+
+    @Query("DELETE FROM reminders")
+    suspend fun deleteAllReminders()
+
+    @Insert
+    suspend fun insert(reminder: Reminder): Long
+
+    @Update
+    suspend fun update(reminder: Reminder)
+
+    @Delete
+    suspend fun delete(reminder: Reminder)
+}
+
+@Dao
 interface AlarmSeriesDao {
     @Query("SELECT * FROM alarm_series WHERE pausedUntilMillis IS NOT NULL")
     suspend fun getAllPausedSeries(): List<AlarmSeries>
