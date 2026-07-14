@@ -51,7 +51,7 @@ reset instead of ringing hours late.
 
 ## Install
 
-Download the APK from the [latest release](../../releases/latest) and sideload
+Download the APK from the [latest release](../../releases/latest) and install
 it. Builds are signed, so updates install over the previous version. The app
 requests its permissions on first launches. On Android 13+, "display over
 other apps" is behind *Allow restricted settings* (Settings → Apps →
