@@ -4,118 +4,73 @@ An Android alarm clock app built with Kotlin and Jetpack Compose. Requires
 Android 8.0+ (API 26).
 
 The app exists mainly for one feature: **alarm series** — batches of fully
-independent alarms generated from a single definition, which stock alarm apps
-don't really offer.
+independent alarms generated from a single definition.
 
 ## Alarm series
 
-If you need several alarms to actually wake up, the usual options are bad. Snoozing
-doesn't work — the moment you hit dismiss instead of snooze, half asleep, the chain
-is dead and nothing else is coming. Setting ten separate alarms works, but now your
-wake-up time is hardcoded ten times: the day your schedule shifts — working from
-home instead of going in, an earlier meeting — you're editing ten alarms one by one,
-and again when it shifts back.
-
-A series solves both. It's defined by a start time, an interval, and a duration —
-"from 07:00, every 5 minutes, for 45 minutes" — and expands into ten real alarms:
-07:00, 07:05 ... 07:45. Each one is fully independent: dismissing 07:00 does nothing
-to 07:05, which rings anyway, as does every alarm after it, until each is dismissed
-on its own. There is no snooze chain to accidentally kill.
-
-And because all ten are generated from one definition, moving the whole wake-up
-routine to a different time is a single edit — change the start time and every
-alarm regenerates around it. Wednesday at the office means 06:00; back home
-Thursday, two taps and the same series rings from 07:00 again.
-
-The series stays editable as one unit in other ways too:
-
-- Change the start time, interval, or duration and the whole set regenerates.
-- One switch enables or disables every alarm in the series.
-- The weekday repeat, ringtone, volume ramp, snooze length, and vibration setting
-  apply to every alarm the series generates.
-- The editor shows a live preview of exactly which times will be created.
-- The series name auto-fills from the start time until you type your own.
+A series is defined by a start time, an interval, and a duration — "from 07:00,
+every 5 minutes, for 45 minutes" — and expands into ten real alarms. Each is
+fully independent: dismissing 07:00 does nothing to 07:05, so there is no
+snooze chain to accidentally kill half asleep. And because all ten come from
+one definition, moving the whole wake-up routine is a single edit — change the
+start time and every alarm regenerates. One switch toggles the whole series;
+weekday repeat, sound, ramp, snooze, and vibration apply to every alarm in it.
 
 ## Timers
 
-The second tab holds **saved, reusable timers**. A timer is created once — duration,
-optional label, sound, vibration — and then lives in the list like an alarm does,
-started and stopped with the same switch. Keep a 5 min and a 10 min preset around
-instead of re-creating them every time.
-
-While a timer runs, its card counts down live, and a quiet notification shows the
-ticking countdown with three buttons: **+30 s**, **−30 s**, and **Stop** — the
-countdown can be adjusted or cancelled without opening the app. The notification
-never makes a sound; the ring at the end is as loud as any alarm, with the same
-full-screen ringing UI. Timers are dismiss-only (no snooze), a running timer
-survives reboots and app updates, and one that would have ended while the phone
-was off is quietly reset instead of ringing hours late.
+The Timers tab holds saved, reusable presets — duration, label, sound,
+vibration — started and stopped with the same switch alarms use. A running
+timer counts down live on its card and in a notification with **+30 s**,
+**−30 s**, and **Stop** buttons. The notification is silent; the ring at the
+end is as loud as any alarm, with the same full-screen UI. Running timers
+survive reboots; one that would have ended while the phone was off is quietly
+reset instead of ringing hours late.
 
 ## Other features
 
-- **Single alarms** — a time, optional weekday repeat, per-alarm ringtone, snooze
-  length, and vibration.
-- **Volume ramp** — alarms can start quiet and climb to full volume over a
-  configurable number of seconds.
-- **Full-screen ringing UI** — shows over the lock screen, and (with the overlay
-  permission) over other apps while the phone is in use, where Android otherwise
-  downgrades alarms to a heads-up notification.
-- **Skip next occurrence** — a repeating alarm's upcoming notification can dismiss
-  just the next ring without disabling the alarm.
-- **Reliability** — alarms are rescheduled after reboots and app updates, snoozes
-  persist across both, and a ring interrupted by a crash or reboot resumes. Failure
-  cases degrade rather than go silent: a broken ringtone URI falls back to the
-  system default, and a blocked volume ramp rings at full volume instead.
-- **Home screen widget** showing the next alarm, and a themed-icon (Material You)
-  compatible launcher icon on Android 13+.
+- **Single alarms** with weekday repeat, per-alarm sound, snooze, vibration,
+  and a volume ramp that climbs from quiet to full over configurable seconds.
+- **Pause until a date** — silence an alarm or a whole series (vacation mode);
+  it resumes by itself on the chosen day, so re-enabling can't be forgotten.
+- **"Rings in" labels** — every enabled alarm and series shows how far away
+  its next real ring is, snoozes and skips included.
+- **Skip next occurrence** from the upcoming-alarm notification, without
+  disabling the alarm.
+- **Bedtime reminder** — an optional notification N hours before the next
+  alarm, with a customizable message.
+- **Settings** — separate defaults for series, single alarms, and timers, each
+  with a one-tap apply-to-all; plus JSON backup and restore of everything.
+- **Full-screen ringing UI** over the lock screen and (with the overlay
+  permission) over other apps.
+- **Reliability** — everything is rescheduled after reboots and app updates,
+  interrupted rings resume, and failures degrade rather than go silent (broken
+  ringtone URI → system sound; blocked ramp → full volume).
+- Swipe or tap between the Alarms and Timers tabs; next-alarm home screen
+  widget; Material You launcher icon. The app requests no network permission —
+  it cannot phone home.
 
 ## Install
 
-Download the APK from the [latest release](../../releases/latest) and sideload it.
-Builds are signed release builds, so updates install over the previous version.
-
-On first launches the app requests the permissions alarms depend on, one per
-launch: exact alarms, notifications, full-screen intent, and "display over other
-apps".
-
-**Note on the overlay permission:** Android 13+ blocks "display over other apps"
-for sideloaded apps behind "Restricted settings". To grant it: Settings → Apps →
-AlarmClock → three-dot menu → *Allow restricted settings*, then grant the
-permission normally. Without it everything still rings — only the screen-on,
-in-use case falls back to a heads-up notification.
+Download the APK from the [latest release](../../releases/latest) and sideload
+it. Builds are signed, so updates install over the previous version. The app
+requests its permissions on first launches. On Android 13+, "display over
+other apps" is behind *Allow restricted settings* (Settings → Apps →
+AlarmClock → three-dot menu); without it, alarms still ring but show as a
+heads-up notification while the phone is in use.
 
 ## Building
 
-Open the project folder in Android Studio (Koala or newer) and run, or use the
-GitHub Actions workflow at `.github/workflows/build-apk.yml`: every push to `main`
-builds an installable APK, available under the Actions tab. When a build is
-triggered by publishing a GitHub Release, the app's version name is derived from
-the release tag (tag `V1.7` → version `1.7`) and the version code from the Actions
-run number.
+Open in Android Studio, or use the GitHub Actions workflow: every push to
+`main` builds an APK, and publishing a GitHub Release builds one with the
+version name derived from the tag (`V1.9` → `1.9`).
 
 ## Architecture
 
-- **`data/`** — Room entities (`Alarm`, `AlarmSeries`, `TimerPreset`), DAOs, and
-  `AlarmRepository`, the single place that talks to both the database and the
-  schedulers. Schema changes ship with real Room migrations.
-- **`alarm/`** — `AlarmScheduler` (wraps `AlarmManager`, entries keyed by database
-  id), `AlarmReceiver`, `BootReceiver` (rebuilds schedules after reboots and app
-  updates), `AlarmRingtoneService` (foreground service owning sound, vibration,
-  ramp, snooze, dismiss, and interrupted-ring recovery), and `OverlayAlarmWindow`.
-  Timers mirror the alarm path at exact-millisecond precision with
-  `TimerScheduler` and `TimerReceiver` (which also handles the notification's
-  adjust/stop buttons) and ring through the same service;
-  `TimerNotificationManager` posts the countdown notification, whose live timer
-  is OS-rendered — a running timer costs no process time at all.
-- **`ui/`** — Compose screens: the tabbed home screen (alarms and timers),
-  single-alarm, series, and timer editors, and `RingingActivity` for the
-  full-screen ringing UI. Deleting lives in each editor, not the lists.
-- **`viewmodel/`** — `AlarmViewModel`, exposing a `StateFlow` of alarms, series,
-  and timers.
-- **`widget/`** — the next-alarm home screen widget.
-
-A series becomes real alarms via `AlarmSeries.expandTimes()`; saving a series
-deletes its previously generated child `Alarm` rows and regenerates them, each
-with its own database row and `AlarmManager` entry.
+`data/` holds the Room entities, DAOs, repository, and real migrations; `alarm/`
+holds the schedulers, receivers, and the foreground ring service (timers ring
+through the same service; their countdown notification is OS-rendered, so a
+running timer costs no process time); `ui/` the Compose screens; `widget/` the
+home screen widget. A series becomes real alarms via `expandTimes()` — saving
+regenerates its child rows, each with its own `AlarmManager` entry.
 
 Design history and working notes live in [PROJECT_NOTES.md](PROJECT_NOTES.md).
