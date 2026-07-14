@@ -29,11 +29,13 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms")
     suspend fun getAllAlarms(): List<Alarm>
 
-    @Query("UPDATE alarms SET soundUri = :soundUri")
-    suspend fun updateAllAlarmSounds(soundUri: String?)
+    @Query("UPDATE alarms SET soundUri = :soundUri, volumeRampSeconds = :rampSeconds, snoozeMinutes = :snoozeMinutes, vibrate = :vibrate WHERE seriesId IS NULL")
+    suspend fun updateStandaloneAlarmDefaults(soundUri: String?, rampSeconds: Int, snoozeMinutes: Int, vibrate: Boolean)
 
-    @Query("UPDATE alarms SET soundUri = :soundUri, volumeRampSeconds = :rampSeconds, snoozeMinutes = :snoozeMinutes, vibrate = :vibrate")
-    suspend fun updateAllAlarmDefaults(soundUri: String?, rampSeconds: Int, snoozeMinutes: Int, vibrate: Boolean)
+    // Series children are what actually ring, so a series-wide apply must
+    // hit them too, not just the alarm_series definition rows (#49).
+    @Query("UPDATE alarms SET soundUri = :soundUri, volumeRampSeconds = :rampSeconds, snoozeMinutes = :snoozeMinutes, vibrate = :vibrate WHERE seriesId IS NOT NULL")
+    suspend fun updateSeriesChildDefaults(soundUri: String?, rampSeconds: Int, snoozeMinutes: Int, vibrate: Boolean)
 
     @Query("DELETE FROM alarms")
     suspend fun deleteAllAlarms()
@@ -65,8 +67,8 @@ interface TimerDao {
     @Query("SELECT * FROM timers ORDER BY durationSeconds, id")
     suspend fun getAllTimers(): List<TimerPreset>
 
-    @Query("UPDATE timers SET soundUri = :soundUri")
-    suspend fun updateAllTimerSounds(soundUri: String?)
+    @Query("UPDATE timers SET soundUri = :soundUri, vibrate = :vibrate")
+    suspend fun updateAllTimerDefaults(soundUri: String?, vibrate: Boolean)
 
     @Query("DELETE FROM timers")
     suspend fun deleteAllTimers()
@@ -94,9 +96,6 @@ interface AlarmSeriesDao {
 
     @Query("SELECT * FROM alarm_series ORDER BY startHour, startMinute")
     suspend fun getAllSeries(): List<AlarmSeries>
-
-    @Query("UPDATE alarm_series SET soundUri = :soundUri")
-    suspend fun updateAllSeriesSounds(soundUri: String?)
 
     @Query("UPDATE alarm_series SET soundUri = :soundUri, volumeRampSeconds = :rampSeconds, snoozeMinutes = :snoozeMinutes, vibrate = :vibrate")
     suspend fun updateAllSeriesDefaults(soundUri: String?, rampSeconds: Int, snoozeMinutes: Int, vibrate: Boolean)

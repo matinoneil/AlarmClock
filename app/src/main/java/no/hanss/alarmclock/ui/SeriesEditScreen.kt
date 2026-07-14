@@ -59,16 +59,16 @@ fun SeriesEditScreen(
     var intervalText by remember { mutableStateOf((existing?.intervalMinutes ?: 5).toString()) }
     var durationText by remember { mutableStateOf((existing?.durationMinutes ?: 45).toString()) }
     val defaults = remember { no.hanss.alarmclock.data.SettingsStore(context) }
-    var vibrate by remember { mutableStateOf(existing?.vibrate ?: (if (seriesId == -1L) defaults.defaultAlarmVibrate else true)) }
+    var vibrate by remember { mutableStateOf(existing?.vibrate ?: (if (seriesId == -1L) defaults.defaultSeriesVibrate else true)) }
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
     var soundUri by remember {
         mutableStateOf(
-            if (seriesId == -1L) no.hanss.alarmclock.data.SettingsStore(context).defaultAlarmSoundUri
+            if (seriesId == -1L) no.hanss.alarmclock.data.SettingsStore(context).defaultSeriesSoundUri
             else existing?.soundUri
         )
     }
-    var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: (if (seriesId == -1L) defaults.defaultVolumeRampSeconds else 0)).toString()) }
-    var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: (if (seriesId == -1L) defaults.defaultSnoozeMinutes else 10)).toString()) }
+    var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: (if (seriesId == -1L) defaults.defaultSeriesRampSeconds else 0)).toString()) }
+    var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: (if (seriesId == -1L) defaults.defaultSeriesSnoozeMinutes else 10)).toString()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pausedUntil by remember { mutableStateOf(existing?.pausedUntilMillis) }
 

@@ -31,7 +31,12 @@ object BackupSerializer {
         val defaultAlarmVibrate: Boolean = true,
         val bedtimeEnabled: Boolean = false,
         val bedtimeHoursBefore: Int = 8,
-        val bedtimeMessage: String = ""
+        val bedtimeMessage: String = "",
+        val defaultSeriesSoundUri: String? = null,
+        val defaultSeriesRampSeconds: Int = 0,
+        val defaultSeriesSnoozeMinutes: Int = 10,
+        val defaultSeriesVibrate: Boolean = true,
+        val defaultTimerVibrate: Boolean = true
     )
 
     fun toJson(data: BackupData): String {
@@ -48,6 +53,11 @@ object BackupSerializer {
         settings.put("bedtimeEnabled", data.bedtimeEnabled)
         settings.put("bedtimeHoursBefore", data.bedtimeHoursBefore)
         settings.put("bedtimeMessage", data.bedtimeMessage)
+        settings.put("defaultSeriesSoundUri", data.defaultSeriesSoundUri ?: JSONObject.NULL)
+        settings.put("defaultSeriesRampSeconds", data.defaultSeriesRampSeconds)
+        settings.put("defaultSeriesSnoozeMinutes", data.defaultSeriesSnoozeMinutes)
+        settings.put("defaultSeriesVibrate", data.defaultSeriesVibrate)
+        settings.put("defaultTimerVibrate", data.defaultTimerVibrate)
         root.put("settings", settings)
 
         root.put("standaloneAlarms", JSONArray().apply {
@@ -184,7 +194,14 @@ object BackupSerializer {
             // Absent in pre-#47 backups: tolerant optional reads.
             bedtimeEnabled = settings.optBoolean("bedtimeEnabled", false),
             bedtimeHoursBefore = settings.optInt("bedtimeHoursBefore", 8).coerceIn(1, 24),
-            bedtimeMessage = settings.optString("bedtimeMessage", "")
+            bedtimeMessage = settings.optString("bedtimeMessage", ""),
+            // Absent in pre-#49 backups: tolerant optional reads; series
+            // values fall back to the alarm values, matching SettingsStore.
+            defaultSeriesSoundUri = if (settings.has("defaultSeriesSoundUri") && !settings.isNull("defaultSeriesSoundUri")) settings.getString("defaultSeriesSoundUri") else settings.optStringOrNull("defaultAlarmSoundUri"),
+            defaultSeriesRampSeconds = settings.optInt("defaultSeriesRampSeconds", settings.optInt("defaultVolumeRampSeconds", 0)).coerceAtLeast(0),
+            defaultSeriesSnoozeMinutes = settings.optInt("defaultSeriesSnoozeMinutes", settings.optInt("defaultSnoozeMinutes", 10)).coerceAtLeast(1),
+            defaultSeriesVibrate = settings.optBoolean("defaultSeriesVibrate", settings.optBoolean("defaultAlarmVibrate", true)),
+            defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true)
         )
     }
 }

@@ -43,10 +43,19 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
 
+    // Alarm (standalone) defaults
     var defaultAlarmSound by remember { mutableStateOf(viewModel.settings.defaultAlarmSoundUri) }
     var rampText by remember { mutableStateOf(viewModel.settings.defaultVolumeRampSeconds.toString()) }
     var snoozeText by remember { mutableStateOf(viewModel.settings.defaultSnoozeMinutes.toString()) }
     var defaultVibrate by remember { mutableStateOf(viewModel.settings.defaultAlarmVibrate) }
+    // Series defaults (separate set, #49)
+    var seriesSound by remember { mutableStateOf(viewModel.settings.defaultSeriesSoundUri) }
+    var seriesRampText by remember { mutableStateOf(viewModel.settings.defaultSeriesRampSeconds.toString()) }
+    var seriesSnoozeText by remember { mutableStateOf(viewModel.settings.defaultSeriesSnoozeMinutes.toString()) }
+    var seriesVibrate by remember { mutableStateOf(viewModel.settings.defaultSeriesVibrate) }
+    // Timer defaults (sound + vibrate)
+    var timerVibrate by remember { mutableStateOf(viewModel.settings.defaultTimerVibrate) }
+    var confirmApplySeries by remember { mutableStateOf(false) }
     var bedtimeEnabled by remember { mutableStateOf(viewModel.settings.bedtimeEnabled) }
     var bedtimeHoursText by remember { mutableStateOf(viewModel.settings.bedtimeHoursBefore.toString()) }
     var bedtimeMessage by remember { mutableStateOf(viewModel.settings.bedtimeMessage) }
@@ -73,12 +82,10 @@ fun SettingsScreen(
             result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
         }
         val value = uri?.toString()
-        if (pickerTarget == "alarm") {
-            defaultAlarmSound = value
-            viewModel.settings.defaultAlarmSoundUri = value
-        } else {
-            defaultTimerSound = value
-            viewModel.settings.defaultTimerSoundUri = value
+        when (pickerTarget) {
+            "alarm" -> { defaultAlarmSound = value; viewModel.settings.defaultAlarmSoundUri = value }
+            "series" -> { seriesSound = value; viewModel.settings.defaultSeriesSoundUri = value }
+            else -> { defaultTimerSound = value; viewModel.settings.defaultTimerSoundUri = value }
         }
     }
 
@@ -143,10 +150,10 @@ fun SettingsScreen(
         val snoozeNow = snoozeText.toIntOrNull()?.coerceAtLeast(1) ?: 10
         AlertDialog(
             onDismissRequest = { confirmApplyAlarms = false },
-            title = { Text("Apply defaults to all alarms?") },
+            title = { Text("Apply to all single alarms?") },
             text = {
                 Text(
-                    "Every alarm and alarm series will use \u201c${soundName(defaultAlarmSound)}\u201d, " +
+                    "Every single (non-series) alarm will use \u201c${soundName(defaultAlarmSound)}\u201d, " +
                         "a $rampNow s volume ramp, $snoozeNow min snooze, and vibration ${if (defaultVibrate) "on" else "off"}. " +
                         "This can't be undone per-alarm."
                 )
@@ -155,8 +162,8 @@ fun SettingsScreen(
                 TextButton(onClick = {
                     confirmApplyAlarms = false
                     scope.launch {
-                        viewModel.applyDefaultsToAllAlarms()
-                        snackbar.showSnackbar("Defaults applied to all alarms and series")
+                        viewModel.applyDefaultsToAllStandaloneAlarms()
+                        snackbar.showSnackbar("Defaults applied to all single alarms")
                     }
                 }) { Text("Apply") }
             },
@@ -164,17 +171,43 @@ fun SettingsScreen(
         )
     }
 
+    if (confirmApplySeries) {
+        val rampNow = seriesRampText.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val snoozeNow = seriesSnoozeText.toIntOrNull()?.coerceAtLeast(1) ?: 10
+        AlertDialog(
+            onDismissRequest = { confirmApplySeries = false },
+            title = { Text("Apply to all alarm series?") },
+            text = {
+                Text(
+                    "Every alarm series and its alarms will use \u201c${soundName(seriesSound)}\u201d, " +
+                        "a $rampNow s volume ramp, $snoozeNow min snooze, and vibration ${if (seriesVibrate) "on" else "off"}. " +
+                        "This can't be undone per-series."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmApplySeries = false
+                    scope.launch {
+                        viewModel.applyDefaultsToAllSeries()
+                        snackbar.showSnackbar("Defaults applied to all series")
+                    }
+                }) { Text("Apply") }
+            },
+            dismissButton = { TextButton(onClick = { confirmApplySeries = false }) { Text("Cancel") } }
+        )
+    }
+
     if (confirmApplyTimers) {
         AlertDialog(
             onDismissRequest = { confirmApplyTimers = false },
             title = { Text("Apply to all timers?") },
-            text = { Text("Every saved timer will use \u201c${soundName(defaultTimerSound)}\u201d.") },
+            text = { Text("Every saved timer will use \u201c${soundName(defaultTimerSound)}\u201d and vibration ${if (timerVibrate) "on" else "off"}.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmApplyTimers = false
                     scope.launch {
-                        viewModel.applySoundToAllTimers(defaultTimerSound)
-                        snackbar.showSnackbar("Sound applied to all timers")
+                        viewModel.applyDefaultsToAllTimers()
+                        snackbar.showSnackbar("Defaults applied to all timers")
                     }
                 }) { Text("Apply") }
             },
@@ -228,9 +261,69 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            EditSection(title = "Alarm defaults") {
+            EditSection(title = "Alarm series") {
                 Text(
-                    "Used for new alarms and series. Existing ones keep their settings unless applied below.",
+                    "Defaults for new alarm series. Existing series keep their settings unless applied below.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { launchRingtonePicker("series", seriesSound) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(soundName(seriesSound), maxLines = 1)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = seriesRampText,
+                        onValueChange = {
+                            seriesRampText = it.filter(Char::isDigit).take(4)
+                            viewModel.settings.defaultSeriesRampSeconds = seriesRampText.toIntOrNull() ?: 0
+                        },
+                        label = { Text("Volume ramp (s)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = seriesSnoozeText,
+                        onValueChange = {
+                            seriesSnoozeText = it.filter(Char::isDigit).take(3)
+                            viewModel.settings.defaultSeriesSnoozeMinutes = seriesSnoozeText.toIntOrNull() ?: 10
+                        },
+                        label = { Text("Snooze (min)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Vibrate", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = seriesVibrate, onCheckedChange = {
+                        seriesVibrate = it
+                        viewModel.settings.defaultSeriesVibrate = it
+                    })
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { confirmApplySeries = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("Apply these to all alarm series") }
+            }
+
+            EditSection(title = "Single alarms") {
+                Text(
+                    "Defaults for new single alarms. Existing ones keep their settings unless applied below.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -285,12 +378,12 @@ fun SettingsScreen(
                     onClick = { confirmApplyAlarms = true },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp)
-                ) { Text("Apply these to all alarms & series") }
+                ) { Text("Apply these to all single alarms") }
             }
 
-            EditSection(title = "Timer sound") {
+            EditSection(title = "Timers") {
                 Text(
-                    "Used for new timers. Existing ones keep their sound unless applied below.",
+                    "Defaults for new timers. Existing ones keep their settings unless applied below.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -304,12 +397,23 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(soundName(defaultTimerSound), maxLines = 1)
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Vibrate", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = timerVibrate, onCheckedChange = {
+                        timerVibrate = it
+                        viewModel.settings.defaultTimerVibrate = it
+                    })
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { confirmApplyTimers = true },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp)
-                ) { Text("Apply to all timers") }
+                ) { Text("Apply these to all timers") }
             }
 
             EditSection(title = "Bedtime reminder") {

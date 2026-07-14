@@ -832,22 +832,23 @@ entry #1.
     header subText so it stays visible. Message carried in backups
     (tolerant read).
 
-49. **[OPEN] Settings defaults split into three categories: series, alarms,
-    timers.** Per Martin: series and single alarms are used differently
-    and get separate default sets (sound, ramp, snooze, vibrate each) with
-    separate apply-to-all actions; timers stay minimal but gain a vibrate
-    default next to the sound (the only other per-timer setting that
-    exists -- no ramp/snooze on timers). Plan: SettingsStore gains a series
-    set (getters fall back to the existing alarm keys while their own key
-    is unset, so values Martin already configured seed both categories)
-    and defaultTimerVibrate; SeriesEditScreen prefills from the series
-    set, TimerEditScreen prefills vibrate; the bulk-apply DAO queries get
-    proper scoping -- standalone apply is WHERE seriesId IS NULL, series
-    apply hits alarm_series PLUS child alarms WHERE seriesId IS NOT NULL
-    (the children are what actually ring); timer apply sets sound +
-    vibrate. The old unscoped/sound-only bulk methods are removed after a
-    caller grep. Backup gains the new settings with tolerant reads.
-    Settings UI: three sections with three confirm dialogs. No DB change.
+49. **Settings defaults split into three categories: series, alarms,
+    timers.** Series and single alarms now have separate default sets
+    (sound, ramp, snooze, vibrate each) with separate apply-to-all
+    actions; timers gained a vibrate default beside the sound (the only
+    other per-timer setting). SettingsStore's series getters FALL BACK to
+    the alarm keys until a series key is explicitly written, so values
+    Martin configured under the old unified settings seed both categories
+    rather than resetting. Bulk-apply DAO queries are now properly scoped:
+    standalone = WHERE seriesId IS NULL; series = alarm_series rows PLUS
+    child alarms WHERE seriesId IS NOT NULL (the children are what ring --
+    updating only the definition rows would have been a silent no-op on
+    actual ringing behavior); timer = sound + vibrate. Old unscoped
+    sound-only bulk methods removed after a caller grep confirmed none
+    remained. Editors prefill from their own category. Backup carries the
+    five new settings with tolerant reads that fall back to alarm values,
+    matching SettingsStore. Three settings sections, three confirm
+    dialogs each naming exactly what they touch. No DB change.
 
 ## Restarting this project in a new chat
 

@@ -228,28 +228,30 @@ class AlarmRepository(context: Context) {
 
     // --- Settings: default sounds & apply-to-all ---
 
-    /** Bulk sound swap; no re-arming needed -- sound doesn't affect scheduling. */
-    suspend fun applySoundToAllAlarms(soundUri: String?) {
-        alarmDao.updateAllAlarmSounds(soundUri)
-        seriesDao.updateAllSeriesSounds(soundUri)
-    }
+    // Bulk applies (#45/#49): none of these fields affect scheduling, so
+    // nothing is re-armed by any of them.
 
-    /**
-     * Pushes all four alarm defaults onto every alarm and series (#45). None
-     * of these fields affect scheduling, so nothing is re-armed.
-     */
-    suspend fun applyDefaultsToAllAlarms() {
+    /** Standalone alarms only (WHERE seriesId IS NULL). */
+    suspend fun applyDefaultsToAllStandaloneAlarms() {
         val s = settings
-        alarmDao.updateAllAlarmDefaults(
-            s.defaultAlarmSoundUri, s.defaultVolumeRampSeconds, s.defaultSnoozeMinutes, s.defaultAlarmVibrate
-        )
-        seriesDao.updateAllSeriesDefaults(
+        alarmDao.updateStandaloneAlarmDefaults(
             s.defaultAlarmSoundUri, s.defaultVolumeRampSeconds, s.defaultSnoozeMinutes, s.defaultAlarmVibrate
         )
     }
 
-    suspend fun applySoundToAllTimers(soundUri: String?) {
-        timerDao.updateAllTimerSounds(soundUri)
+    /** Series definitions AND their child alarms -- the children are what ring. */
+    suspend fun applyDefaultsToAllSeries() {
+        val s = settings
+        seriesDao.updateAllSeriesDefaults(
+            s.defaultSeriesSoundUri, s.defaultSeriesRampSeconds, s.defaultSeriesSnoozeMinutes, s.defaultSeriesVibrate
+        )
+        alarmDao.updateSeriesChildDefaults(
+            s.defaultSeriesSoundUri, s.defaultSeriesRampSeconds, s.defaultSeriesSnoozeMinutes, s.defaultSeriesVibrate
+        )
+    }
+
+    suspend fun applyDefaultsToAllTimers() {
+        timerDao.updateAllTimerDefaults(settings.defaultTimerSoundUri, settings.defaultTimerVibrate)
     }
 
     suspend fun countAlarmsAndSeries(): Pair<Int, Int> =
@@ -271,7 +273,12 @@ class AlarmRepository(context: Context) {
             defaultAlarmVibrate = settings.defaultAlarmVibrate,
             bedtimeEnabled = settings.bedtimeEnabled,
             bedtimeHoursBefore = settings.bedtimeHoursBefore,
-            bedtimeMessage = settings.bedtimeMessage
+            bedtimeMessage = settings.bedtimeMessage,
+            defaultSeriesSoundUri = settings.defaultSeriesSoundUri,
+            defaultSeriesRampSeconds = settings.defaultSeriesRampSeconds,
+            defaultSeriesSnoozeMinutes = settings.defaultSeriesSnoozeMinutes,
+            defaultSeriesVibrate = settings.defaultSeriesVibrate,
+            defaultTimerVibrate = settings.defaultTimerVibrate
         )
     )
 
@@ -315,6 +322,11 @@ class AlarmRepository(context: Context) {
         settings.bedtimeEnabled = data.bedtimeEnabled
         settings.bedtimeHoursBefore = data.bedtimeHoursBefore
         settings.bedtimeMessage = data.bedtimeMessage
+        settings.defaultSeriesSoundUri = data.defaultSeriesSoundUri
+        settings.defaultSeriesRampSeconds = data.defaultSeriesRampSeconds
+        settings.defaultSeriesSnoozeMinutes = data.defaultSeriesSnoozeMinutes
+        settings.defaultSeriesVibrate = data.defaultSeriesVibrate
+        settings.defaultTimerVibrate = data.defaultTimerVibrate
 
         notifyChanged()
         return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)

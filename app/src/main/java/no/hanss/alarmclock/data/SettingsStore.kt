@@ -35,6 +35,31 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_DEFAULT_VIBRATE, true)
         set(value) = prefs.edit().putBoolean(KEY_DEFAULT_VIBRATE, value).apply()
 
+    // Series defaults (#49). Until a series key is explicitly set, it reads
+    // the corresponding alarm key -- so values configured before the split
+    // seed both categories instead of silently resetting.
+    var defaultSeriesSoundUri: String?
+        get() = if (prefs.contains(KEY_SERIES_SOUND)) prefs.getString(KEY_SERIES_SOUND, null) else defaultAlarmSoundUri
+        set(value) = prefs.edit().putString(KEY_SERIES_SOUND, value).apply()
+
+    var defaultSeriesRampSeconds: Int
+        get() = if (prefs.contains(KEY_SERIES_RAMP)) prefs.getInt(KEY_SERIES_RAMP, 0) else defaultVolumeRampSeconds
+        set(value) = prefs.edit().putInt(KEY_SERIES_RAMP, value.coerceAtLeast(0)).apply()
+
+    var defaultSeriesSnoozeMinutes: Int
+        get() = if (prefs.contains(KEY_SERIES_SNOOZE)) prefs.getInt(KEY_SERIES_SNOOZE, 10) else defaultSnoozeMinutes
+        set(value) = prefs.edit().putInt(KEY_SERIES_SNOOZE, value.coerceAtLeast(1)).apply()
+
+    var defaultSeriesVibrate: Boolean
+        get() = if (prefs.contains(KEY_SERIES_VIBRATE)) prefs.getBoolean(KEY_SERIES_VIBRATE, true) else defaultAlarmVibrate
+        set(value) = prefs.edit().putBoolean(KEY_SERIES_VIBRATE, value).apply()
+
+    // Timer defaults stay minimal (#49): sound + vibrate, the only two
+    // per-timer settings that exist.
+    var defaultTimerVibrate: Boolean
+        get() = prefs.getBoolean(KEY_TIMER_VIBRATE, true)
+        set(value) = prefs.edit().putBoolean(KEY_TIMER_VIBRATE, value).apply()
+
     // Bedtime reminder (#47): a quiet notification N hours before the next
     // enabled alarm rings. Off by default.
     var bedtimeEnabled: Boolean
@@ -59,5 +84,10 @@ class SettingsStore(context: Context) {
         const val KEY_BEDTIME_ENABLED = "bedtime_enabled"
         const val KEY_BEDTIME_HOURS = "bedtime_hours_before"
         const val KEY_BEDTIME_MESSAGE = "bedtime_message"
+        const val KEY_SERIES_SOUND = "default_series_sound_uri"
+        const val KEY_SERIES_RAMP = "default_series_ramp_seconds"
+        const val KEY_SERIES_SNOOZE = "default_series_snooze_minutes"
+        const val KEY_SERIES_VIBRATE = "default_series_vibrate"
+        const val KEY_TIMER_VIBRATE = "default_timer_vibrate"
     }
 }

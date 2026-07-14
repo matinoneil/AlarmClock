@@ -61,7 +61,12 @@ fun TimerEditScreen(
     var minutesText by remember { mutableStateOf(((initialTotal % 3600) / 60).toString()) }
     var secondsText by remember { mutableStateOf((initialTotal % 60).toString()) }
     var label by remember { mutableStateOf(existing?.label ?: "") }
-    var vibrate by remember { mutableStateOf(existing?.vibrate ?: true) }
+    var vibrate by remember {
+        mutableStateOf(
+            existing?.vibrate
+                ?: (if (timerId == -1L) no.hanss.alarmclock.data.SettingsStore(context).defaultTimerVibrate else true)
+        )
+    }
     var soundUri by remember {
         mutableStateOf(
             if (timerId == -1L) no.hanss.alarmclock.data.SettingsStore(context).defaultTimerSoundUri

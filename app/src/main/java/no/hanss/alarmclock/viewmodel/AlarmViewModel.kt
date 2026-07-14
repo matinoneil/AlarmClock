@@ -87,13 +87,13 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     val settings get() = repository.settings
 
-    suspend fun applySoundToAllAlarms(soundUri: String?) = repository.applySoundToAllAlarms(soundUri)
+    suspend fun applyDefaultsToAllStandaloneAlarms() = repository.applyDefaultsToAllStandaloneAlarms()
 
-    suspend fun applyDefaultsToAllAlarms() = repository.applyDefaultsToAllAlarms()
+    suspend fun applyDefaultsToAllSeries() = repository.applyDefaultsToAllSeries()
 
     suspend fun refreshBedtime() = repository.refreshBedtime()
 
-    suspend fun applySoundToAllTimers(soundUri: String?) = repository.applySoundToAllTimers(soundUri)
+    suspend fun applyDefaultsToAllTimers() = repository.applyDefaultsToAllTimers()
 
     suspend fun exportBackupJson(): String = repository.exportBackupJson()
 
