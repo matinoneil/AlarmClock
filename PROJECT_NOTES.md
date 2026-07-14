@@ -850,6 +850,30 @@ entry #1.
     matching SettingsStore. Three settings sections, three confirm
     dialogs each naming exactly what they touch. No DB change.
 
+50. **[OPEN] Feature: Reminders tab (notification reminders with repeat,
+    snooze presets, persistent + daily re-remind).** Third tab beside
+    Alarms/Timers (pager 2->3). A reminder is text + a date/time that fires a
+    HIGH-importance NOTIFICATION (not a ring) with Done and Snooze actions.
+    Intended design: new `reminders` Room table (DB v8->9 CREATE TABLE, alarms
+    untouched) with a three-state lifecycle -- pending (scheduled), active
+    (fired, notification showing until Done), done (faded history at the
+    bottom of the list). Repeats: daily/weekly(+weekday set)/monthly-by-date/
+    monthly-by-weekday(Nth or last)/yearly, each with an every-N interval;
+    next-occurrence rolls from the SCHEDULED time (a separate
+    snoozedUntilMillis overrides scheduling without moving the pattern
+    reference, same split as alarm snoozes #12). Marking a repeating reminder
+    done rolls it back to pending at the next occurrence; one-shots go to
+    history. Persistence: setOngoing (best-effort on 14+), BootReceiver
+    re-posts active notifications and re-arms pending ones (a reminder that
+    came due while the phone was off fires late -- unlike timers, a late
+    reminder is wanted), and while active a 24 h re-remind alarm re-posts in
+    case of an accidental swipe. Snooze opens a small dialog-themed activity
+    over whatever app is in front (Tasks-style) with time-adaptive presets
+    (in 1 h, today/tomorrow 09/12/18 as applicable, in 24 h, pick date &
+    time). Ops serialized behind a Mutex (#35 lesson). Notification ids
+    4000+id, re-remind request codes distinct from fire. Backup gains a
+    reminders array (tolerant reads).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
