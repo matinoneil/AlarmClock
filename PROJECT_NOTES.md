@@ -904,10 +904,11 @@ entry #1.
     Clear history stays alone, right-aligned. (c) README lost the Building
     section.
 
-52. **[OPEN] Clear history needs a confirm.** Per the maintainer: the reminders
-    tab's Clear history button wipes all done rows on a single tap with no
-    undo path -- add the same confirmation dialog every destructive action in
-    the app already has (delete alarm/series/timer, apply-to-all, restore).
+52. **Clear history got a confirm.** Per the maintainer: the reminders tab's
+    Clear history button wiped all done rows on a single tap with no undo
+    path. Now the same confirmation dialog every destructive action in the
+    app already has, and it states the count ("This removes all N completed
+    reminders"), so a fat-finger next to the top done card costs nothing.
 
 ## Restarting this project in a new chat
 
