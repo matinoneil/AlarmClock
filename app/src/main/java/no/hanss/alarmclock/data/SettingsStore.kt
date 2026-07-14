@@ -45,6 +45,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt(KEY_BEDTIME_HOURS, 8)
         set(value) = prefs.edit().putInt(KEY_BEDTIME_HOURS, value.coerceIn(1, 24)).apply()
 
+    // Custom bedtime notification text; blank = the default message.
+    var bedtimeMessage: String
+        get() = prefs.getString(KEY_BEDTIME_MESSAGE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_BEDTIME_MESSAGE, value).apply()
+
     private companion object {
         const val KEY_DEFAULT_ALARM_SOUND = "default_alarm_sound_uri"
         const val KEY_DEFAULT_TIMER_SOUND = "default_timer_sound_uri"
@@ -53,5 +58,6 @@ class SettingsStore(context: Context) {
         const val KEY_DEFAULT_VIBRATE = "default_alarm_vibrate"
         const val KEY_BEDTIME_ENABLED = "bedtime_enabled"
         const val KEY_BEDTIME_HOURS = "bedtime_hours_before"
+        const val KEY_BEDTIME_MESSAGE = "bedtime_message"
     }
 }

@@ -49,6 +49,7 @@ fun SettingsScreen(
     var defaultVibrate by remember { mutableStateOf(viewModel.settings.defaultAlarmVibrate) }
     var bedtimeEnabled by remember { mutableStateOf(viewModel.settings.bedtimeEnabled) }
     var bedtimeHoursText by remember { mutableStateOf(viewModel.settings.bedtimeHoursBefore.toString()) }
+    var bedtimeMessage by remember { mutableStateOf(viewModel.settings.bedtimeMessage) }
     var defaultTimerSound by remember { mutableStateOf(viewModel.settings.defaultTimerSoundUri) }
     var confirmApplyAlarms by remember { mutableStateOf(false) }
     var confirmApplyTimers by remember { mutableStateOf(false) }
@@ -342,6 +343,19 @@ fun SettingsScreen(
                     },
                     label = { Text("Hours of sleep before the alarm") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    enabled = bedtimeEnabled,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = bedtimeMessage,
+                    onValueChange = {
+                        bedtimeMessage = it
+                        viewModel.settings.bedtimeMessage = it
+                        scope.launch { viewModel.refreshBedtime() }
+                    },
+                    label = { Text("Message (empty = default)") },
                     singleLine = true,
                     enabled = bedtimeEnabled,
                     modifier = Modifier.fillMaxWidth()

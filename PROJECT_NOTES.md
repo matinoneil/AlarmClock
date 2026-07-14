@@ -821,6 +821,17 @@ entry #1.
     buried in the Silent section). Ids: notification 2002, request code
     999002. No DB change.
 
+48. **Bedtime reminder made audible + custom message.** Per Martin: the
+    bedtime channel now uses the default notification sound and vibration
+    (the app's one intentionally non-silent status notification). Editing
+    the channel IN PLACE was safe only because #47 never shipped in any
+    release, so the channel existed on no device -- had it shipped, this
+    would have required a _v2 channel id per #26. Also added: a settings
+    text field for a custom notification message; blank = default text,
+    and with a custom message the factual "Alarm at HH:MM" moves to the
+    header subText so it stays visible. Message carried in backups
+    (tolerant read).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`

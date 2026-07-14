@@ -270,7 +270,8 @@ class AlarmRepository(context: Context) {
             defaultSnoozeMinutes = settings.defaultSnoozeMinutes,
             defaultAlarmVibrate = settings.defaultAlarmVibrate,
             bedtimeEnabled = settings.bedtimeEnabled,
-            bedtimeHoursBefore = settings.bedtimeHoursBefore
+            bedtimeHoursBefore = settings.bedtimeHoursBefore,
+            bedtimeMessage = settings.bedtimeMessage
         )
     )
 
@@ -313,6 +314,7 @@ class AlarmRepository(context: Context) {
         settings.defaultAlarmVibrate = data.defaultAlarmVibrate
         settings.bedtimeEnabled = data.bedtimeEnabled
         settings.bedtimeHoursBefore = data.bedtimeHoursBefore
+        settings.bedtimeMessage = data.bedtimeMessage
 
         notifyChanged()
         return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)

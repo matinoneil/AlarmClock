@@ -124,15 +124,22 @@ class BedtimeNotificationManager(private val context: Context) {
             cal.get(java.util.Calendar.MINUTE)
         )
 
-        val notification = NotificationCompat.Builder(context, BEDTIME_CHANNEL_ID)
+        // A custom message (settings) replaces the default text; the factual
+        // alarm time moves to the header so it stays visible either way (#48).
+        val custom = settings.bedtimeMessage.trim()
+        val builder = NotificationCompat.Builder(context, BEDTIME_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Bedtime")
-            .setContentText("Alarm at $timeLabel — bed now for $hours h of sleep")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
-            .build()
+        if (custom.isNotEmpty()) {
+            builder.setContentText(custom).setSubText("Alarm at $timeLabel")
+        } else {
+            builder.setContentText("Alarm at $timeLabel — bed now for $hours h of sleep")
+        }
+        val notification = builder.build()
 
         context.getSystemService(NotificationManager::class.java)
             .notify(BEDTIME_NOTIFICATION_ID, notification)
@@ -145,12 +152,14 @@ class BedtimeNotificationManager(private val context: Context) {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Deliberately audible (#48): default notification sound and
+            // vibration, unlike the app's other status channels. Editing the
+            // channel in place (rather than a _v2 id per #26) was safe ONLY
+            // because #47 never shipped -- the channel existed on no device.
             val channel = NotificationChannel(
                 BEDTIME_CHANNEL_ID, "Bedtime reminder", NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Reminds you to go to bed before your next alarm"
-                setSound(null, null)
-                enableVibration(false)
             }
             context.getSystemService(NotificationManager::class.java)
                 .createNotificationChannel(channel)
