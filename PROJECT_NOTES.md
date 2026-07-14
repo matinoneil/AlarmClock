@@ -904,6 +904,11 @@ entry #1.
     Clear history stays alone, right-aligned. (c) README lost the Building
     section.
 
+52. **[OPEN] Clear history needs a confirm.** Per the maintainer: the reminders
+    tab's Clear history button wipes all done rows on a single tap with no
+    undo path -- add the same confirmation dialog every destructive action in
+    the app already has (delete alarm/series/timer, apply-to-all, restore).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
