@@ -3,6 +3,7 @@ package no.hanss.alarmclock.data
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import no.hanss.alarmclock.alarm.AlarmScheduler
+import no.hanss.alarmclock.alarm.BedtimeNotificationManager
 import no.hanss.alarmclock.alarm.SeriesUnpauseOps
 import no.hanss.alarmclock.alarm.SeriesUnpauseScheduler
 import no.hanss.alarmclock.alarm.TimerNotificationManager
@@ -32,10 +33,16 @@ class AlarmRepository(context: Context) {
     suspend fun getSeries(id: Long): AlarmSeries? = seriesDao.getSeries(id)
     suspend fun getAlarm(id: Long): Alarm? = alarmDao.getAlarm(id)
 
+    private val bedtimeManager = BedtimeNotificationManager(appContext)
+
     private suspend fun notifyChanged() {
         upcomingAlarmManager.refresh()
+        bedtimeManager.refresh()
         AlarmWidgetUpdater.updateAll(appContext)
     }
+
+    /** For the settings screen after toggling/adjusting the bedtime reminder. */
+    suspend fun refreshBedtime() = bedtimeManager.refresh()
 
     // --- Standalone alarms ---
 
@@ -261,7 +268,9 @@ class AlarmRepository(context: Context) {
             defaultTimerSoundUri = settings.defaultTimerSoundUri,
             defaultVolumeRampSeconds = settings.defaultVolumeRampSeconds,
             defaultSnoozeMinutes = settings.defaultSnoozeMinutes,
-            defaultAlarmVibrate = settings.defaultAlarmVibrate
+            defaultAlarmVibrate = settings.defaultAlarmVibrate,
+            bedtimeEnabled = settings.bedtimeEnabled,
+            bedtimeHoursBefore = settings.bedtimeHoursBefore
         )
     )
 
@@ -302,6 +311,8 @@ class AlarmRepository(context: Context) {
         settings.defaultVolumeRampSeconds = data.defaultVolumeRampSeconds
         settings.defaultSnoozeMinutes = data.defaultSnoozeMinutes
         settings.defaultAlarmVibrate = data.defaultAlarmVibrate
+        settings.bedtimeEnabled = data.bedtimeEnabled
+        settings.bedtimeHoursBefore = data.bedtimeHoursBefore
 
         notifyChanged()
         return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)

@@ -30,6 +30,7 @@ class BootReceiver : BroadcastReceiver() {
                 val scheduler = AlarmScheduler(context)
                 dao.getAllEnabledAlarms().forEach { scheduler.schedule(it) }
                 UpcomingAlarmManager(context).refresh()
+                BedtimeNotificationManager(context).refresh()
                 AlarmWidgetUpdater.updateAll(context)
 
                 // Running timers: AlarmManager entries died with the reboot too.

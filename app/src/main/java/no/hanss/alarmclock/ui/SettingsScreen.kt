@@ -47,6 +47,8 @@ fun SettingsScreen(
     var rampText by remember { mutableStateOf(viewModel.settings.defaultVolumeRampSeconds.toString()) }
     var snoozeText by remember { mutableStateOf(viewModel.settings.defaultSnoozeMinutes.toString()) }
     var defaultVibrate by remember { mutableStateOf(viewModel.settings.defaultAlarmVibrate) }
+    var bedtimeEnabled by remember { mutableStateOf(viewModel.settings.bedtimeEnabled) }
+    var bedtimeHoursText by remember { mutableStateOf(viewModel.settings.bedtimeHoursBefore.toString()) }
     var defaultTimerSound by remember { mutableStateOf(viewModel.settings.defaultTimerSoundUri) }
     var confirmApplyAlarms by remember { mutableStateOf(false) }
     var confirmApplyTimers by remember { mutableStateOf(false) }
@@ -307,6 +309,43 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) { Text("Apply to all timers") }
+            }
+
+            EditSection(title = "Bedtime reminder") {
+                Text(
+                    "A quiet notification before your next alarm, reminding you to go to bed in time for a full night's sleep.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Remind me", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = bedtimeEnabled, onCheckedChange = {
+                        bedtimeEnabled = it
+                        viewModel.settings.bedtimeEnabled = it
+                        scope.launch { viewModel.refreshBedtime() }
+                    })
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = bedtimeHoursText,
+                    onValueChange = {
+                        bedtimeHoursText = it.filter(Char::isDigit).take(2)
+                        bedtimeHoursText.toIntOrNull()?.let { h ->
+                            viewModel.settings.bedtimeHoursBefore = h
+                            scope.launch { viewModel.refreshBedtime() }
+                        }
+                    },
+                    label = { Text("Hours of sleep before the alarm") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    enabled = bedtimeEnabled,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             EditSection(title = "Backup") {

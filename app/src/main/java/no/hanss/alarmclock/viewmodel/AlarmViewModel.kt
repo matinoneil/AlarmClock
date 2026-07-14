@@ -91,6 +91,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun applyDefaultsToAllAlarms() = repository.applyDefaultsToAllAlarms()
 
+    suspend fun refreshBedtime() = repository.refreshBedtime()
+
     suspend fun applySoundToAllTimers(soundUri: String?) = repository.applySoundToAllTimers(soundUri)
 
     suspend fun exportBackupJson(): String = repository.exportBackupJson()
