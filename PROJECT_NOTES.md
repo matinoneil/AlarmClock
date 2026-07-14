@@ -801,6 +801,25 @@ entry #1.
     External updaters (e.g. Obtainium pointed at the GitHub repo) cover
     the update-check use case with zero code and zero permission change.
 
+47. **[OPEN] Feature: bedtime reminder notification.** Requested: a quiet
+    notification N hours (default 8) before the next enabled alarm rings
+    -- "Alarm at 07:00 - bed now for 8 h of sleep". Plan: mirror
+    UpcomingAlarmManager one-to-one: BedtimeNotificationManager computes
+    the soonest peekNextTriggerTime over all enabled alarms (standalone +
+    series children; automatically pause/snooze/skip-aware), arms an
+    AlarmManager check at trigger - N h (exact-with-inexact-fallback, only
+    a notification so late-is-fine), posts a dismissible non-ongoing
+    silent-channel notification, and is refreshed from notifyChanged, the
+    check receiver, and BootReceiver. A 30-minute grace rule keeps it
+    honest: if the bedtime moment is more than 30 min in the past when
+    refresh runs (e.g. an alarm created only 3 h out with an 8 h window),
+    no notification -- "bed now for 8 h" would be a lie. Fires once per
+    occurrence (the check alarm is one-shot; refresh re-arms after the
+    alarm fires). Settings: enabled toggle (default OFF) + hours field in
+    a new Bedtime section; both carried in backups with tolerant reads.
+    Ids: notification 2002, check request code 999002 (next to upcoming's
+    2001/999001, clear of ringing 1001 and timers 3000+). No DB change.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
