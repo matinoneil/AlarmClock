@@ -777,6 +777,20 @@ entry #1.
     marker after a patch batch) is now standing practice alongside #31's
     import mirroring.
 
+45. **[OPEN] Feature: full alarm defaults in Settings (ramp, snooze,
+    vibrate) with one apply-to-all.** Requested: alongside the default
+    sound, defaults for volume ramp seconds, snooze minutes, and vibrate;
+    used when CREATING new alarms/series (same creation-time-only rule as
+    the sound default, #34), plus one action applying all four to every
+    existing alarm AND series behind a confirm dialog. Timers stay
+    sound-only (no ramp/snooze on timers). Plan: three new SettingsStore
+    keys; new-item prefill in both editors (id == -1 only); bulk UPDATE
+    DAO queries setting all four columns on alarms + series (sound change
+    needs no re-arming, and ramp/snooze/vibrate don't affect scheduling
+    either); settings block in backups extended with tolerant reads; the
+    Settings "Alarm sound" section becomes "Alarm defaults". Verification
+    per #44: grep every patch marker after the batch.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
