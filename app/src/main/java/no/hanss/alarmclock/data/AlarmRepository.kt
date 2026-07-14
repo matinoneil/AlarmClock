@@ -227,6 +227,20 @@ class AlarmRepository(context: Context) {
         seriesDao.updateAllSeriesSounds(soundUri)
     }
 
+    /**
+     * Pushes all four alarm defaults onto every alarm and series (#45). None
+     * of these fields affect scheduling, so nothing is re-armed.
+     */
+    suspend fun applyDefaultsToAllAlarms() {
+        val s = settings
+        alarmDao.updateAllAlarmDefaults(
+            s.defaultAlarmSoundUri, s.defaultVolumeRampSeconds, s.defaultSnoozeMinutes, s.defaultAlarmVibrate
+        )
+        seriesDao.updateAllSeriesDefaults(
+            s.defaultAlarmSoundUri, s.defaultVolumeRampSeconds, s.defaultSnoozeMinutes, s.defaultAlarmVibrate
+        )
+    }
+
     suspend fun applySoundToAllTimers(soundUri: String?) {
         timerDao.updateAllTimerSounds(soundUri)
     }
@@ -244,7 +258,10 @@ class AlarmRepository(context: Context) {
             series = seriesDao.getAllSeries(),
             timers = timerDao.getAllTimers(),
             defaultAlarmSoundUri = settings.defaultAlarmSoundUri,
-            defaultTimerSoundUri = settings.defaultTimerSoundUri
+            defaultTimerSoundUri = settings.defaultTimerSoundUri,
+            defaultVolumeRampSeconds = settings.defaultVolumeRampSeconds,
+            defaultSnoozeMinutes = settings.defaultSnoozeMinutes,
+            defaultAlarmVibrate = settings.defaultAlarmVibrate
         )
     )
 
@@ -282,6 +299,9 @@ class AlarmRepository(context: Context) {
 
         settings.defaultAlarmSoundUri = data.defaultAlarmSoundUri
         settings.defaultTimerSoundUri = data.defaultTimerSoundUri
+        settings.defaultVolumeRampSeconds = data.defaultVolumeRampSeconds
+        settings.defaultSnoozeMinutes = data.defaultSnoozeMinutes
+        settings.defaultAlarmVibrate = data.defaultAlarmVibrate
 
         notifyChanged()
         return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)

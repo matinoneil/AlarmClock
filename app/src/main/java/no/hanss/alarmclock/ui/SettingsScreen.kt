@@ -14,6 +14,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -41,6 +44,9 @@ fun SettingsScreen(
     val snackbar = remember { SnackbarHostState() }
 
     var defaultAlarmSound by remember { mutableStateOf(viewModel.settings.defaultAlarmSoundUri) }
+    var rampText by remember { mutableStateOf(viewModel.settings.defaultVolumeRampSeconds.toString()) }
+    var snoozeText by remember { mutableStateOf(viewModel.settings.defaultSnoozeMinutes.toString()) }
+    var defaultVibrate by remember { mutableStateOf(viewModel.settings.defaultAlarmVibrate) }
     var defaultTimerSound by remember { mutableStateOf(viewModel.settings.defaultTimerSoundUri) }
     var confirmApplyAlarms by remember { mutableStateOf(false) }
     var confirmApplyTimers by remember { mutableStateOf(false) }
@@ -130,16 +136,24 @@ fun SettingsScreen(
 
     // --- Confirm dialogs ---
     if (confirmApplyAlarms) {
+        val rampNow = rampText.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val snoozeNow = snoozeText.toIntOrNull()?.coerceAtLeast(1) ?: 10
         AlertDialog(
             onDismissRequest = { confirmApplyAlarms = false },
-            title = { Text("Apply to all alarms?") },
-            text = { Text("Every alarm and alarm series will use \u201c${soundName(defaultAlarmSound)}\u201d. This can't be undone per-alarm.") },
+            title = { Text("Apply defaults to all alarms?") },
+            text = {
+                Text(
+                    "Every alarm and alarm series will use \u201c${soundName(defaultAlarmSound)}\u201d, " +
+                        "a $rampNow s volume ramp, $snoozeNow min snooze, and vibration ${if (defaultVibrate) "on" else "off"}. " +
+                        "This can't be undone per-alarm."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmApplyAlarms = false
                     scope.launch {
-                        viewModel.applySoundToAllAlarms(defaultAlarmSound)
-                        snackbar.showSnackbar("Sound applied to all alarms and series")
+                        viewModel.applyDefaultsToAllAlarms()
+                        snackbar.showSnackbar("Defaults applied to all alarms and series")
                     }
                 }) { Text("Apply") }
             },
@@ -211,9 +225,9 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            EditSection(title = "Alarm sound") {
+            EditSection(title = "Alarm defaults") {
                 Text(
-                    "Used for new alarms and series. Existing ones keep their sound unless applied below.",
+                    "Used for new alarms and series. Existing ones keep their settings unless applied below.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -227,12 +241,48 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(soundName(defaultAlarmSound), maxLines = 1)
                 }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = rampText,
+                        onValueChange = {
+                            rampText = it.filter(Char::isDigit).take(4)
+                            viewModel.settings.defaultVolumeRampSeconds = rampText.toIntOrNull() ?: 0
+                        },
+                        label = { Text("Volume ramp (s)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = snoozeText,
+                        onValueChange = {
+                            snoozeText = it.filter(Char::isDigit).take(3)
+                            viewModel.settings.defaultSnoozeMinutes = snoozeText.toIntOrNull() ?: 10
+                        },
+                        label = { Text("Snooze (min)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Vibrate", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = defaultVibrate, onCheckedChange = {
+                        defaultVibrate = it
+                        viewModel.settings.defaultAlarmVibrate = it
+                    })
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { confirmApplyAlarms = true },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp)
-                ) { Text("Apply to all alarms & series") }
+                ) { Text("Apply these to all alarms & series") }
             }
 
             EditSection(title = "Timer sound") {

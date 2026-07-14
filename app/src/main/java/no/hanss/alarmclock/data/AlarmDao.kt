@@ -32,6 +32,9 @@ interface AlarmDao {
     @Query("UPDATE alarms SET soundUri = :soundUri")
     suspend fun updateAllAlarmSounds(soundUri: String?)
 
+    @Query("UPDATE alarms SET soundUri = :soundUri, volumeRampSeconds = :rampSeconds, snoozeMinutes = :snoozeMinutes, vibrate = :vibrate")
+    suspend fun updateAllAlarmDefaults(soundUri: String?, rampSeconds: Int, snoozeMinutes: Int, vibrate: Boolean)
+
     @Query("DELETE FROM alarms")
     suspend fun deleteAllAlarms()
 
@@ -94,6 +97,9 @@ interface AlarmSeriesDao {
 
     @Query("UPDATE alarm_series SET soundUri = :soundUri")
     suspend fun updateAllSeriesSounds(soundUri: String?)
+
+    @Query("UPDATE alarm_series SET soundUri = :soundUri, volumeRampSeconds = :rampSeconds, snoozeMinutes = :snoozeMinutes, vibrate = :vibrate")
+    suspend fun updateAllSeriesDefaults(soundUri: String?, rampSeconds: Int, snoozeMinutes: Int, vibrate: Boolean)
 
     @Query("DELETE FROM alarm_series")
     suspend fun deleteAllSeries()

@@ -55,7 +55,10 @@ fun AlarmEditScreen(
         is24Hour = true
     )
     var label by remember { mutableStateOf(existing?.label ?: "") }
-    var vibrate by remember { mutableStateOf(existing?.vibrate ?: true) }
+    // New alarms start from the settings defaults (#45); edits keep the
+    // alarm's own values.
+    val defaults = remember { no.hanss.alarmclock.data.SettingsStore(context) }
+    var vibrate by remember { mutableStateOf(existing?.vibrate ?: (if (alarmId == -1L) defaults.defaultAlarmVibrate else true)) }
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
     // New alarms start from the settings default; edits keep the alarm's own
     // choice (including "null = system default") untouched.
@@ -66,8 +69,8 @@ fun AlarmEditScreen(
             else existing?.soundUri
         )
     }
-    var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: 0).toString()) }
-    var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: 10).toString()) }
+    var rampText by remember { mutableStateOf((existing?.volumeRampSeconds ?: (if (alarmId == -1L) defaults.defaultVolumeRampSeconds else 0)).toString()) }
+    var snoozeText by remember { mutableStateOf((existing?.snoozeMinutes ?: (if (alarmId == -1L) defaults.defaultSnoozeMinutes else 10)).toString()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val rampSeconds = rampText.toIntOrNull()?.coerceAtLeast(0) ?: 0

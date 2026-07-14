@@ -25,7 +25,10 @@ object BackupSerializer {
         val series: List<AlarmSeries>,
         val timers: List<TimerPreset>,
         val defaultAlarmSoundUri: String?,
-        val defaultTimerSoundUri: String?
+        val defaultTimerSoundUri: String?,
+        val defaultVolumeRampSeconds: Int = 0,
+        val defaultSnoozeMinutes: Int = 10,
+        val defaultAlarmVibrate: Boolean = true
     )
 
     fun toJson(data: BackupData): String {
@@ -36,6 +39,9 @@ object BackupSerializer {
         val settings = JSONObject()
         settings.put("defaultAlarmSoundUri", data.defaultAlarmSoundUri ?: JSONObject.NULL)
         settings.put("defaultTimerSoundUri", data.defaultTimerSoundUri ?: JSONObject.NULL)
+        settings.put("defaultVolumeRampSeconds", data.defaultVolumeRampSeconds)
+        settings.put("defaultSnoozeMinutes", data.defaultSnoozeMinutes)
+        settings.put("defaultAlarmVibrate", data.defaultAlarmVibrate)
         root.put("settings", settings)
 
         root.put("standaloneAlarms", JSONArray().apply {
@@ -164,7 +170,11 @@ object BackupSerializer {
             series = series,
             timers = timers,
             defaultAlarmSoundUri = settings.optStringOrNull("defaultAlarmSoundUri"),
-            defaultTimerSoundUri = settings.optStringOrNull("defaultTimerSoundUri")
+            defaultTimerSoundUri = settings.optStringOrNull("defaultTimerSoundUri"),
+            // Absent in pre-#45 backups: tolerant optional reads.
+            defaultVolumeRampSeconds = settings.optInt("defaultVolumeRampSeconds", 0).coerceAtLeast(0),
+            defaultSnoozeMinutes = settings.optInt("defaultSnoozeMinutes", 10).coerceAtLeast(1),
+            defaultAlarmVibrate = settings.optBoolean("defaultAlarmVibrate", true)
         )
     }
 }
