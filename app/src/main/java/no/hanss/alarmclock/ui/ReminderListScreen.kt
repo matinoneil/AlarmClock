@@ -106,17 +106,13 @@ fun ReminderListContent(
         }
 
         if (done.isNotEmpty()) {
+            // No heading over the history (entry #51): the fade already says
+            // what these are; only the Clear action needs a home.
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    Text(
-                        "Done",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f)
-                    )
                     TextButton(onClick = { viewModel.clearDoneReminders() }) {
                         Text("Clear history")
                     }

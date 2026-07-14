@@ -890,17 +890,19 @@ entry #1.
     the next session resume instead of reverse-engineering; the two-phase
     rule paid for itself a second time.
 
-51. **[OPEN] Reminder notification/list polish.** Per the maintainer: (a) the
-    notification's "Due today HH:MM" content line goes away -- the reminder
-    text itself is the notification's substance. Intended approach: the text
-    stays the title, the content line is dropped entirely (a "due today"
-    stamp is redundant at the moment it fires -- the notification arriving
-    IS the due signal), a BigTextStyle carries long reminder texts in the
-    expanded view, and the due info survives only as header subText and only
-    when the reminder is overdue from an earlier day (the daily-re-remind
-    case, where "Due Mon 20 Jul" is genuinely informative). (b) The "Done"
-    heading above the history section goes; the fade is signal enough, the
-    Clear history action stays. (c) README loses the Building section.
+51. **Reminder notification/list polish.** Per the maintainer: (a) the
+    notification's "Due today HH:MM" content line is gone -- the reminder
+    text is the title AND the BigTextStyle body (long texts expand fully
+    instead of truncating), because a due-today stamp is redundant at the
+    moment it fires: the notification arriving IS the due signal. The due
+    stamp survives only as header subText and only once the due DAY has
+    passed (the daily-re-remind case, where "Due Mon 20 Jul" genuinely
+    informs); on the day itself the header shows nothing. The list card's
+    "Today 09:00 · in 2 h" subtitle is deliberately untouched -- there the
+    schedule is what you're browsing for. (b) The "Done" heading over the
+    history section is gone; the fade already says what those rows are, and
+    Clear history stays alone, right-aligned. (c) README lost the Building
+    section.
 
 ## Restarting this project in a new chat
 

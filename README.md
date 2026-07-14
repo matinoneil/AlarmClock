@@ -73,12 +73,6 @@ other apps" is behind *Allow restricted settings* (Settings → Apps →
 AlarmClock → three-dot menu); without it, alarms still ring but show as a
 heads-up notification while the phone is in use.
 
-## Building
-
-Open in Android Studio, or use the GitHub Actions workflow: every push to
-`main` builds an APK, and publishing a GitHub Release builds one with the
-version name derived from the tag (`V1.9` → `1.9`).
-
 ## Architecture
 
 `data/` holds the Room entities, DAOs, repository, and real migrations; `alarm/`

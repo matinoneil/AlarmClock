@@ -68,10 +68,12 @@ class ReminderNotificationManager(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, REMINDER_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, REMINDER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(reminder.text)
-            .setContentText(dueLabel(reminder.dueAtMillis))
+            // The reminder text IS the substance; BigTextStyle lets a long
+            // one expand fully instead of truncating to the title line.
+            .setStyle(NotificationCompat.BigTextStyle().bigText(reminder.text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contentIntent)
@@ -81,10 +83,15 @@ class ReminderNotificationManager(private val context: Context) {
             .setOngoing(true)
             .addAction(0, "Done", doneIntent)
             .addAction(0, "Snooze", snoozeIntent)
-            .build()
+
+        // No "Due today HH:MM" line: the notification arriving IS the due
+        // signal (entry #51). The due stamp survives only in the small header
+        // slot, and only once the reminder is overdue from an earlier day
+        // (the daily re-remind), where it's genuinely informative.
+        overdueLabel(reminder.dueAtMillis)?.let { builder.setSubText(it) }
 
         context.getSystemService(NotificationManager::class.java)
-            .notify(notificationId(reminder.id), notification)
+            .notify(notificationId(reminder.id), builder.build())
     }
 
     fun cancel(reminderId: Long) {
@@ -95,15 +102,18 @@ class ReminderNotificationManager(private val context: Context) {
     private fun notificationId(reminderId: Long): Int =
         REMINDER_NOTIFICATION_BASE + reminderId.toInt()
 
-    /** "Due today 09:00" / "Due Tue 21 Jul, 09:00" -- date included once it isn't today. */
-    private fun dueLabel(dueAtMillis: Long): String {
+    /**
+     * "Due Tue 21 Jul, 09:00" -- but only once the due DAY has passed (the
+     * re-remind case); null on the day itself, where a due stamp is noise.
+     */
+    private fun overdueLabel(dueAtMillis: Long): String? {
         val due = Calendar.getInstance().apply { timeInMillis = dueAtMillis }
         val now = Calendar.getInstance()
         val sameDay = due.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
             due.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+        if (sameDay || dueAtMillis > now.timeInMillis) return null
         val time = String.format(Locale.getDefault(), "%02d:%02d", due.get(Calendar.HOUR_OF_DAY), due.get(Calendar.MINUTE))
-        return if (sameDay) "Due today $time"
-        else "Due " + SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(Date(dueAtMillis)) + ", " + time
+        return "Due " + SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(Date(dueAtMillis)) + ", " + time
     }
 
     private fun createChannel() {
