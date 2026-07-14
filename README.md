@@ -26,6 +26,21 @@ end is as loud as any alarm, with the same full-screen UI. Running timers
 survive reboots; one that would have ended while the phone was off is quietly
 reset instead of ringing hours late.
 
+## Reminders
+
+The Reminders tab holds notification reminders: a note plus a date and time.
+When it's due, the phone shows a notification — no ringing — with **Done** and
+**Snooze** buttons. Snooze opens a small floating menu over whatever app is in
+front, with options that adapt to the time of day (in 1 hour, this/tomorrow
+morning, afternoon, evening, in 24 hours, or any picked date and time).
+Reminders can repeat: daily, weekly on chosen days, monthly on a date, monthly
+on a weekday ("the 2nd Tuesday", "the last Friday"), or yearly — each
+optionally every Nth day/week/month/year. Marking a repeating reminder done
+completes only that occurrence; it comes back at the next one. An unhandled
+reminder re-notifies once a day, survives reboots, and one that came due while
+the phone was off still shows up afterwards. Completed one-time reminders stay
+as faded history at the bottom of the list.
+
 ## Other features
 
 - **Single alarms** with weekday repeat, per-alarm sound, snooze, vibration,
@@ -45,9 +60,9 @@ reset instead of ringing hours late.
 - **Reliability** — everything is rescheduled after reboots and app updates,
   interrupted rings resume, and failures degrade rather than go silent (broken
   ringtone URI → system sound; blocked ramp → full volume).
-- Swipe or tap between the Alarms and Timers tabs; next-alarm home screen
-  widget; Material You launcher icon. The app requests no network permission —
-  it cannot phone home.
+- Swipe or tap between the Alarms, Timers, and Reminders tabs; next-alarm home
+  screen widget; Material You launcher icon. The app requests no network
+  permission — it cannot phone home.
 
 ## Install
 
