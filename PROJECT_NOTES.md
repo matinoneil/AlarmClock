@@ -790,6 +790,17 @@ entry #1.
     (no ramp/snooze on timers). Backups carry the three new settings with
     tolerant optional reads -- pre-#45 files restore fine. No DB change.
 
+46. **Decision: no in-app updater; the app has NO INTERNET permission and
+    that's now a deliberate property.** Martin considered an in-app
+    update-check (feasible: repo is public, so unauthenticated
+    releases/latest + FileProvider install would work) and chose to skip
+    it. Key reason to keep it skipped: the app currently declares no
+    INTERNET permission, meaning it provably cannot phone home -- a rare
+    and valuable privacy property. Do NOT add INTERNET for any future
+    feature without flagging this trade-off to Martin explicitly.
+    External updaters (e.g. Obtainium pointed at the GitHub repo) cover
+    the update-check use case with zero code and zero permission change.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
