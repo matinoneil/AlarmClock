@@ -510,15 +510,15 @@ entry #1.
     later, the natural form is "next 07:05 in 6 h" from the earliest
     still-pending child.
 
-28. **Release text formatting: no tag/commit footer.** Per Martin: release
+28. **Release text formatting: no tag/commit footer.** Per the maintainer: release
     texts must NOT end with the "Tag: Vx.y.z · Commit: abc1234" line.
     Provide the release notes body only; the target tag/commit can be
     mentioned conversationally in chat when useful, but never inside the
-    release text block itself. Also on versioning: Martin increments the
+    release text block itself. Also on versioning: the maintainer increments the
     patch number for most releases regardless of feature size (timers tab =
     V1.8, its follow-ups = V1.8.1/.2, the rings-in feature = V1.8.3) --
     don't suggest semver-style minor bumps; when a suggestion is needed at
-    all, assume next patch number on the current line and let Martin decide
+    all, assume next patch number on the current line and let the maintainer decide
     when a line bump (1.8 -> 1.9) happens.
 
 29. **Feature: pause a series until a date ("disable until Monday").** For
@@ -547,7 +547,7 @@ entry #1.
     null rather than a stale timestamp every reader must re-interpret.
 
 30. **"Rings in" on series cards, replacing the alarm count.** Follow-up to
-    #27 per Martin: an active series now shows "07:00 - 07:45, every 5 min ·
+    #27 per the maintainer: an active series now shows "07:00 - 07:45, every 5 min ·
     in 6 h 12 min · Weekdays" -- the "(10 alarms)" count only appears when
     there's no live countdown (series disabled, or a one-shot series whose
     alarms have all fired; paused series keep their "Paused until" line).
@@ -574,14 +574,14 @@ entry #1.
     diagnosing build failures means review, so prevention is cheap and cure
     is slow.
 
-32. **Don't wait on CI.** Per Martin: after pushing (or creating a release),
+32. **Don't wait on CI.** Per the maintainer: after pushing (or creating a release),
     do NOT poll the Actions run for completion -- he watches the Actions tab
     himself and will report failures. Push, state what was pushed, move on.
-    (Checking the API for the failure *reason* when Martin reports a broken
+    (Checking the API for the failure *reason* when the maintainer reports a broken
     build is still fine -- it's the sleep-and-poll loop that's unwanted.)
 
 33. **Paused series presented as "off", and the switch destroyed the pause.**
-    Reported by Martin: enabling a series then pausing it from the editor
+    Reported by the maintainer: enabling a series then pausing it from the editor
     "just turns the series off". Root cause: #29 deliberately styled the
     paused card identically to disabled (switch unchecked, 0.5 alpha, low
     container) -- so a successful pause was indistinguishable from the
@@ -624,7 +624,7 @@ entry #1.
     noted in-app: content:// sound URIs may not resolve on another device;
     the ring path degrades to the system sound.
 
-35. **Timer notification button handlers raced each other.** Martin reported
+35. **Timer notification button handlers raced each other.** the maintainer reported
     that playing with a 10-min timer's +-30 s buttons seemed to activate an
     11-min alarm/timer once, unreproducible. Investigation found no path
     that touches a DIFFERENT preset (request codes and receiver components
@@ -645,7 +645,7 @@ entry #1.
     exact preset list and tap sequence.
 
 36. **Timer notification layout: countdown and "rings at" swapped.** Per
-    Martin: the live countdown was in the small header timestamp slot and
+    The maintainer: the live countdown was in the small header timestamp slot and
     "Rings at HH:MM" was the body text -- backwards for the notification's
     whole point. Now a DecoratedCustomViewStyle custom layout
     (notification_timer.xml) puts a 28sp Chronometer (countDown mode,
@@ -658,9 +658,9 @@ entry #1.
     that's the first place to look.
 
 37. **Collapsed timer notification clipped the label line.** The two-line
-    custom layout (#36) didn't fit the collapsed content height on Martin's
+    custom layout (#36) didn't fit the collapsed content height on the maintainer's
     skin -- the "Timer" line under the chronometer rendered cut off. Fix per
-    Martin: the label TextView is gone; the layout is chronometer-only. A
+    The maintainer: the label TextView is gone; the layout is chronometer-only. A
     non-blank custom label now rides in the header subText ("Rings at 21:35
     · Tea"); unlabeled timers show no word at all. Reinforces #36's
     warning: the collapsed custom-view area is barely one comfortable line
@@ -679,7 +679,7 @@ entry #1.
     files' comments before the code. (V1.8.8's first release was created
     on the broken commit; deleted and re-created on the fix.)
 
-39. **Timer displays sat on 00:00 before ringing.** Reported by Martin: the
+39. **Timer displays sat on 00:00 before ringing.** Reported by the maintainer: the
     countdown reaches 00:00 visibly before the ring. Root cause: both the
     card and the notification chronometer FLOOR the remaining time, so
     00:00 renders for the entire final second while the deadline hasn't
@@ -692,7 +692,7 @@ entry #1.
     by firing early: a 10-minute timer must ring after 600 s, not 599.
     Same principle as #27's "never in 0 min" rounding for alarms.
 
-40. **Swipe between the Alarms and Timers tabs.** Per Martin: the tab
+40. **Swipe between the Alarms and Timers tabs.** Per the maintainer: the tab
     content is now a HorizontalPager instead of AnimatedContent -- swiping
     the list area drags between tabs with the finger, tab taps
     animateScrollToPage the same state, and the tab highlight follows
@@ -717,7 +717,7 @@ entry #1.
     in doubt add the OptIn -- a redundant OptIn is a warning, a missing one
     is a broken build; (b) the Actions log-download endpoints
     (results-receiver.actions.githubusercontent.com, *.blob.core.windows.net)
-    are blocked by the sandbox allowlist -- Martin pastes the red lines on
+    are blocked by the sandbox allowlist -- the maintainer pastes the red lines on
     request, or those hosts can be added to the egress settings for direct
     access.
 
@@ -791,13 +791,13 @@ entry #1.
     tolerant optional reads -- pre-#45 files restore fine. No DB change.
 
 46. **Decision: no in-app updater; the app has NO INTERNET permission and
-    that's now a deliberate property.** Martin considered an in-app
+    that's now a deliberate property.** the maintainer considered an in-app
     update-check (feasible: repo is public, so unauthenticated
     releases/latest + FileProvider install would work) and chose to skip
     it. Key reason to keep it skipped: the app currently declares no
     INTERNET permission, meaning it provably cannot phone home -- a rare
     and valuable privacy property. Do NOT add INTERNET for any future
-    feature without flagging this trade-off to Martin explicitly.
+    feature without flagging this trade-off to the maintainer explicitly.
     External updaters (e.g. Obtainium pointed at the GitHub repo) cover
     the update-check use case with zero code and zero permission change.
 
@@ -821,7 +821,7 @@ entry #1.
     buried in the Silent section). Ids: notification 2002, request code
     999002. No DB change.
 
-48. **Bedtime reminder made audible + custom message.** Per Martin: the
+48. **Bedtime reminder made audible + custom message.** Per the maintainer: the
     bedtime channel now uses the default notification sound and vibration
     (the app's one intentionally non-silent status notification). Editing
     the channel IN PLACE was safe only because #47 never shipped in any
@@ -838,7 +838,7 @@ entry #1.
     actions; timers gained a vibrate default beside the sound (the only
     other per-timer setting). SettingsStore's series getters FALL BACK to
     the alarm keys until a series key is explicitly written, so values
-    Martin configured under the old unified settings seed both categories
+    The maintainer configured under the old unified settings seed both categories
     rather than resetting. Bulk-apply DAO queries are now properly scoped:
     standalone = WHERE seriesId IS NULL; series = alarm_series rows PLUS
     child alarms WHERE seriesId IS NOT NULL (the children are what ring --
