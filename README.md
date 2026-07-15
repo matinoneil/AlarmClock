@@ -11,94 +11,55 @@ independent alarms generated from a single definition.
 A series is defined by a start time, an interval, and a duration — "from 07:00,
 every 5 minutes, for 45 minutes" — and expands into ten real alarms. Each is
 fully independent: dismissing 07:00 does nothing to 07:05, so there is no
-snooze chain to accidentally kill half asleep. And because all ten come from
-one definition, moving the whole wake-up routine is a single edit — change the
-start time and every alarm regenerates. One switch toggles the whole series;
-weekday repeat, sound, ramp, snooze, and vibration apply to every alarm in it.
+snooze chain to accidentally kill half asleep. Because all ten come from one
+definition, changing the start time regenerates every alarm, and one switch
+toggles the whole series.
 
 ## Timers
 
-The Timers tab holds saved, reusable presets — duration, label, sound,
-vibration — started and stopped with the same switch alarms use. A running
-timer counts down live on its card and in a notification with **+30 s**,
-**−30 s**, and **Stop** buttons. The notification is silent; the ring at the
-end is as loud as any alarm, with the same full-screen UI. Running timers
-survive reboots; one that would have ended while the phone was off is quietly
-reset instead of ringing hours late.
+Saved, reusable presets — duration, label, sound, vibration. A running timer
+counts down on its card and in a notification with **+30 s**, **−30 s**, and
+**Stop**; the ring at the end is as loud as any alarm. Running timers survive
+reboots.
 
 ## Reminders
 
-The Reminders tab holds notification reminders: a note plus a date and time.
-When it's due, the phone shows a notification — no ringing — with **Done** and
-**Snooze** buttons. Snooze opens a small floating menu over whatever app is in
-front, with options that adapt to the time of day (in 1 hour, this/tomorrow
-morning, afternoon, evening, in 24 hours, or any picked date and time).
-Reminders can repeat: daily, weekly on chosen days (with Weekdays/Weekends/
-Every day quick-picks), monthly on a date (any day 1–31, or the last day of
-the month), monthly on a weekday (any combination of first/second/third/
-fourth/last with a weekday — or "day", "weekday", "weekend day", enabling
-rules like "the first weekday of the month"), yearly on a date, or yearly on
-a weekday ("the last Sunday of March") — each optionally every Nth
-day/week/month/year. A "Next:" line in the editor previews the next three
-occurrences while you configure, and the first occurrence snaps forward to
-match the pattern. Marking a repeating reminder done completes only that
-occurrence; it comes back at the next one.
-
-Each reminder controls how insistent its notification is, in the editor's
-"Remind again" section. With "Keep reminding until done" on (the default), the
-notification stays until Done or Snooze is pressed: it re-alerts on a chosen
-schedule (every 15 minutes up to once a day, or off) while it sits unhandled,
-and if it's swiped away it comes back — after the app-wide delay from
-Settings, a per-reminder delay, instantly (which makes it effectively
-impossible to dismiss), or not at all. The two are independent, so a reminder
-can have swipe protection without repeat alerts, or the reverse. It also
-survives reboots. There is always exactly one notification
-per reminder: a re-alert or comeback replaces the previous notification
-rather than adding another. With the switch off, the reminder is one and
-done — it notifies once like a normal notification, and swiping it away marks
-it done. A reminder that came due while the phone was off still shows up
-afterwards. Completed and deleted reminders stay as faded history at the
-bottom of the list; Clear history in Settings removes them permanently.
+Notification reminders: a note plus a date and time, with **Done** and
+**Snooze** buttons (Snooze opens a floating menu with time-of-day-aware
+suggestions). Repeats cover daily, weekly, monthly by date or weekday
+(including "first weekday", "last Friday", "the last day of the month"), and
+yearly by date or weekday — each optionally every Nth period, with a live
+preview of the next three occurrences while configuring. Each reminder decides
+how insistent it is: re-alert on a schedule until marked done, come back after
+being swiped away (up to instantly), both, or neither ("one and done" — then a
+swipe marks it done). There is always exactly one notification per reminder,
+and it survives reboots. Completed and deleted reminders remain as faded
+history; Clear history lives in Settings.
 
 ## Other features
 
-- **Single alarms** with weekday repeat, per-alarm sound, snooze, vibration,
-  and a volume ramp that climbs from quiet to full over configurable seconds.
-- **Pause until a date** — silence an alarm or a whole series (vacation mode);
-  it resumes by itself on the chosen day, so re-enabling can't be forgotten.
-- **"Rings in" labels** — every enabled alarm and series shows how far away
-  its next real ring is, snoozes and skips included.
-- **Skip next occurrence** from the upcoming-alarm notification, without
-  disabling the alarm.
-- **Bedtime reminder** — an optional notification N hours before the next
-  alarm, with a customizable message.
-- **Settings** — separate defaults for series, single alarms, and timers, each
-  with a one-tap apply-to-all; plus JSON backup and restore of everything.
-- **Full-screen ringing UI** over the lock screen and (with the overlay
-  permission) over other apps.
-- **Reliability** — everything is rescheduled after reboots and app updates,
-  interrupted rings resume, and failures degrade rather than go silent (broken
-  ringtone URI → system sound; blocked ramp → full volume).
-- Swipe or tap between the Alarms, Timers, and Reminders tabs; next-alarm home
-  screen widget; Material You launcher icon. The app requests no network
-  permission — it cannot phone home.
+- Single alarms with weekday repeat, per-alarm sound, snooze, vibration, and a
+  volume ramp.
+- Pause until a date (vacation mode) with automatic resume; skip next
+  occurrence; "rings in" labels showing the time to the next real ring.
+- Bedtime reminder N hours before the next alarm.
+- Settings with per-type defaults and apply-to-all; JSON backup and restore of
+  everything.
+- Full-screen ringing UI over the lock screen; everything is rescheduled after
+  reboots and app updates; failures degrade rather than go silent.
+- No network permission — the app cannot phone home.
 
 ## Install
 
 Download the APK from the [latest release](../../releases/latest) and install
-it. Builds are signed, so updates install over the previous version. The app
-requests its permissions on first launch. On Android 13+, "display over
-other apps" is behind *Allow restricted settings* (Settings → Apps →
-AlarmClock → three-dot menu); without it, alarms still ring but show as a
-heads-up notification while the phone is in use.
+it; builds are signed, so updates install over the previous version. On
+Android 13+, "display over other apps" is behind *Allow restricted settings*
+(Settings → Apps → AlarmClock → three-dot menu); without it, alarms still ring
+but show as a heads-up notification while the phone is in use.
 
 ## Architecture
 
-`data/` holds the Room entities, DAOs, repository, and real migrations; `alarm/`
-holds the schedulers, receivers, and the foreground ring service (timers ring
-through the same service; their countdown notification is OS-rendered, so a
-running timer costs no process time); `ui/` the Compose screens; `widget/` the
-home screen widget. A series becomes real alarms via `expandTimes()` — saving
-regenerates its child rows, each with its own `AlarmManager` entry.
-
-Design history and working notes live in [PROJECT_NOTES.md](PROJECT_NOTES.md).
+`data/` holds the Room entities, DAOs, repository, and migrations; `alarm/` the
+schedulers, receivers, and the foreground ring service; `ui/` the Compose
+screens; `widget/` the home screen widget. Design history and working notes
+live in [PROJECT_NOTES.md](PROJECT_NOTES.md).
