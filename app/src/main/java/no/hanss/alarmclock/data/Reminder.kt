@@ -47,6 +47,10 @@ data class Reminder(
     // and the comeback pacing after an instant swipe re-post. Minutes;
     // 1440 = the original fixed daily nag.
     val renotifyMinutes: Int = 1440,
+    // How quickly the notification returns after being swiped away (#60):
+    // RESHOW_FOLLOW_GLOBAL follows the Settings value, 0 = instantly
+    // ("permanent"), N = after N minutes.
+    val reshowMinutes: Int = RESHOW_FOLLOW_GLOBAL,
     // Overrides dueAtMillis for scheduling while set; cleared when the
     // reminder fires. Never consulted by the repeat roll.
     val snoozedUntilMillis: Long? = null
@@ -57,6 +61,7 @@ data class Reminder(
     val effectiveDueAtMillis: Long get() = snoozedUntilMillis ?: dueAtMillis
 
     companion object {
+        const val RESHOW_FOLLOW_GLOBAL = -1
         const val STATE_PENDING = 0
         const val STATE_ACTIVE = 1
         const val STATE_DONE = 2

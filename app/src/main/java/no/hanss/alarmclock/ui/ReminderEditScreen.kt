@@ -108,6 +108,7 @@ fun ReminderEditScreen(
     // derives from the picked date.
     var weekOfMonth by remember { mutableIntStateOf(existing?.repeatWeekOfMonth ?: 1) }
     var renotifyMinutes by remember { mutableIntStateOf(existing?.renotifyMinutes ?: 1440) }
+    var reshowMinutes by remember { mutableIntStateOf(existing?.reshowMinutes ?: Reminder.RESHOW_FOLLOW_GLOBAL) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -350,6 +351,17 @@ fun ReminderEditScreen(
                     renotifyMinutes = renotifyMinutes,
                     onSelect = { renotifyMinutes = it }
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "If the notification is swiped away, bring it back",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                ReshowDropdown(
+                    reshowMinutes = reshowMinutes,
+                    onSelect = { reshowMinutes = it }
+                )
             }
 
             Button(
@@ -379,7 +391,8 @@ fun ReminderEditScreen(
                         repeatWeekOfMonth = if (repeatType == Reminder.REPEAT_MONTHLY_WEEKDAY) {
                             weekOfMonth
                         } else 0,
-                        renotifyMinutes = renotifyMinutes
+                        renotifyMinutes = renotifyMinutes,
+                        reshowMinutes = reshowMinutes
                     )
                     viewModel.saveReminder(reminder)
                     onDone()
@@ -416,6 +429,45 @@ private fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
     val options = if (presets.any { it.first == renotifyMinutes }) presets
     else presets + (renotifyMinutes to "Every $renotifyMinutes minutes")
     val currentLabel = options.first { it.first == renotifyMinutes }.second
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(currentLabel, maxLines = 1)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (value, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { expanded = false; onSelect(value) }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Per-reminder swipe comeback (#60). "App default" follows the Settings
+ * value; "Instantly (permanent)" is 0; the rest are minutes. An
+ * out-of-preset stored value is offered as-is, same policy as the others.
+ */
+@Composable
+private fun ReshowDropdown(reshowMinutes: Int, onSelect: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val presets = listOf(
+        Reminder.RESHOW_FOLLOW_GLOBAL to "App default (from Settings)",
+        0 to "Instantly (permanent)",
+        1 to "After 1 minute",
+        5 to "After 5 minutes",
+        15 to "After 15 minutes",
+        30 to "After 30 minutes",
+        60 to "After 1 hour"
+    )
+    val options = if (presets.any { it.first == reshowMinutes }) presets
+    else presets + (reshowMinutes to "After $reshowMinutes minutes")
+    val currentLabel = options.first { it.first == reshowMinutes }.second
     Box {
         OutlinedButton(
             onClick = { expanded = true },

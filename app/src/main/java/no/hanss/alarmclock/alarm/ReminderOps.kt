@@ -88,7 +88,9 @@ object ReminderOps {
         val dao = AlarmDatabase.getInstance(context).reminderDao()
         val reminder = dao.getReminder(reminderId) ?: return@withLock
         if (reminder.state != Reminder.STATE_ACTIVE) return@withLock
-        val minutes = SettingsStore(context).reminderReshowMinutes
+        val minutes = if (reminder.reshowMinutes == Reminder.RESHOW_FOLLOW_GLOBAL) {
+            SettingsStore(context).reminderReshowMinutes
+        } else reminder.reshowMinutes
         if (minutes == 0) {
             // "Permanent" (#58): straight back at full volume -- the
             // maintainer wants the swipe to visibly and audibly not work.
