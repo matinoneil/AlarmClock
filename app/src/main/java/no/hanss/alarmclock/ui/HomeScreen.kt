@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -27,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -72,7 +75,9 @@ fun HomeScreen(
     onEditTimer: (TimerPreset) -> Unit,
     onAddReminder: () -> Unit,
     onEditReminder: (Reminder) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    fullScreenRevoked: Boolean = false,
+    onFixFullScreen: () -> Unit = {}
 ) {
     // Pager state is the single source of truth for which tab is showing;
     // it's saveable, so rotation and returning from an edit screen keep the
@@ -144,15 +149,41 @@ fun HomeScreen(
             }
         }
     ) { padding ->
-        // The pager both animates tab taps and follows finger drags; vertical
-        // list scrolling inside the pages is disambiguated by the pager's own
-        // orientation locking.
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) { page ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (fullScreenRevoked) {
+                // Android revoked full-screen alarms (often after an APK
+                // update, #66); a tappable banner instead of hijacking the
+                // launch into system settings. Alarms still ring without it,
+                // just as heads-up notifications.
+                Surface(
+                    onClick = onFixFullScreen,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Text(
+                            "Full-screen alarms are turned off",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            "Android turns this off after some updates. Tap to re-enable; until then alarms ring as normal notifications.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            // The pager both animates tab taps and follows finger drags; vertical
+            // list scrolling inside the pages is disambiguated by the pager's own
+            // orientation locking.
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
             when (page) {
                 TAB_TIMERS -> TimerListContent(
                     viewModel = viewModel,
@@ -168,6 +199,7 @@ fun HomeScreen(
                     onEditAlarm = onEditAlarm,
                     onEditSeries = onEditSeries
                 )
+            }
             }
         }
     }

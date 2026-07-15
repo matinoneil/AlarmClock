@@ -1090,17 +1090,23 @@ entry #1.
     the day to the month's last via LaunchedEffect. describeRepeat:
     "Yearly on Jul 15" / "Yearly on the last day of Feb".
 
-66. **[OPEN] Full-screen-intent re-asks after every update.** Reported: the
-    FSI permission must be re-accepted after each APK update. Root cause is
+66. **Full-screen-intent re-asks after every update.** Reported: the FSI
+    permission must be re-accepted after each APK update. Root cause is
     the OS, not the app: Android 14 made USE_FULL_SCREEN_INTENT
     user-revocable and (for sideloaded apps on some builds) resets it on
-    package update; MainActivity's launch chain then detects the revocation
-    and auto-opens the system toggle -- hence "asked every update". Cannot
-    be prevented app-side (Play-store alarm apps keep the auto-grant;
-    sideloaded don't). Mitigation: remove FSI from the auto-open chain and
-    show a tappable banner on the home screen instead while revoked --
-    informed, one tap, never hijacked. Alarms still ring (heads-up + full
-    volume) without the permission, so a banner is proportionate.
+    package update; MainActivity's launch chain then detected the
+    revocation and auto-opened the system toggle -- hence "asked every
+    update". Cannot be prevented app-side (Play-store alarm apps keep the
+    auto-grant; sideloaded don't). Shipped mitigation: FSI removed from
+    the auto-open chain; instead an errorContainer banner sits above the
+    tabs while revoked -- "Full-screen alarms are turned off / Android
+    turns this off after some updates. Tap to re-enable..." -- tapping
+    deep-links to ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT. The state is
+    an Activity-level mutableStateOf refreshed in onResume, so the banner
+    vanishes the moment the user returns from the toggle. Alarms still
+    ring (heads-up + full volume) without the permission, so a banner is
+    proportionate; the rest of the launch chain (notifications, exact
+    alarms, DND access, overlay) is unchanged.
 
 ## Restarting this project in a new chat
 

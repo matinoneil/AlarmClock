@@ -11,6 +11,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -31,6 +34,18 @@ class MainActivity : ComponentActivity() {
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
+
+    // Android 14+ revokes USE_FULL_SCREEN_INTENT on updates of sideloaded
+    // apps (#66); this drives the home-screen banner rather than an
+    // auto-opened settings screen. Refreshed in onResume so the banner
+    // disappears the moment the user returns from re-enabling it.
+    private var fullScreenRevoked by mutableStateOf(false)
+
+    override fun onResume() {
+        super.onResume()
+        fullScreenRevoked = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+            !getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,17 +82,6 @@ class MainActivity : ComponentActivity() {
                             data = Uri.parse("package:$packageName")
                         }
                         startActivity(intent)
-                    } else if (
-                        // Android 14+ lets the user revoke full-screen-intent
-                        // notifications per app. Without it, alarms fall back to a
-                        // plain heads-up notification instead of the ringing UI.
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-                        !notificationManager.canUseFullScreenIntent()
-                    ) {
-                        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
                     } else if (!notificationManager.isNotificationPolicyAccessGranted) {
                         // Changing the alarm volume for the ramp feature throws a
                         // SecurityException on many devices if Do Not Disturb/a focus
@@ -108,6 +112,14 @@ class MainActivity : ComponentActivity() {
                             onEditSeries = { navController.navigate("series_edit/${it.id}") },
                             onAddTimer = { navController.navigate("timer_edit/-1") },
                             onEditTimer = { navController.navigate("timer_edit/${it.id}") },
+                            fullScreenRevoked = fullScreenRevoked,
+                            onFixFullScreen = {
+                                startActivity(
+                                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                                        data = Uri.parse("package:$packageName")
+                                    }
+                                )
+                            },
                             onAddReminder = { navController.navigate("reminder_edit/-1") },
                             onEditReminder = { navController.navigate("reminder_edit/${it.id}") },
                             onOpenSettings = { navController.navigate("settings") }
