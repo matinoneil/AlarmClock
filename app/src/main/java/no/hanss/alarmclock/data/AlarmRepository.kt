@@ -296,11 +296,9 @@ class AlarmRepository(context: Context) {
         return id
     }
 
-    suspend fun deleteReminder(reminder: Reminder) {
-        reminderScheduler.cancel(reminder.id)
-        reminderNotifications.cancel(reminder.id)
-        reminderDao.delete(reminder)
-    }
+    // Delete = retire to history for live reminders, real erase for history
+    // rows (#55); the semantics and the mutex both live in ReminderOps.
+    suspend fun deleteReminder(reminder: Reminder) = ReminderOps.delete(appContext, reminder.id)
 
     suspend fun markReminderDone(reminderId: Long) = ReminderOps.markDone(appContext, reminderId)
 

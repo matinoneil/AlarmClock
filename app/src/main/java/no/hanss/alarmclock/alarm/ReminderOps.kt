@@ -77,6 +77,24 @@ object ReminderOps {
     }
 
     /**
+     * Delete per entry #55: a live reminder RETIRES to history (state DONE,
+     * scheduling and notification cancelled, repeat fields kept so the faded
+     * card still describes itself); one already IN history is erased for
+     * real. Clear history remains the bulk erase.
+     */
+    suspend fun delete(context: Context, reminderId: Long) = mutex.withLock {
+        val dao = AlarmDatabase.getInstance(context).reminderDao()
+        ReminderNotificationManager(context).cancel(reminderId)
+        ReminderScheduler(context).cancel(reminderId)
+        val reminder = dao.getReminder(reminderId) ?: return@withLock
+        if (reminder.state == Reminder.STATE_DONE) {
+            dao.delete(reminder)
+        } else {
+            dao.update(reminder.copy(state = Reminder.STATE_DONE, snoozedUntilMillis = null))
+        }
+    }
+
+    /**
      * Snooze to an explicit time (dialog preset or picked date/time). Back to
      * PENDING with only the override set -- dueAtMillis stays put as the
      * repeat pattern's reference (#12's schedule/override split).

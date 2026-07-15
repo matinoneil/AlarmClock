@@ -931,15 +931,19 @@ entry #1.
     history between occurrences instead: recommended against (a card that
     fades out and later pops back), but this is where to revisit.
 
-55. **[OPEN] Delete a reminder -> history, not erasure.** Per the maintainer:
-    deleting a reminder (recurring included) should land it in the faded
-    history instead of removing it from the database. Intended semantics:
-    delete on a PENDING/ACTIVE reminder cancels its notification/scheduling
-    and sets STATE_DONE (repeat fields kept for the faded card's label);
-    delete on an already-DONE reminder, and Clear history, remain the real
-    erase. Editing a history card and saving re-arms it, so history doubles
-    as an undo path. Editor dialog wording changes to match ("moves to
-    history" vs "can't be undone").
+55. **Delete a reminder -> history, not erasure.** Per the maintainer:
+    deleting a reminder (recurring included) now lands it in the faded
+    history instead of removing it from the database. Delete on a
+    PENDING/ACTIVE reminder cancels its notification/scheduling and sets
+    STATE_DONE (repeat fields kept, so the faded card still describes
+    itself); delete on an already-DONE reminder, and Clear history, remain
+    the real erase. Editing a history card and saving re-arms it, so
+    history doubles as an undo path. The logic moved from the repository
+    into ReminderOps.delete behind the mutex (it had been the one reminder
+    state change outside the lock -- #35's discipline now covers all of
+    them). Editor dialog wording matches the semantics: "Move to history?"
+    for live reminders, "Delete permanently? This can't be undone." for
+    history rows.
 
 ## Restarting this project in a new chat
 

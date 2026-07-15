@@ -121,16 +121,22 @@ fun ReminderEditScreen(
     val canSave = text.isNotBlank() && !saveBlockedByPast
 
     if (showDeleteConfirm && existing != null) {
+        val isHistory = existing!!.state == Reminder.STATE_DONE
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete reminder?") },
-            text = { Text("This can't be undone.") },
+            title = { Text(if (isHistory) "Delete permanently?" else "Move to history?") },
+            text = {
+                Text(
+                    if (isHistory) "This can't be undone."
+                    else "The reminder stops and moves to the completed list at the bottom. Clear history removes it permanently."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteReminder(existing!!)
                     showDeleteConfirm = false
                     onDone()
-                }) { Text("Delete") }
+                }) { Text(if (isHistory) "Delete" else "Move") }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
