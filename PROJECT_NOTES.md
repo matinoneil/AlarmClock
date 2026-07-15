@@ -995,6 +995,19 @@ entry #1.
     follow each reminder's own schedule. The global swipe re-show delay
     itself stays a single Settings value.
 
+60. **[OPEN] Per-reminder swipe re-show delay.** Per the maintainer
+    (clarifying #59: THIS is what he'd meant, though the nag interval
+    stays as a welcome extra): how quickly a swiped-away notification
+    returns becomes settable per reminder in the editor. Sentinel design:
+    new reshowMinutes column, -1 = follow the global Settings value
+    (migration default, so every existing reminder keeps its current
+    behavior), 0 = permanent, N = minutes -- same fallback pattern as the
+    series defaults (#49). DB v10->11 ALTER TABLE (v10 may be on-device
+    via push-built APKs, so no folding into 9->10). Editor gets the
+    control beside the #59 dropdown; backup rides with tolerant read
+    (default -1); Settings copy reframes the global as the default for
+    reminders that follow it.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
