@@ -269,7 +269,7 @@ fun ReminderEditScreen(
                             Reminder.REPEAT_WEEKLY -> if (daysOfWeek.isEmpty()) {
                                 daysOfWeek = setOf(isoWeekdayOf(dueAtMillis))
                             }
-                            Reminder.REPEAT_MONTHLY_DATE -> dayOfMonth = dayOfMonthOf(dueAtMillis)
+                            Reminder.REPEAT_MONTHLY_DATE, Reminder.REPEAT_YEARLY -> dayOfMonth = dayOfMonthOf(dueAtMillis)
                             Reminder.REPEAT_MONTHLY_WEEKDAY, Reminder.REPEAT_YEARLY_WEEKDAY -> {
                                 weekdaySpec = isoWeekdayOf(dueAtMillis)
                                 val nth = ((dayOfMonthOf(dueAtMillis) - 1) / 7) + 1
@@ -371,9 +371,29 @@ fun ReminderEditScreen(
                     }
 
                     Reminder.REPEAT_YEARLY -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        val maxDay = Calendar.getInstance()
+                            .apply { timeInMillis = dueAtMillis }
+                            .getActualMaximum(Calendar.DAY_OF_MONTH)
+                        // Changing the month under a picked day 29..31 snaps
+                        // the day to the month's last (effect, not a write
+                        // mid-composition -- same policy as ever).
+                        LaunchedEffect(dueAtMillis) {
+                            if (dayOfMonth != Reminder.LAST_DAY_OF_MONTH && dayOfMonth > maxDay) {
+                                dayOfMonth = maxDay
+                            }
+                        }
+                        PatternDropdown(
+                            options = buildList {
+                                for (d in 1..maxDay) add(d to "On ${monthName(dueAtMillis)} $d")
+                                add(Reminder.LAST_DAY_OF_MONTH to "On the last day of ${monthName(dueAtMillis)}")
+                            },
+                            selected = dayOfMonth,
+                            onSelect = { dayOfMonth = it }
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "On ${dateLabel(dueAtMillis)} each time (from the date above)",
+                            "In ${monthName(dueAtMillis)} (from the date above)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -742,7 +762,9 @@ private fun buildCandidate(
         repeatDaysOfWeek = if (repeatType == Reminder.REPEAT_WEEKLY) {
             daysOfWeek.ifEmpty { setOf(isoWeekdayOf(dueAtMillis)) }
         } else emptySet(),
-        repeatDayOfMonth = if (repeatType == Reminder.REPEAT_MONTHLY_DATE) dayOfMonth else 0,
+        repeatDayOfMonth = if (repeatType == Reminder.REPEAT_MONTHLY_DATE ||
+            repeatType == Reminder.REPEAT_YEARLY
+        ) dayOfMonth else 0,
         repeatWeekday = if (usesSpec) weekdaySpec else 0,
         repeatWeekOfMonth = if (usesSpec) weekOfMonth else 0,
         renotifyMinutes = renotifyMinutes,

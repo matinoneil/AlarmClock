@@ -149,12 +149,16 @@ private fun nextOccurrenceOnce(reminder: Reminder, fromMillis: Long): Long {
 
         Reminder.REPEAT_YEARLY -> {
             val month = cal.get(Calendar.MONTH)
-            val day = cal.get(Calendar.DAY_OF_MONTH)
+            // #65: explicit day (1..31 or LAST_DAY_OF_MONTH); 0 = legacy rows
+            // derive it from the anchor date, exactly as before.
+            val day = if (reminder.repeatDayOfMonth != 0) reminder.repeatDayOfMonth
+            else cal.get(Calendar.DAY_OF_MONTH)
             cal.set(Calendar.DAY_OF_MONTH, 1)
             cal.add(Calendar.YEAR, interval)
             cal.set(Calendar.MONTH, month)
-            // Feb 29 lands on Feb 28 in non-leap years.
-            cal.set(Calendar.DAY_OF_MONTH, day.coerceAtMost(cal.getActualMaximum(Calendar.DAY_OF_MONTH)))
+            // Feb 29 lands on Feb 28 in non-leap years; the last day means
+            // the true last day of that year's month.
+            cal.set(Calendar.DAY_OF_MONTH, resolveDayOfMonth(cal, if (day == 0) 1 else day))
         }
 
         else -> return fromMillis // REPEAT_NONE: caller shouldn't ask.
@@ -270,6 +274,18 @@ fun alignDueAtToPattern(reminder: Reminder): Long {
                 setToNthDaySpecOfMonth(cal, reminder.repeatWeekday, reminder.repeatWeekOfMonth)
             }
         }
+        Reminder.REPEAT_YEARLY -> {
+            if (reminder.repeatDayOfMonth == 0) return reminder.dueAtMillis
+            val picked = cal.timeInMillis
+            cal.set(Calendar.DAY_OF_MONTH, resolveDayOfMonth(cal, reminder.repeatDayOfMonth))
+            if (cal.timeInMillis < picked) {
+                val month = cal.get(Calendar.MONTH)
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.add(Calendar.YEAR, 1)
+                cal.set(Calendar.MONTH, month)
+                cal.set(Calendar.DAY_OF_MONTH, resolveDayOfMonth(cal, reminder.repeatDayOfMonth))
+            }
+        }
         Reminder.REPEAT_YEARLY_WEEKDAY -> {
             val picked = cal.timeInMillis
             setToNthDaySpecOfMonth(cal, reminder.repeatWeekday, reminder.repeatWeekOfMonth)
@@ -318,7 +334,17 @@ fun describeRepeat(reminder: Reminder): String {
             else "${unit("Monthly", "months")} on day ${reminder.repeatDayOfMonth}"
         Reminder.REPEAT_MONTHLY_WEEKDAY ->
             "${unit("Monthly", "months")} on the ${ordinalName(reminder.repeatWeekOfMonth)} ${daySpecName(reminder.repeatWeekday)}"
-        Reminder.REPEAT_YEARLY -> unit("Yearly", "years")
+        Reminder.REPEAT_YEARLY -> {
+            val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+            val m = Calendar.getInstance().apply { timeInMillis = reminder.dueAtMillis }.get(Calendar.MONTH)
+            when {
+                reminder.repeatDayOfMonth == Reminder.LAST_DAY_OF_MONTH ->
+                    "${unit("Yearly", "years")} on the last day of ${months[m]}"
+                reminder.repeatDayOfMonth > 0 ->
+                    "${unit("Yearly", "years")} on ${months[m]} ${reminder.repeatDayOfMonth}"
+                else -> unit("Yearly", "years")
+            }
+        }
         Reminder.REPEAT_YEARLY_WEEKDAY -> {
             val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
             val m = Calendar.getInstance().apply { timeInMillis = reminder.dueAtMillis }.get(Calendar.MONTH)

@@ -1076,15 +1076,19 @@ entry #1.
     date WeekOfMonthDropdown and the editor's local alignToWeekdays are
     gone.
 
-65. **[OPEN] Yearly-on-a-date gets a day picker.** Per the maintainer:
-    the type currently exposes no day control (the date above is the whole
-    pattern), which reads as lacking next to its siblings. Fix: an explicit
-    day dropdown (1..the picked month's length, plus "Last day of the
-    month"), month still anchored from the picked date -- mirroring
-    monthly-on-a-date. Storage reuses repeatDayOfMonth for REPEAT_YEARLY;
-    0 = legacy rows keep deriving the day from the date, so no migration
-    and old backups behave identically. "Last day of February" correctly
-    means the 28th or 29th.
+65. **Yearly-on-a-date got a day picker.** Per the maintainer: the type
+    exposed no day control (the date above was the whole pattern), reading
+    as lacking next to its siblings. Now: an explicit day dropdown (1..the
+    picked month's actual length -- Feb shows 29 in a leap year -- plus
+    "On the last day of <month>"), month still anchored from the picked
+    date, mirroring monthly-on-a-date. Storage reuses repeatDayOfMonth for
+    REPEAT_YEARLY; 0 = legacy rows keep deriving the day from the date
+    (saving a legacy reminder converts it to the explicit form, same day),
+    so no migration and old backups behave identically. "Last day of
+    February" correctly means the 28th or 29th via resolveDayOfMonth.
+    Changing the picked month under a day it can't hold (31 -> Feb) snaps
+    the day to the month's last via LaunchedEffect. describeRepeat:
+    "Yearly on Jul 15" / "Yearly on the last day of Feb".
 
 ## Restarting this project in a new chat
 
