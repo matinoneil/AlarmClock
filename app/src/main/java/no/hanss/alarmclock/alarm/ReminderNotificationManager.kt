@@ -68,6 +68,19 @@ class ReminderNotificationManager(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Dismissal hook (#57): swiping the notification away rearms a much
+        // sooner re-post than the daily re-alert. Same component + request
+        // code as Done/fire, distinct action -- filterEquals as usual.
+        val swipedIntent = PendingIntent.getBroadcast(
+            context,
+            reminder.id.toInt(),
+            Intent(context, ReminderReceiver::class.java).apply {
+                action = ACTION_REMINDER_SWIPED
+                putExtra(EXTRA_REMINDER_ID, reminder.id)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = NotificationCompat.Builder(context, REMINDER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(reminder.text)
@@ -88,6 +101,7 @@ class ReminderNotificationManager(private val context: Context) {
             // pre-14, and everywhere it's non-dismissable-by-tap. Not
             // autoCancel -- only Done/Snooze should clear it.
             .setOngoing(true)
+            .setDeleteIntent(swipedIntent)
             .addAction(0, "Done", doneIntent)
             .addAction(0, "Snooze", snoozeIntent)
 

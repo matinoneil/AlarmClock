@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 // daily-re-remind from the row's state. Same component + request code as the
 // Done PendingIntent, distinct action: filterEquals keeps them apart.
 const val ACTION_REMINDER_DONE = "no.hanss.alarmclock.action.REMINDER_DONE"
+// The notification's deleteIntent: fires exactly when the user dismisses it
+// (swipe / clear all). Distinct action, same component: filterEquals again.
+const val ACTION_REMINDER_SWIPED = "no.hanss.alarmclock.action.REMINDER_SWIPED"
 
 /**
  * Entry point for reminder AlarmManager fires and the notification's Done
@@ -30,6 +33,7 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 when (action) {
                     ACTION_REMINDER_DONE -> ReminderOps.markDone(context, reminderId)
+                    ACTION_REMINDER_SWIPED -> ReminderOps.onSwipedAway(context, reminderId)
                     else -> ReminderOps.fire(context, reminderId)
                 }
             } finally {

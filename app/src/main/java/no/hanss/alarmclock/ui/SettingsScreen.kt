@@ -489,6 +489,22 @@ fun SettingsScreen(
 
             EditSection(title = "Reminders") {
                 val doneCount = uiForSettings.reminders.count { it.state == Reminder.STATE_DONE }
+                var reshowText by remember { mutableStateOf(viewModel.settings.reminderReshowMinutes.toString()) }
+                OutlinedTextField(
+                    value = reshowText,
+                    onValueChange = {
+                        reshowText = it.filter(Char::isDigit).take(4)
+                        reshowText.toIntOrNull()?.let { v ->
+                            if (v >= 1) viewModel.settings.reminderReshowMinutes = v
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    label = { Text("Bring back a swiped-away reminder after (minutes)") },
+                    supportingText = { Text("A reminder notification you dismiss without marking done returns after this long. One still showing re-alerts once a day.") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     "Completed and removed reminders collect as faded history at the bottom of the Reminders tab.",
                     style = MaterialTheme.typography.bodyMedium,

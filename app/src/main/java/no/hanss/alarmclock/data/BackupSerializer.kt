@@ -37,7 +37,8 @@ object BackupSerializer {
         val defaultSeriesRampSeconds: Int = 0,
         val defaultSeriesSnoozeMinutes: Int = 10,
         val defaultSeriesVibrate: Boolean = true,
-        val defaultTimerVibrate: Boolean = true
+        val defaultTimerVibrate: Boolean = true,
+        val reminderReshowMinutes: Int = 30
     )
 
     fun toJson(data: BackupData): String {
@@ -58,6 +59,7 @@ object BackupSerializer {
         settings.put("defaultSeriesRampSeconds", data.defaultSeriesRampSeconds)
         settings.put("defaultSeriesSnoozeMinutes", data.defaultSeriesSnoozeMinutes)
         settings.put("defaultSeriesVibrate", data.defaultSeriesVibrate)
+        settings.put("reminderReshowMinutes", data.reminderReshowMinutes)
         settings.put("defaultTimerVibrate", data.defaultTimerVibrate)
         root.put("settings", settings)
 
@@ -249,6 +251,7 @@ object BackupSerializer {
             defaultSeriesRampSeconds = settings.optInt("defaultSeriesRampSeconds", settings.optInt("defaultVolumeRampSeconds", 0)).coerceAtLeast(0),
             defaultSeriesSnoozeMinutes = settings.optInt("defaultSeriesSnoozeMinutes", settings.optInt("defaultSnoozeMinutes", 10)).coerceAtLeast(1),
             defaultSeriesVibrate = settings.optBoolean("defaultSeriesVibrate", settings.optBoolean("defaultAlarmVibrate", true)),
+            reminderReshowMinutes = settings.optInt("reminderReshowMinutes", 30).coerceAtLeast(1),
             defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true)
         )
     }

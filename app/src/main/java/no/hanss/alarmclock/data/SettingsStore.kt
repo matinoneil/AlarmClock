@@ -75,6 +75,12 @@ class SettingsStore(context: Context) {
         get() = prefs.getString(KEY_BEDTIME_MESSAGE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_BEDTIME_MESSAGE, value).apply()
 
+    // How soon a swiped-away reminder notification comes back (#57). The
+    // daily re-alert for still-visible notifications is separate and fixed.
+    var reminderReshowMinutes: Int
+        get() = prefs.getInt(KEY_REMINDER_RESHOW, 30)
+        set(value) = prefs.edit().putInt(KEY_REMINDER_RESHOW, value.coerceAtLeast(1)).apply()
+
     private companion object {
         const val KEY_DEFAULT_ALARM_SOUND = "default_alarm_sound_uri"
         const val KEY_DEFAULT_TIMER_SOUND = "default_timer_sound_uri"
@@ -89,5 +95,6 @@ class SettingsStore(context: Context) {
         const val KEY_SERIES_SNOOZE = "default_series_snooze_minutes"
         const val KEY_SERIES_VIBRATE = "default_series_vibrate"
         const val KEY_TIMER_VIBRATE = "default_timer_vibrate"
+        const val KEY_REMINDER_RESHOW = "reminder_reshow_minutes"
     }
 }

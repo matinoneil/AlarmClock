@@ -6,6 +6,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import no.hanss.alarmclock.data.AlarmDatabase
 import no.hanss.alarmclock.data.Reminder
+import no.hanss.alarmclock.data.SettingsStore
 import no.hanss.alarmclock.data.nextOccurrenceAfter
 
 private const val TAG = "ReminderOps"
@@ -74,6 +75,22 @@ object ReminderOps {
             }
             dao.update(reminder.copy(state = Reminder.STATE_DONE, snoozedUntilMillis = null))
         }
+    }
+
+    /**
+     * The notification was dismissed without Done (#57). Rearm the reminder's
+     * single scheduler slot at now + the configured re-show delay -- much
+     * sooner than the daily re-alert it replaces in that slot. When it fires,
+     * the normal ACTIVE re-post path runs (and re-arms the daily re-alert).
+     * Done/snooze racing this resolve behind the mutex: if the row is no
+     * longer ACTIVE by the time we run, the swipe means nothing.
+     */
+    suspend fun onSwipedAway(context: Context, reminderId: Long) = mutex.withLock {
+        val dao = AlarmDatabase.getInstance(context).reminderDao()
+        val reminder = dao.getReminder(reminderId) ?: return@withLock
+        if (reminder.state != Reminder.STATE_ACTIVE) return@withLock
+        val delayMillis = SettingsStore(context).reminderReshowMinutes * 60_000L
+        ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + delayMillis)
     }
 
     /**

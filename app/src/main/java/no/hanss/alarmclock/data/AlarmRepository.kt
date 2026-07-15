@@ -324,6 +324,7 @@ class AlarmRepository(context: Context) {
             defaultSeriesRampSeconds = settings.defaultSeriesRampSeconds,
             defaultSeriesSnoozeMinutes = settings.defaultSeriesSnoozeMinutes,
             defaultSeriesVibrate = settings.defaultSeriesVibrate,
+            reminderReshowMinutes = settings.reminderReshowMinutes,
             defaultTimerVibrate = settings.defaultTimerVibrate
         )
     )
@@ -384,6 +385,7 @@ class AlarmRepository(context: Context) {
         settings.defaultSeriesRampSeconds = data.defaultSeriesRampSeconds
         settings.defaultSeriesSnoozeMinutes = data.defaultSeriesSnoozeMinutes
         settings.defaultSeriesVibrate = data.defaultSeriesVibrate
+        settings.reminderReshowMinutes = data.reminderReshowMinutes
         settings.defaultTimerVibrate = data.defaultTimerVibrate
 
         notifyChanged()
