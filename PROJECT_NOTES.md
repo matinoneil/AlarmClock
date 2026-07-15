@@ -1052,21 +1052,29 @@ entry #1.
     Timers in Settings (brace-matched block swap; order now Alarm series,
     Single alarms, Bedtime, Timers, Reminders, Backup).
 
-64. **[OPEN] Repeat overhaul (all five proposals accepted).** Per the
-    maintainer: (1) monthly-on-weekday gets full ordinal x weekday pickers
-    (1st..4th/Last x Mon..Sun) plus Outlook's pseudo-days "day", "weekday",
-    "weekend day" (sentinels 8/9/10 in repeatWeekday); (2) monthly-on-date
-    gets a free 1..31 day picker plus "Last day of the month" (sentinel -1
-    in repeatDayOfMonth); (3) new REPEAT_YEARLY_WEEKDAY type ("last Sunday
-    of March"), month anchored from dueAt; (4) weekly quick-pick chips
-    (Weekdays/Weekends/Every day); (5) a "Next: ..." preview of the next 3
-    computed occurrences under the repeat section. Design inversion: the
-    pattern is now the source of truth and dueAt aligns FORWARD to the
-    nearest on-pattern datetime at save (previously the picked date drove
-    the pattern, which is why monthly-on-weekday only ever offered 1-2
-    combos). No DB migration -- sentinels fit existing columns. Occurrence
-    math grows a shared resolver (nth/last {weekday|any day|workday|weekend
-    day} of month); backup reads widen accordingly.
+64. **Repeat overhaul (all five proposals shipped).** Per the maintainer:
+    (1) monthly-on-weekday has full ordinal x day pickers -- First..Fourth/
+    Last x Mon..Sun plus Outlook's pseudo-days "Day (any)", "Weekday
+    (Mon-Fri)", "Weekend day" (sentinels WEEKDAY_ANY/WORKDAY/WEEKEND =
+    8/9/10 in repeatWeekday) -- 40 combos where there were 2; (2)
+    monthly-on-date has a free 1..31 picker plus "On the last day of the
+    month" (LAST_DAY_OF_MONTH = -1 in repeatDayOfMonth, the true last day
+    rather than a clamped 31); (3) new REPEAT_YEARLY_WEEKDAY = 6 ("last
+    Sunday of March"), month anchored from dueAt, reusing the weekday/
+    weekOfMonth columns; (4) weekly quick-pick buttons Weekdays/Weekends/
+    Every day; (5) a "Next: ..." preview of the next 3 occurrences,
+    computed by the same math the scheduler uses. Design inversion landed:
+    the pattern is the source of truth; buildCandidate() is the single
+    place editor state becomes a Reminder (Save and the preview share it)
+    and it aligns dueAt forward onto the pattern via the entity's new
+    alignDueAtToPattern (time of day kept, one period stepped if the
+    resolved day already passed). setToNthWeekdayOfMonth generalized to
+    setToNthDaySpecOfMonth (counting loop; the 4th of any spec always
+    exists in a month, so it can't overflow). No DB migration; backup
+    reads widened (repeatType ..6, repeatWeekday ..10, repeatDayOfMonth
+    from -1). describeRepeat covers the new forms; the old derive-from-
+    date WeekOfMonthDropdown and the editor's local alignToWeekdays are
+    gone.
 
 ## Restarting this project in a new chat
 

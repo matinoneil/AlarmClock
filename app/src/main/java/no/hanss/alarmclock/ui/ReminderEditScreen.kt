@@ -53,6 +53,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.Reminder
+import no.hanss.alarmclock.data.alignDueAtToPattern
+import no.hanss.alarmclock.data.nextOccurrenceAfter
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
 import java.util.Calendar
 import java.util.TimeZone
@@ -107,7 +109,9 @@ fun ReminderEditScreen(
     var daysOfWeek by remember { mutableStateOf(existing?.repeatDaysOfWeek ?: emptySet()) }
     // MONTHLY_WEEKDAY only: 1..4 or LAST_WEEK_OF_MONTH; weekday itself always
     // derives from the picked date.
-    var weekOfMonth by remember { mutableIntStateOf(existing?.repeatWeekOfMonth ?: 1) }
+    var weekOfMonth by remember { mutableIntStateOf(existing?.repeatWeekOfMonth?.takeIf { it != 0 } ?: 1) }
+    var weekdaySpec by remember { mutableIntStateOf(existing?.repeatWeekday?.takeIf { it != 0 } ?: isoWeekdayOf(initialDueAt)) }
+    var dayOfMonth by remember { mutableIntStateOf(existing?.repeatDayOfMonth?.takeIf { it != 0 } ?: dayOfMonthOf(initialDueAt)) }
     var renotifyMinutes by remember { mutableIntStateOf(existing?.renotifyMinutes ?: 1440) }
     var reshowMinutes by remember { mutableIntStateOf(existing?.reshowMinutes ?: Reminder.RESHOW_FOLLOW_GLOBAL) }
     var persistent by remember { mutableStateOf(existing?.persistent ?: true) }
@@ -257,10 +261,20 @@ fun ReminderEditScreen(
                     repeatType = repeatType,
                     onSelect = { selected ->
                         repeatType = selected
-                        if (selected == Reminder.REPEAT_WEEKLY && daysOfWeek.isEmpty()) {
-                            // Seed with the picked date's weekday so the
-                            // pattern always includes the first occurrence.
-                            daysOfWeek = setOf(isoWeekdayOf(dueAtMillis))
+                        // Seed pattern states from the picked date so each
+                        // type starts matching the first occurrence; from
+                        // there the pattern is the source of truth (#64) and
+                        // the date aligns to IT at save.
+                        when (selected) {
+                            Reminder.REPEAT_WEEKLY -> if (daysOfWeek.isEmpty()) {
+                                daysOfWeek = setOf(isoWeekdayOf(dueAtMillis))
+                            }
+                            Reminder.REPEAT_MONTHLY_DATE -> dayOfMonth = dayOfMonthOf(dueAtMillis)
+                            Reminder.REPEAT_MONTHLY_WEEKDAY, Reminder.REPEAT_YEARLY_WEEKDAY -> {
+                                weekdaySpec = isoWeekdayOf(dueAtMillis)
+                                val nth = ((dayOfMonthOf(dueAtMillis) - 1) / 7) + 1
+                                weekOfMonth = if (nth <= 4) nth else Reminder.LAST_WEEK_OF_MONTH
+                            }
                         }
                     }
                 )
@@ -291,8 +305,14 @@ fun ReminderEditScreen(
                                 daysOfWeek = if (day in daysOfWeek) daysOfWeek - day else daysOfWeek + day
                             }
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Quick-picks (#64).
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { daysOfWeek = setOf(1, 2, 3, 4, 5) }) { Text("Weekdays") }
+                            TextButton(onClick = { daysOfWeek = setOf(6, 7) }) { Text("Weekends") }
+                            TextButton(onClick = { daysOfWeek = setOf(1, 2, 3, 4, 5, 6, 7) }) { Text("Every day") }
+                        }
                         if (daysOfWeek.isEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 "No days selected; the reminder repeats on ${shortDayName(isoWeekdayOf(dueAtMillis))}",
                                 style = MaterialTheme.typography.bodySmall,
@@ -302,21 +322,52 @@ fun ReminderEditScreen(
                     }
 
                     Reminder.REPEAT_MONTHLY_DATE -> {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "On day ${dayOfMonthOf(dueAtMillis)} of the month (from the date above)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Spacer(modifier = Modifier.height(12.dp))
+                        PatternDropdown(
+                            options = buildList {
+                                for (d in 1..31) add(d to "On day $d")
+                                add(Reminder.LAST_DAY_OF_MONTH to "On the last day of the month")
+                            },
+                            selected = dayOfMonth,
+                            onSelect = { dayOfMonth = it }
                         )
                     }
 
-                    Reminder.REPEAT_MONTHLY_WEEKDAY -> {
+                    Reminder.REPEAT_MONTHLY_WEEKDAY, Reminder.REPEAT_YEARLY_WEEKDAY -> {
                         Spacer(modifier = Modifier.height(12.dp))
-                        WeekOfMonthDropdown(
-                            dueAtMillis = dueAtMillis,
-                            weekOfMonth = weekOfMonth,
-                            onSelect = { weekOfMonth = it }
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                PatternDropdown(
+                                    options = listOf(
+                                        1 to "First", 2 to "Second", 3 to "Third", 4 to "Fourth",
+                                        Reminder.LAST_WEEK_OF_MONTH to "Last"
+                                    ),
+                                    selected = weekOfMonth,
+                                    onSelect = { weekOfMonth = it }
+                                )
+                            }
+                            Box(modifier = Modifier.weight(1.2f)) {
+                                PatternDropdown(
+                                    options = buildList {
+                                        val full = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+                                        for (d in 1..7) add(d to full[d - 1])
+                                        add(Reminder.WEEKDAY_ANY to "Day (any)")
+                                        add(Reminder.WEEKDAY_WORKDAY to "Weekday (Mon–Fri)")
+                                        add(Reminder.WEEKDAY_WEEKEND to "Weekend day")
+                                    },
+                                    selected = weekdaySpec,
+                                    onSelect = { weekdaySpec = it }
+                                )
+                            }
+                        }
+                        if (repeatType == Reminder.REPEAT_YEARLY_WEEKDAY) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "In ${monthName(dueAtMillis)} (from the date above)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     Reminder.REPEAT_YEARLY -> {
@@ -325,6 +376,37 @@ fun ReminderEditScreen(
                             "On ${dateLabel(dueAtMillis)} each time (from the date above)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (isRepeating) {
+                    // Live proof of the configuration (#64): the next three
+                    // computed occurrences, straight from the same math the
+                    // scheduler uses.
+                    val previewText = run {
+                        var cursor = buildCandidate(
+                            existing, text, dueAtMillis, repeatType, interval,
+                            daysOfWeek, dayOfMonth, weekdaySpec, weekOfMonth,
+                            renotifyMinutes, reshowMinutes, persistent
+                        )
+                        val now = System.currentTimeMillis()
+                        val hits = mutableListOf<Long>()
+                        var next: Long? = if (cursor.dueAtMillis > now) cursor.dueAtMillis
+                        else nextOccurrenceAfter(cursor, now)
+                        while (next != null && hits.size < 3) {
+                            hits.add(next)
+                            cursor = cursor.copy(dueAtMillis = next)
+                            next = nextOccurrenceAfter(cursor, next)
+                        }
+                        hits.joinToString(" · ") { "${dateLabel(it)}, ${timeLabel(it)}" }
+                    }
+                    if (previewText.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Next: $previewText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -371,36 +453,15 @@ fun ReminderEditScreen(
 
             Button(
                 onClick = {
-                    // Align the first occurrence with the weekly pattern: if
-                    // the picked date's weekday isn't selected, shift forward
-                    // to the first selected weekday so dueAt sits on-pattern
-                    // (the invariant the occurrence roll relies on).
-                    var effectiveDueAt = dueAtMillis
-                    if (repeatType == Reminder.REPEAT_WEEKLY && daysOfWeek.isNotEmpty()) {
-                        effectiveDueAt = alignToWeekdays(dueAtMillis, daysOfWeek)
-                    }
-                    val reminder = (existing ?: Reminder(text = "", dueAtMillis = 0L)).copy(
-                        text = text.trim(),
-                        dueAtMillis = effectiveDueAt,
-                        repeatType = repeatType,
-                        repeatInterval = interval,
-                        repeatDaysOfWeek = if (repeatType == Reminder.REPEAT_WEEKLY) {
-                            daysOfWeek.ifEmpty { setOf(isoWeekdayOf(effectiveDueAt)) }
-                        } else emptySet(),
-                        repeatDayOfMonth = if (repeatType == Reminder.REPEAT_MONTHLY_DATE) {
-                            dayOfMonthOf(effectiveDueAt)
-                        } else 0,
-                        repeatWeekday = if (repeatType == Reminder.REPEAT_MONTHLY_WEEKDAY) {
-                            isoWeekdayOf(effectiveDueAt)
-                        } else 0,
-                        repeatWeekOfMonth = if (repeatType == Reminder.REPEAT_MONTHLY_WEEKDAY) {
-                            weekOfMonth
-                        } else 0,
-                        renotifyMinutes = renotifyMinutes,
-                        reshowMinutes = reshowMinutes,
-                        persistent = persistent
+                    // The pattern is the source of truth (#64): the builder
+                    // aligns dueAt forward onto it, keeping the time of day.
+                    viewModel.saveReminder(
+                        buildCandidate(
+                            existing, text, dueAtMillis, repeatType, interval,
+                            daysOfWeek, dayOfMonth, weekdaySpec, weekOfMonth,
+                            renotifyMinutes, reshowMinutes, persistent
+                        )
                     )
-                    viewModel.saveReminder(reminder)
                     onDone()
                 },
                 enabled = canSave,
@@ -570,7 +631,8 @@ private fun RepeatTypeDropdown(repeatType: Int, onSelect: (Int) -> Unit) {
         Reminder.REPEAT_WEEKLY to "Weekly, on chosen days",
         Reminder.REPEAT_MONTHLY_DATE to "Monthly, on a date",
         Reminder.REPEAT_MONTHLY_WEEKDAY to "Monthly, on a weekday",
-        Reminder.REPEAT_YEARLY to "Yearly"
+        Reminder.REPEAT_YEARLY to "Yearly, on a date",
+        Reminder.REPEAT_YEARLY_WEEKDAY to "Yearly, on a weekday"
     )
     Box {
         OutlinedButton(
@@ -591,56 +653,11 @@ private fun RepeatTypeDropdown(repeatType: Int, onSelect: (Int) -> Unit) {
     }
 }
 
-/**
- * "1st Tue of the month" ... "4th Tue" / "Last Tue" -- the weekday comes from
- * the picked first-occurrence date; this only chooses WHICH one of the month.
- * A 5th-weekday pick (e.g. the 29th falls on the 5th Tuesday) is offered only
- * as "Last", since a literal 5th doesn't exist every month.
- */
-@Composable
-private fun WeekOfMonthDropdown(dueAtMillis: Long, weekOfMonth: Int, onSelect: (Int) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val day = shortDayName(isoWeekdayOf(dueAtMillis))
-    val nth = ((dayOfMonthOf(dueAtMillis) - 1) / 7) + 1
-    val options = buildList {
-        if (nth <= 4) add(nth to "${ordinal(nth)} $day of the month")
-        add(Reminder.LAST_WEEK_OF_MONTH to "Last $day of the month")
-    }
-    // The stored value may not match the picked date after a date change;
-    // snap to the first offered option (as an effect, not a write mid-
-    // composition) so the label and the saved value can't disagree.
-    LaunchedEffect(dueAtMillis, weekOfMonth) {
-        if (options.none { it.first == weekOfMonth }) onSelect(options.first().first)
-    }
-    val currentLabel = (options.firstOrNull { it.first == weekOfMonth } ?: options.first()).second
-    Box {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(currentLabel, maxLines = 1)
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { (value, label) ->
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    onClick = { expanded = false; onSelect(value) }
-                )
-            }
-        }
-    }
-}
-
-private fun ordinal(n: Int): String = when (n) {
-    1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"; else -> "${n}th"
-}
-
 private fun intervalUnit(repeatType: Int, n: Int): String = when (repeatType) {
     Reminder.REPEAT_DAILY -> if (n == 1) "day" else "days"
     Reminder.REPEAT_WEEKLY -> if (n == 1) "week" else "weeks"
     Reminder.REPEAT_MONTHLY_DATE, Reminder.REPEAT_MONTHLY_WEEKDAY -> if (n == 1) "month" else "months"
-    Reminder.REPEAT_YEARLY -> if (n == 1) "year" else "years"
+    Reminder.REPEAT_YEARLY, Reminder.REPEAT_YEARLY_WEEKDAY -> if (n == 1) "year" else "years"
     else -> ""
 }
 
@@ -697,18 +714,73 @@ private fun localMidnightToUtc(localMillis: Long): Long {
 }
 
 /**
- * If [millis]'s weekday is in [days], keep it; otherwise the same time of day
- * on the NEXT selected weekday. Keeps dueAt on-pattern, which the repeat roll
- * assumes (see Reminder.nextOccurrenceOnce's weekly branch).
+ * The one place editor state becomes a Reminder (#64): used by Save and by
+ * the "Next:" preview so they can never disagree. dueAt comes back aligned
+ * forward onto the pattern, time of day kept.
  */
-private fun alignToWeekdays(millis: Long, days: Set<Int>): Long {
-    val current = isoWeekdayOf(millis)
-    if (current in days) return millis
-    val sorted = days.sorted()
-    val next = sorted.firstOrNull { it > current } ?: sorted.first()
-    val shift = if (next > current) next - current else 7 - current + next
-    return Calendar.getInstance().apply {
-        timeInMillis = millis
-        add(Calendar.DAY_OF_YEAR, shift)
-    }.timeInMillis
+private fun buildCandidate(
+    existing: Reminder?,
+    text: String,
+    dueAtMillis: Long,
+    repeatType: Int,
+    interval: Int,
+    daysOfWeek: Set<Int>,
+    dayOfMonth: Int,
+    weekdaySpec: Int,
+    weekOfMonth: Int,
+    renotifyMinutes: Int,
+    reshowMinutes: Int,
+    persistent: Boolean
+): Reminder {
+    val usesSpec = repeatType == Reminder.REPEAT_MONTHLY_WEEKDAY ||
+        repeatType == Reminder.REPEAT_YEARLY_WEEKDAY
+    val base = (existing ?: Reminder(text = "", dueAtMillis = 0L)).copy(
+        text = text.trim(),
+        dueAtMillis = dueAtMillis,
+        repeatType = repeatType,
+        repeatInterval = interval,
+        repeatDaysOfWeek = if (repeatType == Reminder.REPEAT_WEEKLY) {
+            daysOfWeek.ifEmpty { setOf(isoWeekdayOf(dueAtMillis)) }
+        } else emptySet(),
+        repeatDayOfMonth = if (repeatType == Reminder.REPEAT_MONTHLY_DATE) dayOfMonth else 0,
+        repeatWeekday = if (usesSpec) weekdaySpec else 0,
+        repeatWeekOfMonth = if (usesSpec) weekOfMonth else 0,
+        renotifyMinutes = renotifyMinutes,
+        reshowMinutes = reshowMinutes,
+        persistent = persistent
+    )
+    return base.copy(dueAtMillis = alignDueAtToPattern(base))
+}
+
+/** The app's standard one-button dropdown, for pattern pickers (#64). */
+@Composable
+private fun PatternDropdown(
+    options: List<Pair<Int, String>>,
+    selected: Int,
+    onSelect: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentLabel = options.firstOrNull { it.first == selected }?.second ?: options.first().second
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(currentLabel, maxLines = 1)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (value, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { expanded = false; onSelect(value) }
+                )
+            }
+        }
+    }
+}
+
+private fun monthName(millis: Long): String {
+    val months = listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+    return months[Calendar.getInstance().apply { timeInMillis = millis }.get(Calendar.MONTH)]
 }

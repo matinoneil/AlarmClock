@@ -225,11 +225,11 @@ object BackupSerializer {
                         else -> Reminder.STATE_PENDING
                     },
                     repeatType = o.optInt("repeatType", Reminder.REPEAT_NONE)
-                        .coerceIn(Reminder.REPEAT_NONE, Reminder.REPEAT_YEARLY),
+                        .coerceIn(Reminder.REPEAT_NONE, Reminder.REPEAT_YEARLY_WEEKDAY),
                     repeatInterval = o.optInt("repeatInterval", 1).coerceAtLeast(1),
                     repeatDaysOfWeek = if (o.has("repeatDaysOfWeek")) o.daysOfWeekField("repeatDaysOfWeek") else emptySet(),
-                    repeatDayOfMonth = o.optInt("repeatDayOfMonth", 0).coerceIn(0, 31),
-                    repeatWeekday = o.optInt("repeatWeekday", 0).coerceIn(0, 7),
+                    repeatDayOfMonth = o.optInt("repeatDayOfMonth", 0).coerceIn(Reminder.LAST_DAY_OF_MONTH, 31),
+                    repeatWeekday = o.optInt("repeatWeekday", 0).coerceIn(0, Reminder.WEEKDAY_WEEKEND),
                     repeatWeekOfMonth = o.optInt("repeatWeekOfMonth", 0).coerceIn(Reminder.LAST_WEEK_OF_MONTH, 4),
                     renotifyMinutes = o.optInt("renotifyMinutes", 1440).coerceAtLeast(0),
                     reshowMinutes = o.optInt("reshowMinutes", Reminder.RESHOW_FOLLOW_GLOBAL).coerceAtLeast(Reminder.RESHOW_OFF),
