@@ -1023,6 +1023,19 @@ entry #1.
     markDone (under withLock) and onSwipedAway's one-and-done branch --
     a nested markDone call would have deadlocked the non-reentrant Mutex.
 
+62. **[OPEN] Off options for both persistence mechanisms.** Per the
+    maintainer (his case: swipe-protection ON, nag OFF): both editor
+    dropdowns gain "Off" -- renotifyMinutes 0 = never re-alerts;
+    reshowMinutes RESHOW_OFF (-2) = a swipe sticks. The global Settings
+    reshow gets an enable switch (new reminderReshowEnabled pref, default
+    true) so App-default can itself be off; field disabled when off. No
+    DB migration -- sentinels fit the INTEGER columns. fire() and the
+    permanent-repost re-arm skip scheduling at renotify 0. Known boundary:
+    boot re-posts ACTIVE notifications regardless of reshow-off (it can't
+    tell a swipe from a reboot loss) -- deemed correct. Backup: reminder
+    fields ride in existing keys with widened tolerant reads; the new
+    settings boolean rides with optBoolean(true).
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
