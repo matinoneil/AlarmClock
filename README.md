@@ -33,18 +33,26 @@ When it's due, the phone shows a notification — no ringing — with **Done** a
 **Snooze** buttons. Snooze opens a small floating menu over whatever app is in
 front, with options that adapt to the time of day (in 1 hour, this/tomorrow
 morning, afternoon, evening, in 24 hours, or any picked date and time).
-Reminders can repeat: daily, weekly on chosen days, monthly on a date, monthly
-on a weekday ("the 2nd Tuesday", "the last Friday"), or yearly — each
-optionally every Nth day/week/month/year. Marking a repeating reminder done
-completes only that occurrence; it comes back at the next one.
+Reminders can repeat: daily, weekly on chosen days (with Weekdays/Weekends/
+Every day quick-picks), monthly on a date (any day 1–31, or the last day of
+the month), monthly on a weekday (any combination of first/second/third/
+fourth/last with a weekday — or "day", "weekday", "weekend day", enabling
+rules like "the first weekday of the month"), yearly on a date, or yearly on
+a weekday ("the last Sunday of March") — each optionally every Nth
+day/week/month/year. A "Next:" line in the editor previews the next three
+occurrences while you configure, and the first occurrence snaps forward to
+match the pattern. Marking a repeating reminder done completes only that
+occurrence; it comes back at the next one.
 
 Each reminder controls how insistent its notification is, in the editor's
 "Remind again" section. With "Keep reminding until done" on (the default), the
 notification stays until Done or Snooze is pressed: it re-alerts on a chosen
-schedule (every 15 minutes up to once a day) while it sits unhandled, and if
-it's swiped away it comes back — after the app-wide delay from Settings, a
-per-reminder delay, or instantly, which makes it effectively impossible to
-dismiss. It also survives reboots. There is always exactly one notification
+schedule (every 15 minutes up to once a day, or off) while it sits unhandled,
+and if it's swiped away it comes back — after the app-wide delay from
+Settings, a per-reminder delay, instantly (which makes it effectively
+impossible to dismiss), or not at all. The two are independent, so a reminder
+can have swipe protection without repeat alerts, or the reverse. It also
+survives reboots. There is always exactly one notification
 per reminder: a re-alert or comeback replaces the previous notification
 rather than adding another. With the switch off, the reminder is one and
 done — it notifies once like a normal notification, and swiping it away marks
@@ -79,7 +87,7 @@ bottom of the list; Clear history in Settings removes them permanently.
 
 Download the APK from the [latest release](../../releases/latest) and install
 it. Builds are signed, so updates install over the previous version. The app
-requests its permissions on first launches. On Android 13+, "display over
+requests its permissions on first launch. On Android 13+, "display over
 other apps" is behind *Allow restricted settings* (Settings → Apps →
 AlarmClock → three-dot menu); without it, alarms still ring but show as a
 heads-up notification while the phone is in use.
