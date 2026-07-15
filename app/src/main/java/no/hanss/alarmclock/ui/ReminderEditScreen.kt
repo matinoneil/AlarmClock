@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -109,6 +110,7 @@ fun ReminderEditScreen(
     var weekOfMonth by remember { mutableIntStateOf(existing?.repeatWeekOfMonth ?: 1) }
     var renotifyMinutes by remember { mutableIntStateOf(existing?.renotifyMinutes ?: 1440) }
     var reshowMinutes by remember { mutableIntStateOf(existing?.reshowMinutes ?: Reminder.RESHOW_FOLLOW_GLOBAL) }
+    var persistent by remember { mutableStateOf(existing?.persistent ?: true) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -341,27 +343,42 @@ fun ReminderEditScreen(
             }
 
             EditSection(title = "Remind again") {
-                Text(
-                    "Until you press Done, the notification re-alerts this often",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                RenotifyDropdown(
-                    renotifyMinutes = renotifyMinutes,
-                    onSelect = { renotifyMinutes = it }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "If the notification is swiped away, bring it back",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                ReshowDropdown(
-                    reshowMinutes = reshowMinutes,
-                    onSelect = { reshowMinutes = it }
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Keep reminding until done", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            if (persistent) "The notification comes back until you press Done"
+                            else "One and done: notifies once, swiping it away marks it done",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = persistent, onCheckedChange = { persistent = it })
+                }
+                if (persistent) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Until you press Done, the notification re-alerts this often",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    RenotifyDropdown(
+                        renotifyMinutes = renotifyMinutes,
+                        onSelect = { renotifyMinutes = it }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "If the notification is swiped away, bring it back",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ReshowDropdown(
+                        reshowMinutes = reshowMinutes,
+                        onSelect = { reshowMinutes = it }
+                    )
+                }
             }
 
             Button(
@@ -392,7 +409,8 @@ fun ReminderEditScreen(
                             weekOfMonth
                         } else 0,
                         renotifyMinutes = renotifyMinutes,
-                        reshowMinutes = reshowMinutes
+                        reshowMinutes = reshowMinutes,
+                        persistent = persistent
                     )
                     viewModel.saveReminder(reminder)
                     onDone()

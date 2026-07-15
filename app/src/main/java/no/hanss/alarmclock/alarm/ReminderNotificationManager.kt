@@ -99,8 +99,11 @@ class ReminderNotificationManager(private val context: Context) {
             .setContentIntent(contentIntent)
             // Best-effort "persistent": survives accidental shade swipes on
             // pre-14, and everywhere it's non-dismissable-by-tap. Not
-            // autoCancel -- only Done/Snooze should clear it.
-            .setOngoing(true)
+            // autoCancel -- only Done/Snooze should clear it. One-and-done
+            // reminders (#61) invert both: a normal notification, gone on
+            // tap or swipe (the swipe deleteIntent then marks it done).
+            .setOngoing(reminder.persistent)
+            .setAutoCancel(!reminder.persistent)
             .setDeleteIntent(swipedIntent)
             .addAction(0, "Done", doneIntent)
             .addAction(0, "Snooze", snoozeIntent)

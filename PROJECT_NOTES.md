@@ -1008,16 +1008,20 @@ entry #1.
     and this); backup rides with tolerant read (default -1); the Settings
     field is reframed as the default each reminder can override.
 
-61. **[OPEN] One-and-done toggle.** Per the maintainer: a per-reminder
-    switch to disable BOTH persistence mechanisms -- "Keep reminding until
-    done", default ON. Off: notification posts once as a normal
-    dismissable notification (not ongoing, autoCancel), fire() arms no
+61. **One-and-done toggle.** Per the maintainer: a per-reminder switch to
+    disable BOTH persistence mechanisms -- "Keep reminding until done",
+    default ON. Off: the notification posts once as a normal dismissable
+    notification (setOngoing false, autoCancel true), fire() arms no
     re-alert, and swiping it away counts as DONE (one-shot -> history,
-    repeating -> rolls) so nothing gets stuck ACTIVE forever. Editor hides
-    the two #59/#60 dropdowns when off. New persistent column (DEFAULT 1),
-    DB v11->12; backup with tolerant read. Mutex note: swipe->done reuses
-    markDone's body via a shared locked-path helper, NOT a nested markDone
-    call -- the ops Mutex is not reentrant.
+    repeating -> rolls to the next occurrence) so nothing sits ACTIVE
+    forever. Done/Snooze buttons remain for explicitness. The editor's
+    "Remind again" section leads with the switch and hides the #59/#60
+    dropdowns when off, with the subtitle spelling out the swipe-means-done
+    behavior. New persistent column (DEFAULT 1 -- existing reminders
+    unchanged), DB v11->12; backup with tolerant read. Mutex note honored:
+    markDone's body moved to a private markDoneLocked, called by both
+    markDone (under withLock) and onSwipedAway's one-and-done branch --
+    a nested markDone call would have deadlocked the non-reentrant Mutex.
 
 ## Restarting this project in a new chat
 

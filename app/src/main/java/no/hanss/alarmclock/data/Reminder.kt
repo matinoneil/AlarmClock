@@ -51,6 +51,9 @@ data class Reminder(
     // RESHOW_FOLLOW_GLOBAL follows the Settings value, 0 = instantly
     // ("permanent"), N = after N minutes.
     val reshowMinutes: Int = RESHOW_FOLLOW_GLOBAL,
+    // #61: OFF = one-and-done -- the notification posts once, dismissable
+    // like any other, no re-alerts, and a swipe counts as Done.
+    val persistent: Boolean = true,
     // Overrides dueAtMillis for scheduling while set; cleared when the
     // reminder fires. Never consulted by the repeat roll.
     val snoozedUntilMillis: Long? = null

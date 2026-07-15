@@ -127,6 +127,7 @@ object BackupSerializer {
                     put("repeatWeekOfMonth", r.repeatWeekOfMonth)
                     put("renotifyMinutes", r.renotifyMinutes)
                     put("reshowMinutes", r.reshowMinutes)
+                    put("persistent", r.persistent)
                 })
             }
         })
@@ -229,7 +230,8 @@ object BackupSerializer {
                     repeatWeekday = o.optInt("repeatWeekday", 0).coerceIn(0, 7),
                     repeatWeekOfMonth = o.optInt("repeatWeekOfMonth", 0).coerceIn(Reminder.LAST_WEEK_OF_MONTH, 4),
                     renotifyMinutes = o.optInt("renotifyMinutes", 1440).coerceAtLeast(1),
-                    reshowMinutes = o.optInt("reshowMinutes", Reminder.RESHOW_FOLLOW_GLOBAL).coerceAtLeast(Reminder.RESHOW_FOLLOW_GLOBAL)
+                    reshowMinutes = o.optInt("reshowMinutes", Reminder.RESHOW_FOLLOW_GLOBAL).coerceAtLeast(Reminder.RESHOW_FOLLOW_GLOBAL),
+                    persistent = o.optBoolean("persistent", true)
                 )
             }
         }

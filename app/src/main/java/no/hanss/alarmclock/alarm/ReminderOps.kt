@@ -46,7 +46,11 @@ object ReminderOps {
         val active = reminder.copy(state = Reminder.STATE_ACTIVE, snoozedUntilMillis = null)
         if (active != reminder) dao.update(active)
         notifications.post(active)
-        ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + active.renotifyMinutes * 60_000L)
+        // One-and-done (#61): the single post is the whole show -- no
+        // re-alert armed; the swipe-away path marks it done.
+        if (active.persistent) {
+            ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + active.renotifyMinutes * 60_000L)
+        }
     }
 
     /**
@@ -56,11 +60,20 @@ object ReminderOps {
      * and late completion never drift the pattern.
      */
     suspend fun markDone(context: Context, reminderId: Long) = mutex.withLock {
+        markDoneLocked(context, reminderId)
+    }
+
+    /**
+     * The body of markDone, callable ONLY while already holding [mutex] --
+     * exists because onSwipedAway (#61's one-and-done path) needs it and the
+     * mutex is not reentrant; a nested markDone call would deadlock.
+     */
+    private suspend fun markDoneLocked(context: Context, reminderId: Long) {
         val dao = AlarmDatabase.getInstance(context).reminderDao()
         val scheduler = ReminderScheduler(context)
         ReminderNotificationManager(context).cancel(reminderId)
         scheduler.cancel(reminderId)
-        val reminder = dao.getReminder(reminderId) ?: return@withLock
+        val reminder = dao.getReminder(reminderId) ?: return
 
         val next = if (reminder.isRepeating) nextOccurrenceAfter(reminder, System.currentTimeMillis()) else null
         if (next != null) {
@@ -88,6 +101,13 @@ object ReminderOps {
         val dao = AlarmDatabase.getInstance(context).reminderDao()
         val reminder = dao.getReminder(reminderId) ?: return@withLock
         if (reminder.state != Reminder.STATE_ACTIVE) return@withLock
+        if (!reminder.persistent) {
+            // One-and-done (#61): dismissing the single notification IS the
+            // acknowledgment -- otherwise the row would sit ACTIVE forever
+            // and a repeating one would never roll.
+            markDoneLocked(context, reminderId)
+            return@withLock
+        }
         val minutes = if (reminder.reshowMinutes == Reminder.RESHOW_FOLLOW_GLOBAL) {
             SettingsStore(context).reminderReshowMinutes
         } else reminder.reshowMinutes
