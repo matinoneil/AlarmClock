@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,6 +43,26 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
+    val uiForSettings by viewModel.uiState.collectAsState()
+    var confirmClearHistory by remember { mutableStateOf(false) }
+
+    if (confirmClearHistory) {
+        val doneCount = uiForSettings.reminders.count { it.state == Reminder.STATE_DONE }
+        AlertDialog(
+            onDismissRequest = { confirmClearHistory = false },
+            title = { Text("Clear history?") },
+            text = { Text("This removes all $doneCount completed reminders. It can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearDoneReminders()
+                    confirmClearHistory = false
+                }) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearHistory = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     // Alarm (standalone) defaults
     var defaultAlarmSound by remember { mutableStateOf(viewModel.settings.defaultAlarmSoundUri) }
@@ -466,9 +487,27 @@ fun SettingsScreen(
                 )
             }
 
+            EditSection(title = "Reminders") {
+                val doneCount = uiForSettings.reminders.count { it.state == Reminder.STATE_DONE }
+                Text(
+                    "Completed and removed reminders collect as faded history at the bottom of the Reminders tab.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { confirmClearHistory = true },
+                    enabled = doneCount > 0,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (doneCount > 0) "Clear history ($doneCount)…" else "Clear history")
+                }
+            }
+
             EditSection(title = "Backup") {
                 Text(
-                    "Everything — alarms, series, timers, and these settings — in one file. Restoring replaces what's on the phone. Sounds may fall back to the system default if the file is restored on another device.",
+                    "Everything — alarms, series, timers, reminders, and these settings — in one file. Restoring replaces what's on the phone. Sounds may fall back to the system default if the file is restored on another device.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

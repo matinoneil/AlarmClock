@@ -15,19 +15,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -99,24 +96,6 @@ fun ReminderListContent(
 
     val (done, undone) = state.reminders.partition { it.state == Reminder.STATE_DONE }
 
-    var showClearConfirm by remember { mutableStateOf(false) }
-    if (showClearConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            title = { Text("Clear history?") },
-            text = { Text("This removes all ${done.size} completed reminders. It can't be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.clearDoneReminders()
-                    showClearConfirm = false
-                }) { Text("Clear") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) { Text("Cancel") }
-            }
-        )
-    }
-
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
@@ -146,18 +125,8 @@ fun ReminderListContent(
         }
 
         if (done.isNotEmpty()) {
-            // No heading over the history (entry #51): the fade already says
-            // what these are; only the Clear action needs a home.
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = { showClearConfirm = true }) {
-                        Text("Clear history")
-                    }
-                }
-            }
+            // History is pure content: faded cards, no heading (#51), no
+            // actions -- Clear history lives in Settings (#56).
             items(done, key = { "r${it.id}" }) { reminder ->
                 ReminderCard(
                     reminder = reminder,

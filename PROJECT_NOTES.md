@@ -945,10 +945,13 @@ entry #1.
     for live reminders, "Delete permanently? This can't be undone." for
     history rows.
 
-56. **[OPEN] Clear history moves to Settings.** Per the maintainer: the
-    Clear history button leaves the reminders list and becomes a Settings
-    entry (with the same count-stating confirm from #52). The history
-    section then reads as pure content -- faded cards only.
+56. **Clear history moved to Settings.** Per the maintainer: the Clear
+    history button left the reminders list -- history now reads as pure
+    content, faded cards only. Settings gained a Reminders section whose
+    Clear history button shows the count inline ("Clear history (7)…"),
+    disables at zero, and keeps #52's count-stating confirm. The Backup
+    blurb also finally mentions reminders (they'd been IN the backup since
+    #50; the copy lagged).
 
 ## Restarting this project in a new chat
 
