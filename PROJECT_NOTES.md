@@ -1040,6 +1040,15 @@ entry #1.
     (renotify floor 1 -> 0, reshow floor -1 -> -2), new settings boolean
     with optBoolean(true).
 
+63. **[OPEN] Editor/Settings UX batch.** Per the maintainer: (a) the
+    reminder text field doesn't auto-capitalize -- add sentence
+    capitalization to its keyboard options. (b) The When section's two
+    date/time buttons become ONE big dropdown button (same UI as the
+    repeat dropdown) offering the snooze dialog's adaptive standard times
+    (in 1 h, today 09/12/18 as still ahead, tomorrow 09/12/18, in 24 h)
+    plus "Pick date & time" which opens the existing picker flow. (c) The
+    Bedtime section moves above the Timers section in Settings.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
