@@ -1076,6 +1076,16 @@ entry #1.
     date WeekOfMonthDropdown and the editor's local alignToWeekdays are
     gone.
 
+65. **[OPEN] Yearly-on-a-date gets a day picker.** Per the maintainer:
+    the type currently exposes no day control (the date above is the whole
+    pattern), which reads as lacking next to its siblings. Fix: an explicit
+    day dropdown (1..the picked month's length, plus "Last day of the
+    month"), month still anchored from the picked date -- mirroring
+    monthly-on-a-date. Storage reuses repeatDayOfMonth for REPEAT_YEARLY;
+    0 = legacy rows keep deriving the day from the date, so no migration
+    and old backups behave identically. "Last day of February" correctly
+    means the 28th or 29th.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
