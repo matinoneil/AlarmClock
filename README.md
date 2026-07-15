@@ -36,10 +36,21 @@ morning, afternoon, evening, in 24 hours, or any picked date and time).
 Reminders can repeat: daily, weekly on chosen days, monthly on a date, monthly
 on a weekday ("the 2nd Tuesday", "the last Friday"), or yearly — each
 optionally every Nth day/week/month/year. Marking a repeating reminder done
-completes only that occurrence; it comes back at the next one. An unhandled
-reminder re-notifies once a day, survives reboots, and one that came due while
-the phone was off still shows up afterwards. Completed one-time reminders stay
-as faded history at the bottom of the list.
+completes only that occurrence; it comes back at the next one.
+
+Each reminder controls how insistent its notification is, in the editor's
+"Remind again" section. With "Keep reminding until done" on (the default), the
+notification stays until Done or Snooze is pressed: it re-alerts on a chosen
+schedule (every 15 minutes up to once a day) while it sits unhandled, and if
+it's swiped away it comes back — after the app-wide delay from Settings, a
+per-reminder delay, or instantly, which makes it effectively impossible to
+dismiss. It also survives reboots. There is always exactly one notification
+per reminder: a re-alert or comeback replaces the previous notification
+rather than adding another. With the switch off, the reminder is one and
+done — it notifies once like a normal notification, and swiping it away marks
+it done. A reminder that came due while the phone was off still shows up
+afterwards. Completed and deleted reminders stay as faded history at the
+bottom of the list; Clear history in Settings removes them permanently.
 
 ## Other features
 
