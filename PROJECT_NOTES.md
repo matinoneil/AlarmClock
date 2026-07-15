@@ -968,16 +968,19 @@ entry #1.
     everywhere, so never a duplicate. The setting rides in backups
     (tolerant read, default 30 for old files).
 
-58. **Re-show delay of 0 = instant.** Per the maintainer: the #57 re-show
-    setting now accepts 0, meaning a swiped notification re-posts
-    IMMEDIATELY -- undismissable in practice, restoring true persistence on
-    Android 14+ where setOngoing alone no longer blocks the swipe. The
-    instant re-post is SILENT (post() gained an alert flag ->
-    setSilent(!alert)) so an accidental swipe never dings, and it rearms
-    the daily re-alert slot so the once-a-day sound cycle continues.
-    Non-zero values still go through the scheduler slot as before. Floor
-    moved 1 -> 0 in SettingsStore and the backup read; Settings copy now
-    explains the 0 case.
+58. **Re-show delay of 0 = "permanent" (instant, full-alert).** Per the
+    maintainer (revised in follow-up: NOT silent -- "I want full
+    notification, call it permanent but I know it isn't technically"): the
+    #57 re-show setting accepts 0, meaning a swiped notification re-posts
+    IMMEDIATELY at full alert (sound/vibration/heads-up) -- undismissable in
+    practice, restoring true persistence on Android 14+ where setOngoing
+    alone no longer blocks the swipe, and the ding-on-every-swipe is the
+    point: the swipe should visibly and audibly not work. It also rearms
+    the daily re-alert slot. Non-zero values still go through the scheduler
+    slot as before. Floor moved 1 -> 0 in SettingsStore and the backup
+    read; the Settings copy calls the 0 case "permanent". A silent variant
+    was briefly implemented and reverted same-session -- post() takes no
+    alert flag; if silence is ever wanted, that's the shape it had.
 
 ## Restarting this project in a new chat
 

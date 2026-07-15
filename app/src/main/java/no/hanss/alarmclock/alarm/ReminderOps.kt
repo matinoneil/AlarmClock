@@ -91,9 +91,9 @@ object ReminderOps {
         if (reminder.state != Reminder.STATE_ACTIVE) return@withLock
         val minutes = SettingsStore(context).reminderReshowMinutes
         if (minutes == 0) {
-            // Instant (#58): straight back, silently -- no ding for an
-            // accidental swipe -- and the daily re-alert stays armed.
-            ReminderNotificationManager(context).post(reminder, alert = false)
+            // "Permanent" (#58): straight back at full volume -- the
+            // maintainer wants the swipe to visibly and audibly not work.
+            ReminderNotificationManager(context).post(reminder)
             ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + REREMIND_MILLIS)
         } else {
             ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + minutes * 60_000L)
