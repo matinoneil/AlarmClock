@@ -910,6 +910,23 @@ entry #1.
     app already has, and it states the count ("This removes all N completed
     reminders"), so a fat-finger next to the top done card costs nothing.
 
+53. **[OPEN] Reminder text shown twice in the expanded notification.** #51's
+    BigTextStyle keeps the content title above the big text in the expanded
+    view, and both are the reminder text -- so expanding shows it twice.
+    Intended fix: setBigContentTitle("") blanks the big-form title, so
+    collapsed shows the text once (as the title) and expanded shows it once
+    (as the body).
+
+54. **[OPEN] Recurring reminder "doesn't go away" when checked off in the
+    app.** Reported: tapping the check on a recurring reminder's card in the
+    list doesn't make it go away. To diagnose -- candidate causes: (a) the
+    checkbox path in the UI writes state directly instead of going through
+    ReminderOps.markDone, so the notification/scheduling don't follow; (b)
+    it correctly rolls to the next occurrence (by design, per the maintainer
+    -- completing this week's must not kill the series) but the card looks
+    unchanged, so the tap reads as a no-op; (c) an ACTIVE reminder checked
+    off in-app leaves its notification up. Investigate before fixing.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
