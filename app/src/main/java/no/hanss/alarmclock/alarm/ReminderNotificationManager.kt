@@ -72,8 +72,15 @@ class ReminderNotificationManager(private val context: Context) {
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(reminder.text)
             // The reminder text IS the substance; BigTextStyle lets a long
-            // one expand fully instead of truncating to the title line.
-            .setStyle(NotificationCompat.BigTextStyle().bigText(reminder.text))
+            // one expand fully. The big-form title is blanked so the expanded
+            // view shows the text ONCE as the body -- without this the
+            // default keeps the content title above the big text and the
+            // same text appears twice (entry #53).
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(reminder.text)
+                    .setBigContentTitle("")
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contentIntent)

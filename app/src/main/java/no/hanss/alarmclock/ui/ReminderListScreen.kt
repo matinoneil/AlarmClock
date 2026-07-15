@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +37,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import no.hanss.alarmclock.data.nextOccurrenceAfter
 import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.data.describeRepeat
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
@@ -77,9 +81,11 @@ internal fun reminderWhenLabel(millis: Long): String {
 fun ReminderListContent(
     viewModel: AlarmViewModel,
     onEditReminder: (Reminder) -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
 
     // Minute-granularity clock for the "in X" labels, aligned to wall clock
     // minute boundaries -- same shared-ticker pattern as the alarm list.
@@ -121,7 +127,21 @@ fun ReminderListContent(
                 reminder = reminder,
                 nowMillis = nowMillis,
                 onClick = { onEditReminder(reminder) },
-                onDone = { viewModel.markReminderDone(reminder) }
+                onDone = {
+                    // A repeating reminder rolls forward and STAYS in the
+                    // list (by design -- completing this week's must not
+                    // kill the series), which without feedback reads as a
+                    // no-op (entry #54). Announce where it went.
+                    if (reminder.isRepeating) {
+                        val next = nextOccurrenceAfter(reminder, System.currentTimeMillis())
+                        if (next != null) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Done — next ${reminderWhenLabel(next)}")
+                            }
+                        }
+                    }
+                    viewModel.markReminderDone(reminder)
+                }
             )
         }
 

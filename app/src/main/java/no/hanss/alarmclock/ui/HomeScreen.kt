@@ -26,6 +26,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -81,8 +83,10 @@ fun HomeScreen(
     // targetPage flips as a swipe crosses the halfway point, so the tab
     // highlight answers mid-drag instead of only after the settle.
     val selectedTab = pagerState.targetPage
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -156,7 +160,8 @@ fun HomeScreen(
                 )
                 TAB_REMINDERS -> ReminderListContent(
                     viewModel = viewModel,
-                    onEditReminder = onEditReminder
+                    onEditReminder = onEditReminder,
+                    snackbarHostState = snackbarHostState
                 )
                 else -> AlarmListContent(
                     viewModel = viewModel,

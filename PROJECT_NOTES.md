@@ -910,22 +910,26 @@ entry #1.
     app already has, and it states the count ("This removes all N completed
     reminders"), so a fat-finger next to the top done card costs nothing.
 
-53. **[OPEN] Reminder text shown twice in the expanded notification.** #51's
+53. **Reminder text shown twice in the expanded notification.** #51's
     BigTextStyle keeps the content title above the big text in the expanded
-    view, and both are the reminder text -- so expanding shows it twice.
-    Intended fix: setBigContentTitle("") blanks the big-form title, so
-    collapsed shows the text once (as the title) and expanded shows it once
-    (as the body).
+    view, and both were the reminder text -- so expanding showed it twice.
+    Fixed with setBigContentTitle("") blanking the big-form title: collapsed
+    shows the text once (as the title), expanded shows it once (as the body).
 
-54. **[OPEN] Recurring reminder "doesn't go away" when checked off in the
-    app.** Reported: tapping the check on a recurring reminder's card in the
-    list doesn't make it go away. To diagnose -- candidate causes: (a) the
-    checkbox path in the UI writes state directly instead of going through
-    ReminderOps.markDone, so the notification/scheduling don't follow; (b)
-    it correctly rolls to the next occurrence (by design, per the maintainer
-    -- completing this week's must not kill the series) but the card looks
-    unchanged, so the tap reads as a no-op; (c) an ACTIVE reminder checked
-    off in-app leaves its notification up. Investigate before fixing.
+54. **Recurring reminder "doesn't go away" when checked off in the app.**
+    Diagnosis landed on (b): the path was correct all along (checkbox ->
+    ReminderOps.markDone -> notification cancelled, occurrence rolled) and
+    the reminder staying in the list is BY DESIGN -- completing this week's
+    must not kill the series, per the maintainer's original spec -- but the
+    tap gave zero feedback: the card sits in place and only the subtitle's
+    date quietly changes, so it reads as a no-op. Fix: checking off a
+    repeating reminder shows a snackbar ("Done -- next Tue 21 Jul, 09:00"),
+    computed from the same nextOccurrenceAfter the ops layer uses.
+    SnackbarHost now lives in HomeScreen's Scaffold, available to all tabs.
+    One-shots already had visible feedback (fade + sink to history). If the
+    maintainer ever wants recurring done-occurrences to visit the faded
+    history between occurrences instead: recommended against (a card that
+    fades out and later pops back), but this is where to revisit.
 
 ## Restarting this project in a new chat
 
