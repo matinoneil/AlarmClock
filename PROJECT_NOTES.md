@@ -1023,18 +1023,22 @@ entry #1.
     markDone (under withLock) and onSwipedAway's one-and-done branch --
     a nested markDone call would have deadlocked the non-reentrant Mutex.
 
-62. **[OPEN] Off options for both persistence mechanisms.** Per the
-    maintainer (his case: swipe-protection ON, nag OFF): both editor
-    dropdowns gain "Off" -- renotifyMinutes 0 = never re-alerts;
-    reshowMinutes RESHOW_OFF (-2) = a swipe sticks. The global Settings
-    reshow gets an enable switch (new reminderReshowEnabled pref, default
-    true) so App-default can itself be off; field disabled when off. No
-    DB migration -- sentinels fit the INTEGER columns. fire() and the
-    permanent-repost re-arm skip scheduling at renotify 0. Known boundary:
+62. **Off options for both persistence mechanisms.** Per the maintainer
+    (his case: swipe-protection ON, nag OFF): both editor dropdowns gained
+    "Off" -- renotifyMinutes 0 = "Off, never re-alerts"; reshowMinutes
+    RESHOW_OFF (-2) = "Off, a swipe dismisses it". The two are fully
+    orthogonal: nag-off + reshow-on sits silent but returns after a swipe;
+    nag-on + reshow-off keeps re-alerting on schedule but a swipe sticks
+    until the next re-alert re-posts it. The global Settings reshow gained
+    an enable switch (reminderReshowEnabled pref, default true; delay
+    field disabled when off) so App-default can itself mean off --
+    per-reminder overrides ignore the switch. No DB migration; the
+    sentinels fit the INTEGER columns. fire() and the permanent-repost
+    re-arm skip scheduling at renotify 0. Known boundary, deemed correct:
     boot re-posts ACTIVE notifications regardless of reshow-off (it can't
-    tell a swipe from a reboot loss) -- deemed correct. Backup: reminder
-    fields ride in existing keys with widened tolerant reads; the new
-    settings boolean rides with optBoolean(true).
+    tell a swipe from a reboot loss). Backup: widened tolerant reads
+    (renotify floor 1 -> 0, reshow floor -1 -> -2), new settings boolean
+    with optBoolean(true).
 
 ## Restarting this project in a new chat
 

@@ -77,6 +77,12 @@ class SettingsStore(context: Context) {
 
     // How soon a swiped-away reminder notification comes back (#57). The
     // daily re-alert for still-visible notifications is separate and fixed.
+    // #62: master switch for the swipe comeback; reminders set to
+    // App default follow this. Per-reminder overrides ignore it.
+    var reminderReshowEnabled: Boolean
+        get() = prefs.getBoolean(KEY_REMINDER_RESHOW_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_REMINDER_RESHOW_ENABLED, value).apply()
+
     var reminderReshowMinutes: Int
         get() = prefs.getInt(KEY_REMINDER_RESHOW, 30)
         set(value) = prefs.edit().putInt(KEY_REMINDER_RESHOW, value.coerceAtLeast(0)).apply()
@@ -96,5 +102,6 @@ class SettingsStore(context: Context) {
         const val KEY_SERIES_VIBRATE = "default_series_vibrate"
         const val KEY_TIMER_VIBRATE = "default_timer_vibrate"
         const val KEY_REMINDER_RESHOW = "reminder_reshow_minutes"
+        const val KEY_REMINDER_RESHOW_ENABLED = "reminder_reshow_enabled"
     }
 }

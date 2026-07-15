@@ -47,8 +47,9 @@ object ReminderOps {
         if (active != reminder) dao.update(active)
         notifications.post(active)
         // One-and-done (#61): the single post is the whole show -- no
-        // re-alert armed; the swipe-away path marks it done.
-        if (active.persistent) {
+        // re-alert armed; the swipe-away path marks it done. Renotify 0
+        // (#62) also arms nothing: the nag is off for this reminder.
+        if (active.persistent && active.renotifyMinutes > 0) {
             ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + active.renotifyMinutes * 60_000L)
         }
     }
@@ -108,14 +109,25 @@ object ReminderOps {
             markDoneLocked(context, reminderId)
             return@withLock
         }
-        val minutes = if (reminder.reshowMinutes == Reminder.RESHOW_FOLLOW_GLOBAL) {
-            SettingsStore(context).reminderReshowMinutes
-        } else reminder.reshowMinutes
+        val settings = SettingsStore(context)
+        val minutes = when {
+            reminder.reshowMinutes != Reminder.RESHOW_FOLLOW_GLOBAL -> reminder.reshowMinutes
+            !settings.reminderReshowEnabled -> Reminder.RESHOW_OFF
+            else -> settings.reminderReshowMinutes
+        }
+        if (minutes == Reminder.RESHOW_OFF) {
+            // #62: the swipe sticks. The row stays ACTIVE in the list; a
+            // still-armed nag re-alert (if any) can re-post it later, and a
+            // reboot re-posts it too -- boot can't tell a swipe from a loss.
+            return@withLock
+        }
         if (minutes == 0) {
             // "Permanent" (#58): straight back at full volume -- the
             // maintainer wants the swipe to visibly and audibly not work.
             ReminderNotificationManager(context).post(reminder)
-            ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + reminder.renotifyMinutes * 60_000L)
+            if (reminder.renotifyMinutes > 0) {
+                ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + reminder.renotifyMinutes * 60_000L)
+            }
         } else {
             ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + minutes * 60_000L)
         }

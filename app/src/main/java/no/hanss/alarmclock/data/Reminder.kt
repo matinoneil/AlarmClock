@@ -45,11 +45,11 @@ data class Reminder(
     val repeatWeekOfMonth: Int = 0,
     // How often the notification re-alerts while it sits unhandled (#59),
     // and the comeback pacing after an instant swipe re-post. Minutes;
-    // 1440 = the original fixed daily nag.
+    // 1440 = the original fixed daily nag; 0 = off, never re-alerts (#62).
     val renotifyMinutes: Int = 1440,
     // How quickly the notification returns after being swiped away (#60):
-    // RESHOW_FOLLOW_GLOBAL follows the Settings value, 0 = instantly
-    // ("permanent"), N = after N minutes.
+    // RESHOW_FOLLOW_GLOBAL follows the Settings value, RESHOW_OFF = a
+    // swipe sticks (#62), 0 = instantly ("permanent"), N = after N minutes.
     val reshowMinutes: Int = RESHOW_FOLLOW_GLOBAL,
     // #61: OFF = one-and-done -- the notification posts once, dismissable
     // like any other, no re-alerts, and a swipe counts as Done.
@@ -65,6 +65,7 @@ data class Reminder(
 
     companion object {
         const val RESHOW_FOLLOW_GLOBAL = -1
+        const val RESHOW_OFF = -2
         const val STATE_PENDING = 0
         const val STATE_ACTIVE = 1
         const val STATE_DONE = 2

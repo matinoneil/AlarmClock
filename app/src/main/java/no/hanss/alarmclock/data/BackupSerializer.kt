@@ -38,7 +38,8 @@ object BackupSerializer {
         val defaultSeriesSnoozeMinutes: Int = 10,
         val defaultSeriesVibrate: Boolean = true,
         val defaultTimerVibrate: Boolean = true,
-        val reminderReshowMinutes: Int = 30
+        val reminderReshowMinutes: Int = 30,
+        val reminderReshowEnabled: Boolean = true
     )
 
     fun toJson(data: BackupData): String {
@@ -60,6 +61,7 @@ object BackupSerializer {
         settings.put("defaultSeriesSnoozeMinutes", data.defaultSeriesSnoozeMinutes)
         settings.put("defaultSeriesVibrate", data.defaultSeriesVibrate)
         settings.put("reminderReshowMinutes", data.reminderReshowMinutes)
+        settings.put("reminderReshowEnabled", data.reminderReshowEnabled)
         settings.put("defaultTimerVibrate", data.defaultTimerVibrate)
         root.put("settings", settings)
 
@@ -229,8 +231,8 @@ object BackupSerializer {
                     repeatDayOfMonth = o.optInt("repeatDayOfMonth", 0).coerceIn(0, 31),
                     repeatWeekday = o.optInt("repeatWeekday", 0).coerceIn(0, 7),
                     repeatWeekOfMonth = o.optInt("repeatWeekOfMonth", 0).coerceIn(Reminder.LAST_WEEK_OF_MONTH, 4),
-                    renotifyMinutes = o.optInt("renotifyMinutes", 1440).coerceAtLeast(1),
-                    reshowMinutes = o.optInt("reshowMinutes", Reminder.RESHOW_FOLLOW_GLOBAL).coerceAtLeast(Reminder.RESHOW_FOLLOW_GLOBAL),
+                    renotifyMinutes = o.optInt("renotifyMinutes", 1440).coerceAtLeast(0),
+                    reshowMinutes = o.optInt("reshowMinutes", Reminder.RESHOW_FOLLOW_GLOBAL).coerceAtLeast(Reminder.RESHOW_OFF),
                     persistent = o.optBoolean("persistent", true)
                 )
             }
@@ -258,6 +260,7 @@ object BackupSerializer {
             defaultSeriesSnoozeMinutes = settings.optInt("defaultSeriesSnoozeMinutes", settings.optInt("defaultSnoozeMinutes", 10)).coerceAtLeast(1),
             defaultSeriesVibrate = settings.optBoolean("defaultSeriesVibrate", settings.optBoolean("defaultAlarmVibrate", true)),
             reminderReshowMinutes = settings.optInt("reminderReshowMinutes", 30).coerceAtLeast(0),
+            reminderReshowEnabled = settings.optBoolean("reminderReshowEnabled", true),
             defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true)
         )
     }

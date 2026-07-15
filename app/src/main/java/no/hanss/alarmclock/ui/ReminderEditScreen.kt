@@ -436,6 +436,7 @@ fun ReminderEditScreen(
 private fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val presets = listOf(
+        0 to "Off — never re-alerts",
         15 to "Every 15 minutes",
         30 to "Every 30 minutes",
         60 to "Every hour",
@@ -476,6 +477,7 @@ private fun ReshowDropdown(reshowMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val presets = listOf(
         Reminder.RESHOW_FOLLOW_GLOBAL to "App default (from Settings)",
+        Reminder.RESHOW_OFF to "Off — a swipe dismisses it",
         0 to "Instantly (permanent)",
         1 to "After 1 minute",
         5 to "After 5 minutes",

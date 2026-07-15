@@ -489,7 +489,26 @@ fun SettingsScreen(
 
             EditSection(title = "Reminders") {
                 val doneCount = uiForSettings.reminders.count { it.state == Reminder.STATE_DONE }
+                var reshowEnabled by remember { mutableStateOf(viewModel.settings.reminderReshowEnabled) }
                 var reshowText by remember { mutableStateOf(viewModel.settings.reminderReshowMinutes.toString()) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Bring back a swiped-away reminder", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "The default for reminders; each can override it in its own editor",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = reshowEnabled,
+                        onCheckedChange = {
+                            reshowEnabled = it
+                            viewModel.settings.reminderReshowEnabled = it
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = reshowText,
                     onValueChange = {
@@ -500,8 +519,9 @@ fun SettingsScreen(
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
-                    label = { Text("Bring back a swiped-away reminder after (minutes)") },
-                    supportingText = { Text("0 = permanent: comes straight back, with sound. This is the default; each reminder can override it in its own editor.") },
+                    enabled = reshowEnabled,
+                    label = { Text("After (minutes)") },
+                    supportingText = { Text("0 = permanent: comes straight back, with sound.") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
