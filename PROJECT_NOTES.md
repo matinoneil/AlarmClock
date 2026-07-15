@@ -982,13 +982,18 @@ entry #1.
     was briefly implemented and reverted same-session -- post() takes no
     alert flag; if silence is ever wanted, that's the shape it had.
 
-59. **[OPEN] Per-reminder re-alert interval.** Per the maintainer: the
-    24 h re-remind (the nag while a notification sits unhandled) becomes
-    per-reminder, set in the editor. Intended: new renotifyMinutes column
-    (default 1440 = the old behavior), DB v9->10 ALTER TABLE, preset
-    dropdown in the editor (15 min .. 24 h), fire() and the instant-swipe
-    re-arm use it instead of REREMIND_MILLIS, backup rides with tolerant
-    read. Global swipe re-show delay in Settings is unchanged.
+59. **Per-reminder re-alert interval.** Per the maintainer: the 24 h
+    re-remind (the nag while a notification sits unhandled) is now
+    per-reminder. New renotifyMinutes column, DB v9->10 ALTER TABLE with
+    DEFAULT 1440 so every existing reminder keeps the daily behavior;
+    fire() and the instant-swipe re-arm both use it (boot funnels through
+    fire(), so reboots follow automatically). Editor gained a "Remind
+    again" section with a preset dropdown (every 15/30 min, 1/3/6/12 h,
+    once a day); an out-of-preset stored value is offered as-is so it
+    never silently changes on save. Backup rides with tolerant read
+    (default 1440). The Settings swipe-delay copy now says re-alerts
+    follow each reminder's own schedule. The global swipe re-show delay
+    itself stays a single Settings value.
 
 ## Restarting this project in a new chat
 

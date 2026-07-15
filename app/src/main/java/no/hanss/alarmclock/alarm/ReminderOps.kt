@@ -14,7 +14,6 @@ private const val TAG = "ReminderOps"
 // While a reminder is ACTIVE, the same AlarmManager slot re-fires this often
 // to re-post the notification -- both the requested daily nudge and the safety
 // net for an accidental swipe-away (setOngoing is only best-effort on 14+).
-private const val REREMIND_MILLIS = 24L * 60 * 60 * 1000
 
 /**
  * The one place a reminder changes state (same single-path spirit as
@@ -47,7 +46,7 @@ object ReminderOps {
         val active = reminder.copy(state = Reminder.STATE_ACTIVE, snoozedUntilMillis = null)
         if (active != reminder) dao.update(active)
         notifications.post(active)
-        ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + REREMIND_MILLIS)
+        ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + active.renotifyMinutes * 60_000L)
     }
 
     /**
@@ -94,7 +93,7 @@ object ReminderOps {
             // "Permanent" (#58): straight back at full volume -- the
             // maintainer wants the swipe to visibly and audibly not work.
             ReminderNotificationManager(context).post(reminder)
-            ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + REREMIND_MILLIS)
+            ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + reminder.renotifyMinutes * 60_000L)
         } else {
             ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + minutes * 60_000L)
         }

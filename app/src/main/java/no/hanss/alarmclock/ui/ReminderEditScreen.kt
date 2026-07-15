@@ -107,6 +107,7 @@ fun ReminderEditScreen(
     // MONTHLY_WEEKDAY only: 1..4 or LAST_WEEK_OF_MONTH; weekday itself always
     // derives from the picked date.
     var weekOfMonth by remember { mutableIntStateOf(existing?.repeatWeekOfMonth ?: 1) }
+    var renotifyMinutes by remember { mutableIntStateOf(existing?.renotifyMinutes ?: 1440) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -338,6 +339,19 @@ fun ReminderEditScreen(
                 }
             }
 
+            EditSection(title = "Remind again") {
+                Text(
+                    "Until you press Done, the notification re-alerts this often",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                RenotifyDropdown(
+                    renotifyMinutes = renotifyMinutes,
+                    onSelect = { renotifyMinutes = it }
+                )
+            }
+
             Button(
                 onClick = {
                     // Align the first occurrence with the weekly pattern: if
@@ -364,7 +378,8 @@ fun ReminderEditScreen(
                         } else 0,
                         repeatWeekOfMonth = if (repeatType == Reminder.REPEAT_MONTHLY_WEEKDAY) {
                             weekOfMonth
-                        } else 0
+                        } else 0,
+                        renotifyMinutes = renotifyMinutes
                     )
                     viewModel.saveReminder(reminder)
                     onDone()
@@ -377,6 +392,45 @@ fun ReminderEditScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * Preset intervals for the unhandled-notification re-alert (#59). A stored
+ * value outside the presets (from an edited backup) is offered as-is so it
+ * never silently changes on save.
+ */
+@Composable
+private fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val presets = listOf(
+        15 to "Every 15 minutes",
+        30 to "Every 30 minutes",
+        60 to "Every hour",
+        180 to "Every 3 hours",
+        360 to "Every 6 hours",
+        720 to "Every 12 hours",
+        1440 to "Once a day"
+    )
+    val options = if (presets.any { it.first == renotifyMinutes }) presets
+    else presets + (renotifyMinutes to "Every $renotifyMinutes minutes")
+    val currentLabel = options.first { it.first == renotifyMinutes }.second
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(currentLabel, maxLines = 1)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (value, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { expanded = false; onSelect(value) }
+                )
+            }
         }
     }
 }

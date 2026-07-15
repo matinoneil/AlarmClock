@@ -501,7 +501,7 @@ fun SettingsScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     label = { Text("Bring back a swiped-away reminder after (minutes)") },
-                    supportingText = { Text("0 = permanent: the notification comes straight back, with sound, if swiped. One left showing re-alerts once a day.") },
+                    supportingText = { Text("0 = permanent: the notification comes straight back, with sound, if swiped. One left showing re-alerts on each reminder's own schedule.") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))

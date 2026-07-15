@@ -125,6 +125,7 @@ object BackupSerializer {
                     put("repeatDayOfMonth", r.repeatDayOfMonth)
                     put("repeatWeekday", r.repeatWeekday)
                     put("repeatWeekOfMonth", r.repeatWeekOfMonth)
+                    put("renotifyMinutes", r.renotifyMinutes)
                 })
             }
         })
@@ -225,7 +226,8 @@ object BackupSerializer {
                     repeatDaysOfWeek = if (o.has("repeatDaysOfWeek")) o.daysOfWeekField("repeatDaysOfWeek") else emptySet(),
                     repeatDayOfMonth = o.optInt("repeatDayOfMonth", 0).coerceIn(0, 31),
                     repeatWeekday = o.optInt("repeatWeekday", 0).coerceIn(0, 7),
-                    repeatWeekOfMonth = o.optInt("repeatWeekOfMonth", 0).coerceIn(Reminder.LAST_WEEK_OF_MONTH, 4)
+                    repeatWeekOfMonth = o.optInt("repeatWeekOfMonth", 0).coerceIn(Reminder.LAST_WEEK_OF_MONTH, 4),
+                    renotifyMinutes = o.optInt("renotifyMinutes", 1440).coerceAtLeast(1)
                 )
             }
         }

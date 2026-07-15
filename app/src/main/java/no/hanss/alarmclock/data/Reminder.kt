@@ -43,6 +43,10 @@ data class Reminder(
     // the month (1..4, or LAST_WEEK_OF_MONTH for "the last <weekday>").
     val repeatWeekday: Int = 0,
     val repeatWeekOfMonth: Int = 0,
+    // How often the notification re-alerts while it sits unhandled (#59),
+    // and the comeback pacing after an instant swipe re-post. Minutes;
+    // 1440 = the original fixed daily nag.
+    val renotifyMinutes: Int = 1440,
     // Overrides dueAtMillis for scheduling while set; cleared when the
     // reminder fires. Never consulted by the repeat roll.
     val snoozedUntilMillis: Long? = null

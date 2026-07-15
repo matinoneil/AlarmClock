@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class, Reminder::class], version = 9, exportSchema = false)
+@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class, Reminder::class], version = 10, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
@@ -74,6 +74,16 @@ abstract class AlarmDatabase : RoomDatabase() {
             }
         }
 
+        // #59: per-reminder re-alert interval; default preserves the old
+        // fixed daily nag for every existing row.
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `reminders` ADD COLUMN `renotifyMinutes` INTEGER NOT NULL DEFAULT 1440"
+                )
+            }
+        }
+
         fun getInstance(context: Context): AlarmDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -89,7 +99,7 @@ abstract class AlarmDatabase : RoomDatabase() {
                     // wiped alarm list is still better than an alarm app that crashes
                     // on database open and can't ring at all. If a wipe is ever
                     // unavoidable, the release notes must flag it loudly.
-                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     .fallbackToDestructiveMigration()
                     .build().also { INSTANCE = it }
             }
