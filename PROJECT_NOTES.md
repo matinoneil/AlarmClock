@@ -1052,6 +1052,22 @@ entry #1.
     Timers in Settings (brace-matched block swap; order now Alarm series,
     Single alarms, Bedtime, Timers, Reminders, Backup).
 
+64. **[OPEN] Repeat overhaul (all five proposals accepted).** Per the
+    maintainer: (1) monthly-on-weekday gets full ordinal x weekday pickers
+    (1st..4th/Last x Mon..Sun) plus Outlook's pseudo-days "day", "weekday",
+    "weekend day" (sentinels 8/9/10 in repeatWeekday); (2) monthly-on-date
+    gets a free 1..31 day picker plus "Last day of the month" (sentinel -1
+    in repeatDayOfMonth); (3) new REPEAT_YEARLY_WEEKDAY type ("last Sunday
+    of March"), month anchored from dueAt; (4) weekly quick-pick chips
+    (Weekdays/Weekends/Every day); (5) a "Next: ..." preview of the next 3
+    computed occurrences under the repeat section. Design inversion: the
+    pattern is now the source of truth and dueAt aligns FORWARD to the
+    nearest on-pattern datetime at save (previously the picked date drove
+    the pattern, which is why monthly-on-weekday only ever offered 1-2
+    combos). No DB migration -- sentinels fit existing columns. Occurrence
+    math grows a shared resolver (nth/last {weekday|any day|workday|weekend
+    day} of month); backup reads widen accordingly.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
