@@ -982,6 +982,14 @@ entry #1.
     was briefly implemented and reverted same-session -- post() takes no
     alert flag; if silence is ever wanted, that's the shape it had.
 
+59. **[OPEN] Per-reminder re-alert interval.** Per the maintainer: the
+    24 h re-remind (the nag while a notification sits unhandled) becomes
+    per-reminder, set in the editor. Intended: new renotifyMinutes column
+    (default 1440 = the old behavior), DB v9->10 ALTER TABLE, preset
+    dropdown in the editor (15 min .. 24 h), fire() and the instant-swipe
+    re-arm use it instead of REREMIND_MILLIS, backup rides with tolerant
+    read. Global swipe re-show delay in Settings is unchanged.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
