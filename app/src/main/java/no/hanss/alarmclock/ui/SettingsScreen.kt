@@ -402,41 +402,6 @@ fun SettingsScreen(
                 ) { Text("Apply these to all single alarms") }
             }
 
-            EditSection(title = "Timers") {
-                Text(
-                    "Defaults for new timers. Existing ones keep their settings unless applied below.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { launchRingtonePicker("timer", defaultTimerSound) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(soundName(defaultTimerSound), maxLines = 1)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Vibrate", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = timerVibrate, onCheckedChange = {
-                        timerVibrate = it
-                        viewModel.settings.defaultTimerVibrate = it
-                    })
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { confirmApplyTimers = true },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) { Text("Apply these to all timers") }
-            }
-
             EditSection(title = "Bedtime reminder") {
                 Text(
                     "A quiet notification before your next alarm, reminding you to go to bed in time for a full night's sleep.",
@@ -485,6 +450,41 @@ fun SettingsScreen(
                     enabled = bedtimeEnabled,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            EditSection(title = "Timers") {
+                Text(
+                    "Defaults for new timers. Existing ones keep their settings unless applied below.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { launchRingtonePicker("timer", defaultTimerSound) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(soundName(defaultTimerSound), maxLines = 1)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Vibrate", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = timerVibrate, onCheckedChange = {
+                        timerVibrate = it
+                        viewModel.settings.defaultTimerVibrate = it
+                    })
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { confirmApplyTimers = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("Apply these to all timers") }
             }
 
             EditSection(title = "Reminders") {

@@ -1040,14 +1040,17 @@ entry #1.
     (renotify floor 1 -> 0, reshow floor -1 -> -2), new settings boolean
     with optBoolean(true).
 
-63. **[OPEN] Editor/Settings UX batch.** Per the maintainer: (a) the
-    reminder text field doesn't auto-capitalize -- add sentence
-    capitalization to its keyboard options. (b) The When section's two
-    date/time buttons become ONE big dropdown button (same UI as the
-    repeat dropdown) offering the snooze dialog's adaptive standard times
-    (in 1 h, today 09/12/18 as still ahead, tomorrow 09/12/18, in 24 h)
-    plus "Pick date & time" which opens the existing picker flow. (c) The
-    Bedtime section moves above the Timers section in Settings.
+63. **Editor/Settings UX batch.** Per the maintainer: (a) the reminder
+    text field now auto-capitalizes (KeyboardCapitalization.Sentences).
+    (b) The When section's two date/time buttons became ONE dropdown
+    button (same UI as the repeat dropdown) with the snooze dialog's
+    adaptive standard times -- in 1 h, today 09/12/18 while more than
+    10 min ahead, tomorrow 09/12/18, in 24 h -- plus "Pick date & time"
+    opening the picker flow, which now CHAINS date -> time as one gesture
+    (the old separate time button is gone, so the chain is the only path
+    to the time picker). (c) The Bedtime reminder section moved above
+    Timers in Settings (brace-matched block swap; order now Alarm series,
+    Single alarms, Bedtime, Timers, Reminders, Backup).
 
 ## Restarting this project in a new chat
 

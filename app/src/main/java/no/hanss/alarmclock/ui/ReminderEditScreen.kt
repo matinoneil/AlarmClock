@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.Reminder
@@ -160,6 +160,8 @@ fun ReminderEditScreen(
                         dueAtMillis = combineDateTime(utcToLocalMidnightMillis(utc), dueAtMillis)
                     }
                     showDatePicker = false
+                    // Custom flow is one gesture (#63): date, then time.
+                    showTimePicker = true
                 }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
@@ -227,31 +229,17 @@ fun ReminderEditScreen(
                     value = text,
                     onValueChange = { text = it },
                     label = { Text("What should I remind you about?") },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
             EditSection(title = if (isRepeating) "First occurrence" else "When") {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        onClick = { showDatePicker = true },
-                        modifier = Modifier.weight(1.4f).height(52.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(dateLabel(dueAtMillis), maxLines = 1)
-                    }
-                    OutlinedButton(
-                        onClick = { showTimePicker = true },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(Icons.Outlined.Schedule, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(timeLabel(dueAtMillis), maxLines = 1)
-                    }
-                }
+                WhenDropdown(
+                    dueAtMillis = dueAtMillis,
+                    onSelect = { dueAtMillis = it },
+                    onPickCustom = { showDatePicker = true }
+                )
                 if (dueInPast) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -426,6 +414,72 @@ fun ReminderEditScreen(
         }
     }
 }
+
+/**
+ * One big button for the first-fire time (#63), mirroring the snooze
+ * dialog's adaptive presets: today's standard slots (09/12/18) appear only
+ * while more than 10 minutes ahead, tomorrow's always, plus relative
+ * options and the custom date+time picker flow.
+ */
+@Composable
+private fun WhenDropdown(
+    dueAtMillis: Long,
+    onSelect: (Long) -> Unit,
+    onPickCustom: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("${dateLabel(dueAtMillis)}, ${timeLabel(dueAtMillis)}", maxLines = 1)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            val now = System.currentTimeMillis()
+            val options = buildList {
+                add("In 1 hour (${timeLabel(now + 60 * 60_000L)})" to (now + 60 * 60_000L))
+                for (hour in listOf(9, 12, 18)) {
+                    val t = todayAt(hour)
+                    if (t > now + 10 * 60_000L) add("Today at ${timeLabel(t)}" to t)
+                }
+                for (hour in listOf(9, 12, 18)) {
+                    val t = tomorrowAt(hour)
+                    add("Tomorrow at ${timeLabel(t)}" to t)
+                }
+                add("In 24 hours (${timeLabel(now + 24 * 60 * 60_000L)})" to (now + 24 * 60 * 60_000L))
+            }
+            options.forEach { (label, millis) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { expanded = false; onSelect(millis) }
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Pick date & time…") },
+                onClick = { expanded = false; onPickCustom() }
+            )
+        }
+    }
+}
+
+private fun todayAt(hour: Int): Long = Calendar.getInstance().apply {
+    set(Calendar.HOUR_OF_DAY, hour)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
+private fun tomorrowAt(hour: Int): Long = Calendar.getInstance().apply {
+    add(Calendar.DAY_OF_YEAR, 1)
+    set(Calendar.HOUR_OF_DAY, hour)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}.timeInMillis
 
 /**
  * Preset intervals for the unhandled-notification re-alert (#59). A stored
