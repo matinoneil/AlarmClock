@@ -953,6 +953,16 @@ entry #1.
     blurb also finally mentions reminders (they'd been IN the backup since
     #50; the copy lagged).
 
+57. **[OPEN] Swiped-away reminder notifications should come back sooner
+    (configurable).** Per the maintainer: today a swiped notification waits
+    for the 24 h re-remind. Intended fix: a deleteIntent on the reminder
+    notification (fires exactly on dismissal) rearms the reminder's single
+    scheduler slot at now + N minutes (Settings field in the Reminders
+    section, sensible default); when it fires, the normal ACTIVE re-post
+    path runs and re-arms the daily re-alert as usual. Notifications still
+    sitting in the shade keep the 24 h re-alert; same notification id
+    everywhere, so never a duplicate.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
