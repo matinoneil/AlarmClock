@@ -968,12 +968,16 @@ entry #1.
     everywhere, so never a duplicate. The setting rides in backups
     (tolerant read, default 30 for old files).
 
-58. **[OPEN] Re-show delay of 0 = instant.** Per the maintainer: allow the
-    #57 re-show setting to go to 0, meaning a swiped notification re-posts
-    immediately (effectively undismissable-in-practice). The instant re-post
-    must be SILENT (setSilent) -- an accidental swipe shouldn't ding -- and
-    still rearm the daily re-alert slot. Floor moves 1 -> 0 in SettingsStore,
-    backup read, and the Settings field copy.
+58. **Re-show delay of 0 = instant.** Per the maintainer: the #57 re-show
+    setting now accepts 0, meaning a swiped notification re-posts
+    IMMEDIATELY -- undismissable in practice, restoring true persistence on
+    Android 14+ where setOngoing alone no longer blocks the swipe. The
+    instant re-post is SILENT (post() gained an alert flag ->
+    setSilent(!alert)) so an accidental swipe never dings, and it rearms
+    the daily re-alert slot so the once-a-day sound cycle continues.
+    Non-zero values still go through the scheduler slot as before. Floor
+    moved 1 -> 0 in SettingsStore and the backup read; Settings copy now
+    explains the 0 case.
 
 ## Restarting this project in a new chat
 

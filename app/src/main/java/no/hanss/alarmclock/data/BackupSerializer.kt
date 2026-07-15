@@ -251,7 +251,7 @@ object BackupSerializer {
             defaultSeriesRampSeconds = settings.optInt("defaultSeriesRampSeconds", settings.optInt("defaultVolumeRampSeconds", 0)).coerceAtLeast(0),
             defaultSeriesSnoozeMinutes = settings.optInt("defaultSeriesSnoozeMinutes", settings.optInt("defaultSnoozeMinutes", 10)).coerceAtLeast(1),
             defaultSeriesVibrate = settings.optBoolean("defaultSeriesVibrate", settings.optBoolean("defaultAlarmVibrate", true)),
-            reminderReshowMinutes = settings.optInt("reminderReshowMinutes", 30).coerceAtLeast(1),
+            reminderReshowMinutes = settings.optInt("reminderReshowMinutes", 30).coerceAtLeast(0),
             defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true)
         )
     }

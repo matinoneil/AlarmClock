@@ -79,7 +79,7 @@ class SettingsStore(context: Context) {
     // daily re-alert for still-visible notifications is separate and fixed.
     var reminderReshowMinutes: Int
         get() = prefs.getInt(KEY_REMINDER_RESHOW, 30)
-        set(value) = prefs.edit().putInt(KEY_REMINDER_RESHOW, value.coerceAtLeast(1)).apply()
+        set(value) = prefs.edit().putInt(KEY_REMINDER_RESHOW, value.coerceAtLeast(0)).apply()
 
     private companion object {
         const val KEY_DEFAULT_ALARM_SOUND = "default_alarm_sound_uri"

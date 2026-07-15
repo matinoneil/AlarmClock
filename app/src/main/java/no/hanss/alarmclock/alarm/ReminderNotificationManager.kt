@@ -33,7 +33,7 @@ private const val REMINDER_NOTIFICATION_BASE = 4000
  */
 class ReminderNotificationManager(private val context: Context) {
 
-    fun post(reminder: Reminder) {
+    fun post(reminder: Reminder, alert: Boolean = true) {
         createChannel()
 
         val contentIntent = PendingIntent.getActivity(
@@ -102,6 +102,9 @@ class ReminderNotificationManager(private val context: Context) {
             // autoCancel -- only Done/Snooze should clear it.
             .setOngoing(true)
             .setDeleteIntent(swipedIntent)
+            // Silent for the instant swipe re-post (#58): the notification
+            // returns without a fresh ding for an accidental swipe.
+            .setSilent(!alert)
             .addAction(0, "Done", doneIntent)
             .addAction(0, "Snooze", snoozeIntent)
 

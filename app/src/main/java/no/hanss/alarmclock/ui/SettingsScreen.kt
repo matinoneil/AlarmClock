@@ -495,13 +495,13 @@ fun SettingsScreen(
                     onValueChange = {
                         reshowText = it.filter(Char::isDigit).take(4)
                         reshowText.toIntOrNull()?.let { v ->
-                            if (v >= 1) viewModel.settings.reminderReshowMinutes = v
+                            viewModel.settings.reminderReshowMinutes = v
                         }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     label = { Text("Bring back a swiped-away reminder after (minutes)") },
-                    supportingText = { Text("A reminder notification you dismiss without marking done returns after this long. One still showing re-alerts once a day.") },
+                    supportingText = { Text("0 = instantly (and silently), so the reminder can't be swiped away. One still showing re-alerts once a day.") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))

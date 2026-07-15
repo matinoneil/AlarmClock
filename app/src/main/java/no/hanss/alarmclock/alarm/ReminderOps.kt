@@ -89,8 +89,15 @@ object ReminderOps {
         val dao = AlarmDatabase.getInstance(context).reminderDao()
         val reminder = dao.getReminder(reminderId) ?: return@withLock
         if (reminder.state != Reminder.STATE_ACTIVE) return@withLock
-        val delayMillis = SettingsStore(context).reminderReshowMinutes * 60_000L
-        ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + delayMillis)
+        val minutes = SettingsStore(context).reminderReshowMinutes
+        if (minutes == 0) {
+            // Instant (#58): straight back, silently -- no ding for an
+            // accidental swipe -- and the daily re-alert stays armed.
+            ReminderNotificationManager(context).post(reminder, alert = false)
+            ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + REREMIND_MILLIS)
+        } else {
+            ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + minutes * 60_000L)
+        }
     }
 
     /**
