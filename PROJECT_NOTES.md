@@ -931,6 +931,16 @@ entry #1.
     history between occurrences instead: recommended against (a card that
     fades out and later pops back), but this is where to revisit.
 
+55. **[OPEN] Delete a reminder -> history, not erasure.** Per the maintainer:
+    deleting a reminder (recurring included) should land it in the faded
+    history instead of removing it from the database. Intended semantics:
+    delete on a PENDING/ACTIVE reminder cancels its notification/scheduling
+    and sets STATE_DONE (repeat fields kept for the faded card's label);
+    delete on an already-DONE reminder, and Clear history, remain the real
+    erase. Editing a history card and saving re-arms it, so history doubles
+    as an undo path. Editor dialog wording changes to match ("moves to
+    history" vs "can't be undone").
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
