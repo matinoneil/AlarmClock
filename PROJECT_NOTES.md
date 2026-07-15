@@ -945,6 +945,11 @@ entry #1.
     for live reminders, "Delete permanently? This can't be undone." for
     history rows.
 
+56. **[OPEN] Clear history moves to Settings.** Per the maintainer: the
+    Clear history button leaves the reminders list and becomes a Settings
+    entry (with the same count-stating confirm from #52). The history
+    section then reads as pure content -- faded cards only.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
