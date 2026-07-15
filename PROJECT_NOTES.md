@@ -968,6 +968,13 @@ entry #1.
     everywhere, so never a duplicate. The setting rides in backups
     (tolerant read, default 30 for old files).
 
+58. **[OPEN] Re-show delay of 0 = instant.** Per the maintainer: allow the
+    #57 re-show setting to go to 0, meaning a swiped notification re-posts
+    immediately (effectively undismissable-in-practice). The instant re-post
+    must be SILENT (setSilent) -- an accidental swipe shouldn't ding -- and
+    still rearm the daily re-alert slot. Floor moves 1 -> 0 in SettingsStore,
+    backup read, and the Settings field copy.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
