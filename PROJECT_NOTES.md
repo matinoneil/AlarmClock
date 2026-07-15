@@ -1008,6 +1008,17 @@ entry #1.
     and this); backup rides with tolerant read (default -1); the Settings
     field is reframed as the default each reminder can override.
 
+61. **[OPEN] One-and-done toggle.** Per the maintainer: a per-reminder
+    switch to disable BOTH persistence mechanisms -- "Keep reminding until
+    done", default ON. Off: notification posts once as a normal
+    dismissable notification (not ongoing, autoCancel), fire() arms no
+    re-alert, and swiping it away counts as DONE (one-shot -> history,
+    repeating -> rolls) so nothing gets stuck ACTIVE forever. Editor hides
+    the two #59/#60 dropdowns when off. New persistent column (DEFAULT 1),
+    DB v11->12; backup with tolerant read. Mutex note: swipe->done reuses
+    markDone's body via a shared locked-path helper, NOT a nested markDone
+    call -- the ops Mutex is not reentrant.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
