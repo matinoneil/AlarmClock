@@ -1117,12 +1117,14 @@ entry #1.
     list thins naturally through the day. Tomorrow stays 09/12/18
     (morning/afternoon/evening) in both, keeping the menus short.
 
-68. **[OPEN] Bed icon for the bedtime notification.** Per the maintainer:
-    the bedtime reminder currently shares the generic alarm status-bar
-    icon; give it a bed. Add a monochrome vector (Material bed glyph) as
-    res/drawable/ic_notification_bed.xml and point
-    BedtimeNotificationManager's setSmallIcon at it. Other notifications
-    keep their icons.
+68. **Bed icon for the bedtime notification.** Per the maintainer: the
+    bedtime reminder shared the generic alarm status-bar icon. Now it has
+    the Material king-bed glyph as a monochrome vector
+    (res/drawable/ic_notification_bed.xml, stock path data, white fill +
+    colorControlNormal tint -- status-bar icons render as alpha
+    silhouettes) and BedtimeNotificationManager points its setSmallIcon
+    at it. First app-local drawable used as a notification icon; alarms,
+    timers, and reminders keep their existing system icons.
 
 ## Restarting this project in a new chat
 

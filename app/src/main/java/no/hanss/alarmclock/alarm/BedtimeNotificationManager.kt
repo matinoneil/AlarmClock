@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import no.hanss.alarmclock.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -128,7 +129,7 @@ class BedtimeNotificationManager(private val context: Context) {
         // alarm time moves to the header so it stays visible either way (#48).
         val custom = settings.bedtimeMessage.trim()
         val builder = NotificationCompat.Builder(context, BEDTIME_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_notification_bed)
             .setContentTitle("Bedtime")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
