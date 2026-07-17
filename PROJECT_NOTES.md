@@ -1117,6 +1117,13 @@ entry #1.
     list thins naturally through the day. Tomorrow stays 09/12/18
     (morning/afternoon/evening) in both, keeping the menus short.
 
+68. **[OPEN] Bed icon for the bedtime notification.** Per the maintainer:
+    the bedtime reminder currently shares the generic alarm status-bar
+    icon; give it a bed. Add a monochrome vector (Material bed glyph) as
+    res/drawable/ic_notification_bed.xml and point
+    BedtimeNotificationManager's setSmallIcon at it. Other notifications
+    keep their icons.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
