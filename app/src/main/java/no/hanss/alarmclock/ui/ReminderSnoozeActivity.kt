@@ -93,12 +93,17 @@ private fun todayAt(hour: Int): Long = Calendar.getInstance().apply {
 private fun buildOptions(now: Long): List<SnoozeOption> {
     val dayMillis = 24L * 60 * 60 * 1000
     val options = mutableListOf(SnoozeOption("In 1 hour (${hhmm(now + 3_600_000L)})", now + 3_600_000L))
-    val slots = listOf(9 to "morning", 12 to "afternoon", 18 to "evening")
-    for ((hour, name) in slots) {
+    // Five today slots (#67) so one is always within ~3 h; tomorrow keeps
+    // three to hold the menu's length down.
+    val todaySlots = listOf(
+        9 to "This morning", 12 to "Midday", 15 to "This afternoon",
+        18 to "This evening", 21 to "Tonight"
+    )
+    for ((hour, label) in todaySlots) {
         val at = todayAt(hour)
-        if (at - now >= MIN_LEAD_MILLIS) options += SnoozeOption("This $name (${"%02d:00".format(hour)})", at)
+        if (at - now >= MIN_LEAD_MILLIS) options += SnoozeOption("$label (${"%02d:00".format(hour)})", at)
     }
-    for ((hour, name) in slots) {
+    for ((hour, name) in listOf(9 to "morning", 12 to "afternoon", 18 to "evening")) {
         options += SnoozeOption("Tomorrow $name (${"%02d:00".format(hour)})", todayAt(hour) + dayMillis)
     }
     options += SnoozeOption("In 24 hours (${hhmm(now + dayMillis)})", now + dayMillis)

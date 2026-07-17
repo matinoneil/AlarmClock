@@ -523,7 +523,9 @@ private fun WhenDropdown(
             val now = System.currentTimeMillis()
             val options = buildList {
                 add("In 1 hour (${timeLabel(now + 60 * 60_000L)})" to (now + 60 * 60_000L))
-                for (hour in listOf(9, 12, 18)) {
+                // Five slots (#67): one is always within ~3 h, and the list
+                // thins out naturally as the day passes.
+                for (hour in listOf(9, 12, 15, 18, 21)) {
                     val t = todayAt(hour)
                     if (t > now + 10 * 60_000L) add("Today at ${timeLabel(t)}" to t)
                 }
