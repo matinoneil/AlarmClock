@@ -1120,11 +1120,19 @@ entry #1.
 68. **Bed icon for the bedtime notification.** Per the maintainer: the
     bedtime reminder shared the generic alarm status-bar icon. Now it has
     the Material king-bed glyph as a monochrome vector
-    (res/drawable/ic_notification_bed.xml, stock path data, white fill +
-    colorControlNormal tint -- status-bar icons render as alpha
-    silhouettes) and BedtimeNotificationManager points its setSmallIcon
-    at it. First app-local drawable used as a notification icon; alarms,
-    timers, and reminders keep their existing system icons.
+    (res/drawable/ic_notification_bed.xml, stock path data, white fill --
+    status-bar icons render as alpha silhouettes) and
+    BedtimeNotificationManager points its setSmallIcon at it. First
+    app-local drawable used as a notification icon; alarms, timers, and
+    reminders keep their existing system icons. BROKE THE BUILD on first
+    push: the vector carried android:tint="?attr/colorControlNormal" --
+    an APPCOMPAT attr, and this is a pure-Compose app with NO appcompat
+    dependency, so AAPT2 failed resource linking on both the push and
+    V2.1.4 release builds (no APK attached). Fix: drop the tint entirely
+    (the system tints notification icons anyway). Lesson for all future
+    drawables: no ?attr/ references from appcompat/material XML
+    namespaces here -- framework ?android:attr/ or nothing. V2.1.4 was
+    deleted and recreated on the fixed commit.
 
 ## Restarting this project in a new chat
 
