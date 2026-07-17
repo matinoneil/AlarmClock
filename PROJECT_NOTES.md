@@ -1108,6 +1108,13 @@ entry #1.
     proportionate; the rest of the launch chain (notifications, exact
     alarms, DND access, overlay) is unchanged.
 
+67. **[OPEN] Denser same-day time suggestions.** Per the maintainer (at
+    14:00 the only today option left was 18:00): today's preset slots in
+    the editor's When dropdown widen from 09/12/18 to 09/12/15/18/21,
+    still hidden within ~10 min of passing, so a slot is always within
+    ~3 h. The snooze dialog gets the same spread for parity. Tomorrow
+    stays 09/12/18 to keep both menus short.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
