@@ -1143,7 +1143,18 @@ entry #1.
     share ALARMS) / TIMERS -- so the system only ever stacks like with
     like: three reminders may stack with each other, but the bed and the
     alarm never join them. minSdk 26, so single-child groups render as
-    plain notifications without needing summaries.
+    plain notifications without needing summaries. FIELD-TESTED OUTCOME
+    (maintainer, on-device): Android 12+ still draws all of one app's
+    notifications as a single collapsible shade section when there's more
+    than one -- collapsed row borrows the newest member's icon, expanded
+    children render without individual small icons. That's OS shade
+    design, NOT actual merging (expanding shows the separate entries),
+    and it sits above group keys. DO NOT retry per-category summary
+    notifications: on per-app sectioning they change nothing and add
+    permanent chrome. The group keys keep their real job (only like
+    fuses with like). Accepted state: single-notification case (the
+    maintainer's usual) shows each icon cleanly; heads-up popups are
+    unaffected either way.
 
 ## Restarting this project in a new chat
 
