@@ -205,7 +205,7 @@ private fun ReminderCard(
             // from one still waiting.
             if (isActive) {
                 Text(
-                    "Reminding — waiting for Done",
+                    "Reminding",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.tertiary
                 )
