@@ -93,6 +93,7 @@ class TimerNotificationManager(private val context: Context) {
 
         val notification = NotificationCompat.Builder(context, RUNNING_TIMER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setGroup("no.hanss.alarmclock.TIMERS")
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(contentView())
             .setCustomBigContentView(contentView())

@@ -116,6 +116,7 @@ class UpcomingAlarmManager(private val context: Context) {
 
         val notification = NotificationCompat.Builder(context, UPCOMING_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setGroup("no.hanss.alarmclock.ALARMS")
             .setContentTitle("Upcoming alarm")
             .setContentText(title)
             .setPriority(NotificationCompat.PRIORITY_LOW)

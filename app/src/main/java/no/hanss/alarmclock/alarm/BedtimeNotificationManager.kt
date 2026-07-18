@@ -130,6 +130,7 @@ class BedtimeNotificationManager(private val context: Context) {
         val custom = settings.bedtimeMessage.trim()
         val builder = NotificationCompat.Builder(context, BEDTIME_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_bed)
+            .setGroup("no.hanss.alarmclock.BEDTIME")
             .setContentTitle("Bedtime")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

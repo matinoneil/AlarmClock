@@ -520,6 +520,7 @@ class AlarmRingtoneService : Service() {
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setGroup("no.hanss.alarmclock.ALARMS")
             .setContentTitle(if (isTimer) "Timer" else "Alarm")
             .setContentText("Tap to open")
             .setPriority(NotificationCompat.PRIORITY_HIGH)

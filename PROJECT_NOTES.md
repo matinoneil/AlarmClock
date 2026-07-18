@@ -1134,14 +1134,16 @@ entry #1.
     namespaces here -- framework ?android:attr/ or nothing. V2.1.4 was
     deleted and recreated on the fixed commit.
 
-69. **[OPEN] Per-category notification groups.** Per the maintainer: each
+69. **Per-category notification groups.** Per the maintainer: each
     notification type should stay its own entry in the shade. They already
-    are separate (ids/channels/icons), but Android force-bundles 4+
+    were separate (ids/channels/icons), but Android force-bundles 4+
     ungrouped notifications from one app into a single stack, which can
-    visually merge types. Fix: setGroup per category -- "reminders",
-    "bedtime", "alarms" (upcoming + ringing), "timers" -- so the system
-    only ever stacks like with like. minSdk 26, so single-child groups
-    render as plain notifications without needing summaries.
+    visually merge types. Now every builder sets a category group --
+    no.hanss.alarmclock.REMINDERS / BEDTIME / ALARMS (upcoming + ringing
+    share ALARMS) / TIMERS -- so the system only ever stacks like with
+    like: three reminders may stack with each other, but the bed and the
+    alarm never join them. minSdk 26, so single-child groups render as
+    plain notifications without needing summaries.
 
 ## Restarting this project in a new chat
 

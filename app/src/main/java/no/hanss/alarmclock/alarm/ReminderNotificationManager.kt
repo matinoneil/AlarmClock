@@ -102,6 +102,7 @@ class ReminderNotificationManager(private val context: Context) {
             // autoCancel -- only Done/Snooze should clear it. One-and-done
             // reminders (#61) invert both: a normal notification, gone on
             // tap or swipe (the swipe deleteIntent then marks it done).
+            .setGroup("no.hanss.alarmclock.REMINDERS")
             .setOngoing(reminder.persistent)
             .setAutoCancel(!reminder.persistent)
             .setDeleteIntent(swipedIntent)
