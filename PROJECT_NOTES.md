@@ -1156,6 +1156,27 @@ entry #1.
     maintainer's usual) shows each icon cleanly; heads-up popups are
     unaffected either way.
 
+70. **[OPEN] Tapping the Quick Settings alarm chip FIRED the alarm instead of
+    opening the app.** Reported: pressing the alarm shortcut in the shade
+    (swipe down twice) made the alarm go off there and then -- which for a
+    one-shot also consumes it (`enabled = false` on fire, 0.2), so the real
+    wake-up would have been missed the next morning. Cause found, not
+    suspected: `AlarmClockInfo(triggerAtMillis, pendingIntent)`'s second
+    argument is the **showIntent** -- the intent the SYSTEM launches when the
+    user taps that chip -- and both AlarmScheduler.setAlarmManagerEntry and
+    TimerScheduler.schedule pass the very same broadcast PendingIntent they
+    hand to setAlarmClock as the fire operation. So the chip broadcasts to
+    AlarmReceiver/TimerReceiver: identical to a real firing, indistinguishable
+    from one downstream. Present since setAlarmClock was first used; only
+    reachable by tapping the chip, which is why it survived this long.
+    Intended fix: a separate ACTIVITY PendingIntent to MainActivity as the
+    showIntent (NEW_TASK/CLEAR_TOP/SINGLE_TOP per #8), with its own request
+    code and a distinct action so filterEquals can never fuse it with the
+    fire intent or with the widget's request-code-0 launch intent. Timers get
+    the same treatment. Deliberately NOT deep-linking to the specific
+    alarm/timer or tab: the chip means "show me my alarms", MainActivity has
+    no tab deep-link plumbing, and adding it is a separate change.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
