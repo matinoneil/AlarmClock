@@ -6,11 +6,21 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import java.util.Calendar
+import no.hanss.alarmclock.MainActivity
 import no.hanss.alarmclock.data.Alarm
 
 private const val TAG = "AlarmScheduler"
 
 const val EXTRA_ALARM_ID = "extra_alarm_id"
+
+/**
+ * Request-code namespace for the AlarmClockInfo *showIntent* (the Quick Settings
+ * alarm chip). Kept well clear of the fire PendingIntents' request codes (the raw
+ * alarm id) and of the widget's request code 0.
+ */
+private const val SHOW_INTENT_REQUEST_BASE = 800000
+
+private const val ACTION_SHOW_ALARM = "no.hanss.alarmclock.SHOW_ALARM"
 
 /**
  * Schedules and cancels individual alarms with the system AlarmManager.
@@ -55,7 +65,11 @@ class AlarmScheduler(private val context: Context) {
         // inexact set() (may fire minutes late under Doze) rather than not arming
         // the alarm at all.
         try {
-            val info = AlarmManager.AlarmClockInfo(triggerAtMillis, pendingIntent)
+            // The AlarmClockInfo's second argument is the showIntent: what the SYSTEM
+            // launches when the user taps the alarm chip in Quick Settings. It must NOT
+            // be the fire PendingIntent -- passing that made the chip ring the alarm
+            // on the spot (entry #70).
+            val info = AlarmManager.AlarmClockInfo(triggerAtMillis, createShowIntent(alarmId))
             alarmManager.setAlarmClock(info, pendingIntent)
         } catch (e: Exception) {
             Log.e(TAG, "setAlarmClock failed (exact-alarm permission revoked?); falling back to inexact set()", e)
@@ -65,6 +79,26 @@ class AlarmScheduler(private val context: Context) {
                 Log.e(TAG, "Fallback inexact set() also failed; alarm $alarmId is NOT armed", e2)
             }
         }
+    }
+
+    /**
+     * Opens the app when the user taps the Quick Settings alarm chip. Activity (not
+     * broadcast) PendingIntent, with the #8 flag set so it reuses any existing
+     * MainActivity rather than stacking a second one. The distinct action plus the
+     * namespaced request code keep it filterEquals-distinct from the fire intent and
+     * from the widget's launch intent.
+     */
+    private fun createShowIntent(alarmId: Long): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_SHOW_ALARM
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        return PendingIntent.getActivity(
+            context, SHOW_INTENT_REQUEST_BASE + alarmId.toInt(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun intentFor(alarmId: Long): Intent =

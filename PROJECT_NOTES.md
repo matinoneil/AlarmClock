@@ -1156,26 +1156,32 @@ entry #1.
     maintainer's usual) shows each icon cleanly; heads-up popups are
     unaffected either way.
 
-70. **[OPEN] Tapping the Quick Settings alarm chip FIRED the alarm instead of
-    opening the app.** Reported: pressing the alarm shortcut in the shade
-    (swipe down twice) made the alarm go off there and then -- which for a
-    one-shot also consumes it (`enabled = false` on fire, 0.2), so the real
-    wake-up would have been missed the next morning. Cause found, not
-    suspected: `AlarmClockInfo(triggerAtMillis, pendingIntent)`'s second
-    argument is the **showIntent** -- the intent the SYSTEM launches when the
+70. **Tapping the Quick Settings alarm chip FIRED the alarm instead of opening
+    the app.** Reported: pressing the alarm shortcut in the shade (swipe down
+    twice) made the alarm go off on the spot -- and because a one-shot flips to
+    `enabled = false` the instant it fires (0.2), the tap also CONSUMED the
+    next morning's wake-up. Cause: `AlarmClockInfo`'s second constructor
+    argument is the **showIntent**, the intent the SYSTEM launches when the
     user taps that chip -- and both AlarmScheduler.setAlarmManagerEntry and
-    TimerScheduler.schedule pass the very same broadcast PendingIntent they
-    hand to setAlarmClock as the fire operation. So the chip broadcasts to
-    AlarmReceiver/TimerReceiver: identical to a real firing, indistinguishable
-    from one downstream. Present since setAlarmClock was first used; only
-    reachable by tapping the chip, which is why it survived this long.
-    Intended fix: a separate ACTIVITY PendingIntent to MainActivity as the
-    showIntent (NEW_TASK/CLEAR_TOP/SINGLE_TOP per #8), with its own request
-    code and a distinct action so filterEquals can never fuse it with the
-    fire intent or with the widget's request-code-0 launch intent. Timers get
-    the same treatment. Deliberately NOT deep-linking to the specific
-    alarm/timer or tab: the chip means "show me my alarms", MainActivity has
-    no tab deep-link plumbing, and adding it is a separate change.
+    TimerScheduler.schedule passed the very same broadcast PendingIntent they
+    hand to setAlarmClock as the fire operation. The chip therefore broadcast
+    to AlarmReceiver/TimerReceiver: byte-identical to a real firing and
+    indistinguishable from one downstream, so every guard and recovery path
+    behaved perfectly on an alarm that was never due. Present since
+    setAlarmClock was first used; only reachable by tapping the chip, hence
+    surviving 69 entries. Fix: a dedicated activity PendingIntent to
+    MainActivity as the showIntent (`createShowIntent`, one per scheduler),
+    NEW_TASK/CLEAR_TOP/SINGLE_TOP per #8, with its own request-code namespace
+    (800000+id for alarms, 810000+id for timers) and a distinct action, so
+    filterEquals can never fuse it with the fire intent or with the widget's
+    request-code-0 launch intent. No DB, scheduling, or ring-path change --
+    the operation PendingIntent handed to setAlarmClock is untouched, so when
+    and how alarms actually ring is bit-for-bit as before. Deliberately NOT
+    deep-linked to the specific alarm/timer or its tab: the chip means "show
+    me my alarms", MainActivity has no tab deep-link plumbing, and adding it
+    is its own change. Lesson: any AlarmManager API taking two PendingIntents
+    is worth a second look at which one is which -- the wrong assignment here
+    type-checked, compiled, and armed alarms correctly.
 
 ## Restarting this project in a new chat
 

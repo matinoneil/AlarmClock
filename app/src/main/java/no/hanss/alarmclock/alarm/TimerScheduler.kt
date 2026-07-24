@@ -5,11 +5,17 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import no.hanss.alarmclock.MainActivity
 import no.hanss.alarmclock.data.TimerPreset
 
 private const val TAG = "TimerScheduler"
 
 const val EXTRA_TIMER_ID = "extra_timer_id"
+
+/** Request-code namespace for the showIntent; see AlarmScheduler and entry #70. */
+private const val SHOW_INTENT_REQUEST_BASE = 810000
+
+private const val ACTION_SHOW_TIMER = "no.hanss.alarmclock.SHOW_TIMER"
 
 /**
  * Arms/cancels running countdown timers with AlarmManager, mirroring
@@ -35,7 +41,10 @@ class TimerScheduler(private val context: Context) {
         // reminders" on Android 12/13 -- a timer must degrade to an inexact
         // set() rather than crash or silently not ring.
         try {
-            val info = AlarmManager.AlarmClockInfo(triggerAtMillis, pendingIntent)
+            // showIntent must open the app, never be the fire PendingIntent: the
+            // Quick Settings chip launches it, and passing the fire intent made a tap
+            // end the countdown early with a full ring (entry #70).
+            val info = AlarmManager.AlarmClockInfo(triggerAtMillis, createShowIntent(timer.id))
             alarmManager.setAlarmClock(info, pendingIntent)
         } catch (e: Exception) {
             Log.e(TAG, "setAlarmClock failed for timer ${timer.id} (exact-alarm permission revoked?); falling back to inexact set()", e)
@@ -45,6 +54,20 @@ class TimerScheduler(private val context: Context) {
                 Log.e(TAG, "Fallback inexact set() also failed; timer ${timer.id} is NOT armed", e2)
             }
         }
+    }
+
+    /** Opens the app when the user taps the Quick Settings chip; see AlarmScheduler. */
+    private fun createShowIntent(timerId: Long): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_SHOW_TIMER
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        return PendingIntent.getActivity(
+            context, SHOW_INTENT_REQUEST_BASE + timerId.toInt(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     fun cancel(timer: TimerPreset) = cancel(timer.id)
