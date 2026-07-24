@@ -1183,6 +1183,41 @@ entry #1.
     is worth a second look at which one is which -- the wrong assignment here
     type-checked, compiled, and armed alarms correctly.
 
+71. **[OPEN] Full-codebase review batch (#11/#20 spirit): ten findings, no
+    reported symptom for any of them.** Reviewed on request after #70. The
+    codebase held its guard discipline nearly everywhere; these are the gaps.
+    (a) The three fire-path receivers (AlarmReceiver, TimerReceiver,
+    ReminderReceiver) use try/finally with NO catch inside a bare
+    CoroutineScope(Dispatchers.IO) with no handler, so any throw reaches the
+    default handler and kills the PROCESS -- which in AlarmReceiver means
+    killing the ringing service it just started, since the reschedule,
+    upcoming-notification refresh and widget update all run after
+    startForegroundService. Worst case for a repeating alarm: next occurrence
+    never armed. (b) Vibration passes no attributes, so it defaults to
+    USAGE_UNKNOWN and DND suppresses it -- the haptics-only case (sound
+    failed, #6) degrades to nothing; and the unguarded vibrator block sits
+    BEFORE the overlay show, so a throw there (no vibrator hardware, the
+    VibratorManager cast) silently costs the overlay UI. (c) BootReceiver
+    clears the ringing marker with apply() where #13 mandates commit() -- the
+    one place that invariant is broken, and it is the dangerous direction (a
+    lost clear re-rings a dismissed alarm at next boot). (d) exportSchema was
+    false, so a missing migration is invisible in review; destructive fallback
+    STAYS per the standing wipe-beats-crash preference. (e) allowBackup was
+    true with both rule files empty, i.e. the default: whole Room DB (reminder
+    text, alarm labels) plus prefs to Google cloud backup, in tension with
+    #46's no-INTERNET privacy property. (f) BootReceiver does every alarm,
+    series, timer and reminder in one goAsync, against a ~10s broadcast
+    budget. (g) The specialUse service lacked its documented
+    PROPERTY_SPECIAL_USE_FGS_SUBTYPE property (no breakage: holding
+    USE_EXACT_ALARM qualifies the app for the type). (h) WAKE_LOCK declared,
+    never used. (i) SCHEDULE_EXACT_ALARM lacked maxSdkVersion=32 beside
+    USE_EXACT_ALARM. (j) Four unguarded startActivity calls in the permission
+    chain (ActivityNotFoundException on an OEM missing a settings screen = a
+    crash on launch), and the chain sits in LaunchedEffect(Unit) inside
+    setContent so it re-fires on rotation rather than once per launch.
+    Intended fixes as listed; the uncapped series expansion on restore
+    (finding 20b) is deliberately left alone per the maintainer.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
