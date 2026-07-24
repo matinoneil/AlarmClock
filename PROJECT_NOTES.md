@@ -1247,6 +1247,26 @@ entry #1.
     reachable from restore (finding 20b). Nothing here changes the DB schema,
     scheduling math, or the ring path.
 
+72. **[OPEN] With no alarm set, the Quick Settings alarm chip opened the stock
+    Clock app.** Reported alongside #70 and a DIFFERENT mechanism, which is why
+    #70's fix didn't cover it. The chip has two behaviors: with an alarm armed
+    it launches the showIntent of whichever app set the SOONEST
+    AlarmClockInfo (that's #70's territory); with nothing armed there is no
+    showIntent, so the system fires ACTION_SHOW_ALARMS and resolves it against
+    installed apps. This app declared no filter for that action, so it was
+    never a candidate and the preinstalled Clock app won by default. Intended
+    fix: an ACTION_SHOW_ALARMS + category.DEFAULT intent-filter on MainActivity,
+    which is what Android's own alarm-clock guidance asks any alarm app to
+    declare. Expected caveats, both outside the app's control: with two
+    handlers installed Android shows a disambiguation dialog until the user
+    picks "always", and some OEM Quick Settings panels launch their clock
+    package directly instead of resolving the intent, in which case no manifest
+    change can redirect it. Deliberately NOT also declaring ACTION_SET_ALARM /
+    ACTION_SET_TIMER (the "Assistant, set an alarm for 7" handlers): those need
+    an activity gated on com.android.alarm.permission.SET_ALARM and a UI path
+    for externally-supplied alarm parameters, which is a feature, not a
+    manifest line.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
