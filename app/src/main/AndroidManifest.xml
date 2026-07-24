@@ -31,6 +31,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Makes this app a candidate for "show me the alarms". The Quick
+                 Settings alarm chip launches the next alarm's showIntent when one is
+                 armed, but falls back to resolving this action when nothing is set,
+                 which is why the stock Clock app used to win then (entry #72).
+                 MainActivity already opens on the Alarms tab, so no extra handling is
+                 needed. Adds no new exposure: the activity is already exported for
+                 the launcher. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SHOW_ALARMS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <!-- Full-screen ringing UI. showWhenLocked/turnScreenOn cover the lock-screen alarm case. -->
