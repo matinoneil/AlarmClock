@@ -1,3 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy (pre Android 12) counterpart to data_extraction_rules.xml. Inert while
+     android:allowBackup is false; kept explicit so enabling backup later cannot
+     silently start uploading the database. -->
 <full-backup-content>
+    <exclude domain="root" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
 </full-backup-content>

@@ -102,6 +102,10 @@ class SeriesUnpauseReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 SeriesUnpauseOps.unpause(context, seriesId)
+            } catch (e: Exception) {
+                // No exception handler on a bare CoroutineScope: an escaping throw
+                // would kill the process (entry #71a). Log and finish cleanly.
+                Log.e(TAG, "Failed during series unpause", e)
             } finally {
                 pendingResult.finish()
             }

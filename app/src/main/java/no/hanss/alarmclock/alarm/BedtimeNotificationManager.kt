@@ -176,6 +176,10 @@ class BedtimeReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 BedtimeNotificationManager(context).refresh()
+            } catch (e: Exception) {
+                // No exception handler on a bare CoroutineScope: an escaping throw
+                // would kill the process (entry #71a). Log and finish cleanly.
+                Log.e(TAG, "Failed refreshing the bedtime reminder", e)
             } finally {
                 pendingResult.finish()
             }

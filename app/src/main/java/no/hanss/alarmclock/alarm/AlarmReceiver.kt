@@ -3,12 +3,15 @@ package no.hanss.alarmclock.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.os.Build
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.AlarmDatabase
 import no.hanss.alarmclock.widget.AlarmWidgetUpdater
+
+private const val TAG = "AlarmReceiver"
 
 class AlarmReceiver : BroadcastReceiver() {
 
@@ -62,6 +65,12 @@ class AlarmReceiver : BroadcastReceiver() {
                     }
                     AlarmWidgetUpdater.updateAll(context)
                 }
+            } catch (e: Exception) {
+                // A bare CoroutineScope has no exception handler, so an escaping
+                // throw would reach the default handler and kill the PROCESS --
+                // taking the ringing service down with it (entry #71a). Log and
+                // let the broadcast finish cleanly instead.
+                Log.e(TAG, "Failed handling alarm $alarmId", e)
             } finally {
                 pendingResult.finish()
             }

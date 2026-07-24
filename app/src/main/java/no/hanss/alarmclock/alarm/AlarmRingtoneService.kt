@@ -13,6 +13,7 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -317,14 +318,44 @@ class AlarmRingtoneService : Service() {
 
         val vibrateEnabled = alarm?.vibrate ?: true
         if (vibrateEnabled) {
-            vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            // Wrapped whole: a device with no vibrator hardware makes the
+            // VibratorManager cast throw, and this block sits BEFORE the overlay
+            // window below -- an escaping throw here used to cost the ringing UI
+            // entirely (entry #71b). Vibration is the least important of the three
+            // ring channels; it must never take the other two with it.
+            try {
+                vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                }
+                val pattern = longArrayOf(0, 800, 500)
+                val effect = VibrationEffect.createWaveform(pattern, 0)
+                // The attribute-less vibrate() overload defaults to USAGE_UNKNOWN,
+                // which Do Not Disturb and silent mode SUPPRESS -- so an alarm whose
+                // sound failed to load (entry #6) would have degraded to nothing at
+                // all under DND. Declaring alarm usage is what exempts it.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    vibrator?.vibrate(
+                        effect,
+                        VibrationAttributes.Builder()
+                            .setUsage(VibrationAttributes.USAGE_ALARM)
+                            .build()
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(
+                        effect,
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Vibration setup failed; ringing without vibration", e)
             }
-            val pattern = longArrayOf(0, 800, 500)
-            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
         }
 
         if (Settings.canDrawOverlays(applicationContext)) {

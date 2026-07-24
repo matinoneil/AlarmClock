@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Cloud backup is off entirely via android:allowBackup="false" in the manifest:
+     the alarm database holds reminder text and alarm labels, and the app has its
+     own explicit JSON backup/restore in Settings, so shipping a copy to Google
+     adds no capability the user lacks. Direct device to device transfer is left
+     enabled on purpose: it stays between the two phones, and it is what makes
+     alarms survive moving to a new handset. -->
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
     </cloud-backup>
 </data-extraction-rules>

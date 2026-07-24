@@ -79,6 +79,16 @@ android {
     }
 }
 
+// Room writes the schema JSON for every DB version here. exportSchema is on
+// (entry #71d) so a version bump that forgets its Migration shows up as a schema
+// diff in review instead of silently wiping every alarm through the destructive
+// fallback, which stays in place deliberately. NOTE: the JSON is emitted at BUILD
+// time, so schemas/ only populates once someone builds; commit it to get the
+// review benefit.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     // Core / Compose
     implementation("androidx.core:core-ktx:1.13.1")

@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class, Reminder::class], version = 12, exportSchema = false)
+@Database(entities = [Alarm::class, AlarmSeries::class, TimerPreset::class, Reminder::class], version = 12, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao

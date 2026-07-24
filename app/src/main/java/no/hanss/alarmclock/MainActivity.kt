@@ -6,11 +6,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,6 +27,8 @@ import no.hanss.alarmclock.ui.SettingsScreen
 import no.hanss.alarmclock.ui.TimerEditScreen
 import no.hanss.alarmclock.ui.theme.AlarmClockTheme
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
+
+private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
 
@@ -47,60 +49,80 @@ class MainActivity : ComponentActivity() {
             !getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent()
     }
 
+    /**
+     * Opens a system settings screen, tolerating its absence. Not every OEM build
+     * ships every one of these (the exact-alarm and full-screen-intent screens are
+     * the usual offenders), and an unguarded startActivity there means
+     * ActivityNotFoundException -- i.e. the app crashes on launch over a permission
+     * it only needs for a degraded-but-working feature. Never worth a crash.
+     */
+    private fun safeStartActivity(intent: Intent): Boolean =
+        try {
+            startActivity(intent)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "No activity available for ${intent.action}", e)
+            false
+        }
+
+    /**
+     * Requests the FIRST still-missing permission and stops, ordered by how
+     * alarm-critical it is; the next one comes up on the next launch. Firing several
+     * back-to-back stacks settings screens on top of each other (entries #15, #22).
+     */
+    private fun requestNextMissingPermission() {
+        val notificationManager = getSystemService(android.app.NotificationManager::class.java)
+
+        // POST_NOTIFICATIONS is the first link. Capped at two attempts: after two
+        // denials Android stops showing the dialog at all -- launch() no-ops straight
+        // to a denied callback -- and without the cap the chain would stall here
+        // forever, never reaching the settings screens below.
+        val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val permPrefs = getSharedPreferences("permission_flow", MODE_PRIVATE)
+        val notificationAsks = permPrefs.getInt("notification_permission_asks", 0)
+
+        if (!notificationsGranted && notificationAsks < 2) {
+            permPrefs.edit().putInt("notification_permission_asks", notificationAsks + 1).apply()
+            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else if (!viewModel.canScheduleExactAlarms() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            safeStartActivity(
+                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            )
+        } else if (!notificationManager.isNotificationPolicyAccessGranted) {
+            // Changing the alarm volume for the ramp feature throws a SecurityException
+            // on many devices if Do Not Disturb/a focus mode is active and this
+            // permission hasn't been granted -- the ramp then silently falls back to a
+            // plain, non-ramped alarm. Manual per-app toggle, not a runtime dialog.
+            safeStartActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+        } else if (!Settings.canDrawOverlays(this)) {
+            // "Display over other apps" lets the ringing screen draw over whatever the
+            // user is doing even when the phone is unlocked and actively in use, which
+            // the full-screen-intent notification alone can't guarantee (Android
+            // downgrades those to heads-up then).
+            safeStartActivity(
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            )
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Only on a genuinely new launch. This used to live in a
+        // LaunchedEffect(Unit) inside setContent, which re-runs on every activity
+        // recreation -- so a rotation re-fired the chain and threw up a settings
+        // screen again (entry #71j).
+        if (savedInstanceState == null) requestNextMissingPermission()
 
         setContent {
             AlarmClockTheme {
                 val navController = rememberNavController()
-
-                LaunchedEffect(Unit) {
-                    // One settings screen per app launch (first missing one wins,
-                    // ordered by how alarm-critical the permission is) -- firing
-                    // several startActivity calls back-to-back stacks the screens on
-                    // top of each other, which is disorienting on a fresh install.
-                    // The next missing one comes up on the next launch.
-                    val notificationManager =
-                        getSystemService(android.app.NotificationManager::class.java)
-                    // The POST_NOTIFICATIONS runtime dialog is the first link in the
-                    // chain (previously it fired unconditionally in onCreate, stacking
-                    // on top of the first settings screen on a fresh install). Capped
-                    // at two attempts: after two denials Android stops showing the
-                    // dialog at all -- launch() just no-ops straight to a denied
-                    // callback -- and without the cap the chain would stall here
-                    // forever, never reaching the settings screens below.
-                    val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-                        android.content.pm.PackageManager.PERMISSION_GRANTED
-                    val permPrefs = getSharedPreferences("permission_flow", MODE_PRIVATE)
-                    val notificationAsks = permPrefs.getInt("notification_permission_asks", 0)
-                    if (!notificationsGranted && notificationAsks < 2) {
-                        permPrefs.edit().putInt("notification_permission_asks", notificationAsks + 1).apply()
-                        requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } else if (!viewModel.canScheduleExactAlarms() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
-                    } else if (!notificationManager.isNotificationPolicyAccessGranted) {
-                        // Changing the alarm volume for the ramp feature throws a
-                        // SecurityException on many devices if Do Not Disturb/a focus
-                        // mode is active and this permission hasn't been granted -- the
-                        // ramp then silently falls back to a plain, non-ramped alarm.
-                        // This is a manual per-app toggle in system settings, not a
-                        // runtime permission dialog, same as the overlay one below.
-                        startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
-                    } else if (!Settings.canDrawOverlays(this@MainActivity)) {
-                        // "Display over other apps" lets the ringing screen draw over
-                        // whatever the user is doing even when the phone is unlocked and
-                        // actively in use, which the full-screen-intent notification alone
-                        // can't guarantee (Android downgrades those to heads-up then).
-                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
-                    }
-                }
 
                 NavHost(navController = navController, startDestination = "list") {
                     composable("list") {
@@ -114,7 +136,7 @@ class MainActivity : ComponentActivity() {
                             onEditTimer = { navController.navigate("timer_edit/${it.id}") },
                             fullScreenRevoked = fullScreenRevoked,
                             onFixFullScreen = {
-                                startActivity(
+                                safeStartActivity(
                                     Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
                                         data = Uri.parse("package:$packageName")
                                     }

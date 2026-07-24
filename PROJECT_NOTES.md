@@ -1183,40 +1183,69 @@ entry #1.
     is worth a second look at which one is which -- the wrong assignment here
     type-checked, compiled, and armed alarms correctly.
 
-71. **[OPEN] Full-codebase review batch (#11/#20 spirit): ten findings, no
-    reported symptom for any of them.** Reviewed on request after #70. The
-    codebase held its guard discipline nearly everywhere; these are the gaps.
-    (a) The three fire-path receivers (AlarmReceiver, TimerReceiver,
-    ReminderReceiver) use try/finally with NO catch inside a bare
-    CoroutineScope(Dispatchers.IO) with no handler, so any throw reaches the
-    default handler and kills the PROCESS -- which in AlarmReceiver means
-    killing the ringing service it just started, since the reschedule,
-    upcoming-notification refresh and widget update all run after
-    startForegroundService. Worst case for a repeating alarm: next occurrence
-    never armed. (b) Vibration passes no attributes, so it defaults to
-    USAGE_UNKNOWN and DND suppresses it -- the haptics-only case (sound
-    failed, #6) degrades to nothing; and the unguarded vibrator block sits
-    BEFORE the overlay show, so a throw there (no vibrator hardware, the
-    VibratorManager cast) silently costs the overlay UI. (c) BootReceiver
-    clears the ringing marker with apply() where #13 mandates commit() -- the
-    one place that invariant is broken, and it is the dangerous direction (a
-    lost clear re-rings a dismissed alarm at next boot). (d) exportSchema was
-    false, so a missing migration is invisible in review; destructive fallback
-    STAYS per the standing wipe-beats-crash preference. (e) allowBackup was
-    true with both rule files empty, i.e. the default: whole Room DB (reminder
-    text, alarm labels) plus prefs to Google cloud backup, in tension with
-    #46's no-INTERNET privacy property. (f) BootReceiver does every alarm,
-    series, timer and reminder in one goAsync, against a ~10s broadcast
-    budget. (g) The specialUse service lacked its documented
-    PROPERTY_SPECIAL_USE_FGS_SUBTYPE property (no breakage: holding
-    USE_EXACT_ALARM qualifies the app for the type). (h) WAKE_LOCK declared,
-    never used. (i) SCHEDULE_EXACT_ALARM lacked maxSdkVersion=32 beside
-    USE_EXACT_ALARM. (j) Four unguarded startActivity calls in the permission
-    chain (ActivityNotFoundException on an OEM missing a settings screen = a
-    crash on launch), and the chain sits in LaunchedEffect(Unit) inside
-    setContent so it re-fires on rotation rather than once per launch.
-    Intended fixes as listed; the uncapped series expansion on restore
-    (finding 20b) is deliberately left alone per the maintainer.
+71. **Full-codebase review batch (#11/#20 spirit): ten findings fixed, no
+    reported symptom for any of them.** Reviewed on request after #70; the
+    codebase held its guard discipline nearly everywhere, and these were the
+    gaps. (a) **Every** BroadcastReceiver used try/finally with NO catch inside
+    a bare CoroutineScope(Dispatchers.IO), which has no exception handler -- so
+    any throw reached the default handler and killed the PROCESS. Worst case is
+    AlarmReceiver, where the reschedule, upcoming-notification refresh and
+    widget update all run AFTER startForegroundService: a throw there killed
+    the ring it had just started (recoverable via #13's marker, but that is the
+    safety net catching a preventable crash) and, for a repeating alarm, could
+    leave the next occurrence unarmed. Every receiver now catches, logs, and
+    finishes cleanly. Scope grew from the three fire-path receivers to all
+    seven on the same reasoning. (b) Vibration passed no attributes, so it
+    defaulted to USAGE_UNKNOWN, which DND and silent mode SUPPRESS -- an alarm
+    whose sound failed to load (#6) degraded to nothing at all. Now
+    VibrationAttributes.USAGE_ALARM on 33+, the deprecated AudioAttributes
+    overload below that. Also: the whole vibrator block was unguarded and sits
+    BEFORE the overlay show, so a throw (no vibrator hardware makes the
+    VibratorManager cast fail) silently cost the ringing UI; wrapped, since
+    vibration is the least important of the three ring channels and must never
+    take the other two with it. (c) BootReceiver cleared the ringing marker
+    with apply() where #13 mandates commit() -- the one place that invariant was
+    broken, and the dangerous direction (a lost clear re-rings a dismissed
+    alarm at next boot, and the following service start can kill the process
+    before an async write lands). (d) exportSchema false -> true, with the
+    required KSP room.schemaLocation arg, so a version bump that forgets its
+    Migration shows up as a schema diff in review. Destructive fallback STAYS
+    per the standing wipe-beats-crash preference. NOTE: schemas/ is emitted at
+    BUILD time, so it only populates once someone builds locally and commits
+    it; CI builds won't. (e) allowBackup was true with both rule files empty,
+    i.e. the default: the whole Room DB (reminder text, alarm labels) plus
+    prefs to Google cloud backup -- in tension with #46's no-INTERNET privacy
+    property, and redundant given the app's own JSON backup/restore.
+    allowBackup=false; both rule files now carry explicit excludes so
+    re-enabling backup later can't silently start uploading the DB. Direct
+    device-to-device transfer is left enabled on purpose (stays between the two
+    phones, and it's what carries alarms to a new handset). (f) BootReceiver did
+    every alarm, series, timer and reminder in one goAsync against a ~10s
+    broadcast budget, with the interrupted-ring resume LAST -- the most
+    time-critical item behind the longest loop. Reordered strictly
+    most-critical-first: ring resume, alarm re-arm, series unpause, timers,
+    reminders, then the purely presentational refreshes, so whatever a timeout
+    kills is the cheapest thing to lose. This is a mitigation, not a cure; the
+    real fix if it ever bites is a short foreground service or WorkManager
+    (no new dependency exists for the latter yet). (g) The specialUse service
+    lacked its documented PROPERTY_SPECIAL_USE_FGS_SUBTYPE property; added
+    (no breakage before, since holding USE_EXACT_ALARM is itself a qualifying
+    criterion for the type). (h) WAKE_LOCK was declared and never used
+    anywhere; removed. Audio playback holds its own wakelock, so nothing
+    depended on it. (i) SCHEDULE_EXACT_ALARM gained maxSdkVersion=32 beside
+    USE_EXACT_ALARM. Related note kept for the record: USE_EXACT_ALARM
+    auto-grants, so canScheduleExactAlarms() is always true on 33+ and that
+    branch of the #15 chain is live only on Android 12/12L. (j) Four unguarded
+    startActivity calls in the permission chain (an OEM missing one of those
+    settings screens throws ActivityNotFoundException = a crash on launch over
+    a permission that only degrades a feature) now go through one
+    safeStartActivity helper; and the chain moved out of a
+    LaunchedEffect(Unit) inside setContent -- which re-runs on every activity
+    recreation, so a rotation re-fired it -- into onCreate under a
+    savedInstanceState == null guard, which is what #15 always claimed it did.
+    Deliberately NOT fixed per the maintainer: the uncapped series expansion
+    reachable from restore (finding 20b). Nothing here changes the DB schema,
+    scheduling math, or the ring path.
 
 ## Restarting this project in a new chat
 

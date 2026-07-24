@@ -53,6 +53,12 @@ class TimerReceiver : BroadcastReceiver() {
                         else -> fire(context, timerId)
                     }
                 }
+            } catch (e: Exception) {
+                // A bare CoroutineScope has no exception handler, so an escaping
+                // throw would reach the default handler and kill the PROCESS --
+                // taking the ringing service down with it (entry #71a). Log and
+                // let the broadcast finish cleanly instead.
+                Log.e(TAG, "Failed handling timer $timerId (action=$action)", e)
             } finally {
                 pendingResult.finish()
             }

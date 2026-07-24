@@ -3,11 +3,14 @@ package no.hanss.alarmclock.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import no.hanss.alarmclock.data.AlarmDatabase
 import no.hanss.alarmclock.widget.AlarmWidgetUpdater
+
+private const val RECEIVER_TAG = "UpcomingAlarmReceiver"
 
 class UpcomingAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -65,6 +68,10 @@ class UpcomingAlarmReceiver : BroadcastReceiver() {
                     }
                 }
                 AlarmWidgetUpdater.updateAll(context)
+            } catch (e: Exception) {
+                // No exception handler on a bare CoroutineScope: an escaping throw
+                // would kill the process (entry #71a). Log and finish cleanly.
+                Log.e(RECEIVER_TAG, "Failed handling upcoming-alarm action ${intent.action}", e)
             } finally {
                 pendingResult.finish()
             }

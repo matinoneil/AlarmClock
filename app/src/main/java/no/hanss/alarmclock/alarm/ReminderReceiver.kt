@@ -3,6 +3,7 @@ package no.hanss.alarmclock.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,6 +22,8 @@ const val ACTION_REMINDER_SWIPED = "no.hanss.alarmclock.action.REMINDER_SWIPED"
  * button. All real logic lives in [ReminderOps] behind its mutex, so a Done
  * tap racing the daily re-remind resolves cleanly no matter the order.
  */
+private const val TAG = "ReminderReceiver"
+
 class ReminderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -36,6 +39,12 @@ class ReminderReceiver : BroadcastReceiver() {
                     ACTION_REMINDER_SWIPED -> ReminderOps.onSwipedAway(context, reminderId)
                     else -> ReminderOps.fire(context, reminderId)
                 }
+            } catch (e: Exception) {
+                // A bare CoroutineScope has no exception handler, so an escaping
+                // throw would reach the default handler and kill the PROCESS --
+                // taking the ringing service down with it (entry #71a). Log and
+                // let the broadcast finish cleanly instead.
+                Log.e(TAG, "Failed handling reminder $reminderId (action=$action)", e)
             } finally {
                 pendingResult.finish()
             }
