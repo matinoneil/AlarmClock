@@ -1734,6 +1734,12 @@ entry #1.
     BUILD RISKS IN THIS COMMIT, both known and handled: (a) the missing-OptIn trap
     from #41 -- handled; (b) compileReleaseArtProfile is now fed an input file for
     the first time. If CI fails, those are the two suspects, in that order.
+    SHIPPED AS V2.2 on commit 926d089 -- a LINE bump, chosen by the maintainer.
+    Process note: the session first suggested "V2.2.0", which is wrong twice over
+    against #28 -- that rule says suggest the next PATCH number on the current
+    line (V2.1.10 here) and never a semver-style minor bump, and this project's
+    line bumps are two-component (V2.1, V2.0), never three. Suggest V2.1.10-style
+    next time and let the maintainer call any line bump.
     OBSERVED IN PASSING, no change made: TimerListScreen ticks every 250 ms
     (delay(250) in a while loop) to drive the countdown, i.e. 4 recompositions a
     second on that tab -- oversampling for a seconds display, and a
