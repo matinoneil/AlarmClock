@@ -1279,7 +1279,14 @@ entry #1.
     trade-off is that setAlarmClock is the most Doze-proof option and carries a
     background-FGS-start exemption the timer ring depends on;
     setExactAndAllowWhileIdle is subject to quotas, so this needs on-device
-    testing rather than a drive-by swap.
+    testing rather than a drive-by swap. FOLLOW-UP from the maintainer, which
+    largely closes the charging question: the alarm in question was set for
+    10:30, and Pixel Adaptive Charging only engages for a wake-up alarm between
+    03:00 and 10:00 with the phone plugged in between 21:00 and 04:00 -- so the
+    OS declined on its own terms and the app was publishing the alarm correctly
+    all along. Retest with an early-morning alarm before treating anything here
+    as an app bug, and note this de-prioritises the timer swap above: it would
+    only matter if a running timer were masking a genuine 03:00-10:00 alarm.
 
 ## Restarting this project in a new chat
 
