@@ -45,6 +45,9 @@ fun SettingsScreen(
     val snackbar = remember { SnackbarHostState() }
     val uiForSettings by viewModel.uiState.collectAsState()
     var confirmClearHistory by remember { mutableStateOf(false) }
+    var showPermissions by remember { mutableStateOf(false) }
+
+    if (showPermissions) PermissionStatusDialog(onDismiss = { showPermissions = false })
 
     if (confirmClearHistory) {
         val doneCount = uiForSettings.reminders.count { it.state == Reminder.STATE_DONE }
@@ -563,6 +566,20 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(16.dp)
                     ) { Text("Restore…") }
                 }
+            }
+
+            EditSection(title = "Permissions") {
+                Text(
+                    "This app degrades quietly when a permission is missing \u2014 an alarm still rings, it just rings less loudly, less exactly, or without taking over the screen. Android also switches some of these off again after an update. Check here rather than guessing.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { showPermissions = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("Check permissions\u2026") }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
