@@ -106,11 +106,19 @@ fun SettingsScreen(
             @Suppress("DEPRECATION")
             result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
         }
-        val value = uri?.toString()
-        when (pickerTarget) {
-            "alarm" -> { defaultAlarmSound = value; viewModel.settings.defaultAlarmSoundUri = value }
-            "series" -> { seriesSound = value; viewModel.settings.defaultSeriesSoundUri = value }
-            else -> { defaultTimerSound = value; viewModel.settings.defaultTimerSoundUri = value }
+        // Only overwrite on an ACTUAL pick. Cancelling the picker returns no URI,
+        // and null is the app's value for "use the system default" -- so the old
+        // unconditional assignment made backing out indistinguishable from a
+        // deliberate reset, silently wiping the chosen song (#83). Safe while
+        // EXTRA_RINGTONE_SHOW_SILENT stays false; if Silent is ever offered, this
+        // guard has to tell a cancel apart from a real silent pick.
+        if (uri != null) {
+            val value = uri.toString()
+            when (pickerTarget) {
+                "alarm" -> { defaultAlarmSound = value; viewModel.settings.defaultAlarmSoundUri = value }
+                "series" -> { seriesSound = value; viewModel.settings.defaultSeriesSoundUri = value }
+                else -> { defaultTimerSound = value; viewModel.settings.defaultTimerSoundUri = value }
+            }
         }
     }
 

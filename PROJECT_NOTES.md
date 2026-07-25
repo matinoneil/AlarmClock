@@ -1817,29 +1817,33 @@ entry #1.
     audible result.
     UNVERIFIED: not compiled or run.
 
-83. **[OPEN] Backing out of the ringtone picker wipes the current sound back to
-    default.** Reported: with a custom song already set, tapping the sound button
-    and then exiting the picker without choosing anything reverts the sound to the
-    stock default instead of leaving it alone.
-    NOT CAUSED BY #82 -- checked against V2.1.9, where the same line is already
-    present. Pre-existing since the pickers were written; #82 only added the reset
-    button beside them. Say so plainly rather than letting it look like a
-    regression from today.
-    CAUSE, one line, repeated at four sites: the picker result handler ends with
+83. **Backing out of the ringtone picker wiped the current sound back to
+    default.** With a custom song set, tapping the sound button and then exiting
+    the picker without choosing anything reverted the sound to the stock default.
+    NOT CAUSED BY #82 -- verified against V2.1.9, where the same line already
+    exists. Pre-existing since the pickers were written; #82 only added the reset
+    button beside them. Recorded explicitly because it surfaced immediately after
+    #82 shipped and looks like a regression from it.
+    CAUSE, one line repeated at four sites: the result handler ended with
     `soundUri = uri?.toString()` (and the `when (pickerTarget)` equivalent in
-    SettingsScreen), which assigns UNCONDITIONALLY. On cancel there is no
-    result.data, so uri is null, so the selection is overwritten with null -- and
-    null is exactly the app's representation of "use the system default" (#82). So
-    a cancel is indistinguishable from a deliberate reset.
-    INTENDED FIX: only assign when a URI actually came back --
-    `if (uri != null) soundUri = uri.toString()`. Preferred over guarding on
-    resultCode == RESULT_OK because it covers BOTH cancel shapes: a plain cancel
-    (no data) and the OEM pickers that return RESULT_OK with the extra absent,
-    which a resultCode check would miss. Needs no new import either.
-    TRADE-OFF, documented so it is not "fixed" back later: this makes a null URI
-    unselectable, i.e. "Silent" could no longer be chosen through the picker. That
-    is fine TODAY because every call sets EXTRA_RINGTONE_SHOW_SILENT=false, so
-    Silent is never offered. If Silent is ever enabled, this guard must change to
-    distinguish cancel from a real silent pick -- and reverting to default is now a
-    deliberate action via #82's reset button anyway.
-    Four sites: AlarmEditScreen, SeriesEditScreen, TimerEditScreen, SettingsScreen.
+    SettingsScreen), assigning UNCONDITIONALLY. On cancel there is no result.data,
+    so uri is null, so the selection was overwritten with null -- and null is
+    exactly this app's representation of "use the system default" (#82). A cancel
+    was therefore indistinguishable from a deliberate reset.
+    WHY IT WENT UNNOTICED FOR SO LONG, worth noting as a pattern: before #81 the
+    label already degraded to a number after any process death, so the sound field
+    was not trusted or watched closely. Fixing #81 made the field trustworthy,
+    which is what made this one visible. Expect more of this -- fixing a masking
+    bug surfaces the bugs it was masking.
+    FIX: `if (uri != null) soundUri = uri.toString()`, and the Settings handler
+    wraps its whole `when` in the same guard. Chosen over checking
+    resultCode == RESULT_OK because it covers BOTH cancel shapes -- a plain cancel
+    with no data, and the OEM pickers that return RESULT_OK with the extra absent,
+    which a resultCode check would miss. No new import needed.
+    TRADE-OFF, documented so nobody "fixes" it back: a null URI is now
+    unselectable, i.e. "Silent" could not be chosen through the picker. Fine today
+    because every call sets EXTRA_RINGTONE_SHOW_SILENT=false, so Silent is never
+    offered; and reverting to default is now a deliberate action via #82's reset
+    button. If Silent is ever enabled, this guard must be changed to distinguish a
+    cancel from a real silent pick.
+    UNVERIFIED: not compiled or run.
