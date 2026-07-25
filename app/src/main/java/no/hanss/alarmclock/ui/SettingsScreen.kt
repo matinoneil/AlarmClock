@@ -528,12 +528,6 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "Completed and removed reminders collect as faded history at the bottom of the Reminders tab.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(
                     onClick = { confirmClearHistory = true },
                     enabled = doneCount > 0,
@@ -544,13 +538,15 @@ fun SettingsScreen(
                 }
             }
 
+            EditSection(title = "Permissions") {
+                OutlinedButton(
+                    onClick = { showPermissions = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("Check permissions\u2026") }
+            }
+
             EditSection(title = "Backup") {
-                Text(
-                    "Everything — alarms, series, timers, reminders, and these settings — in one file. Restoring replaces what's on the phone. Sounds may fall back to the system default if the file is restored on another device.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(
                         onClick = {
@@ -566,20 +562,6 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(16.dp)
                     ) { Text("Restore…") }
                 }
-            }
-
-            EditSection(title = "Permissions") {
-                Text(
-                    "This app degrades quietly when a permission is missing \u2014 an alarm still rings, it just rings less loudly, less exactly, or without taking over the screen. Android also switches some of these off again after an update. Check here rather than guessing.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { showPermissions = true },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) { Text("Check permissions\u2026") }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

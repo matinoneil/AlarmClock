@@ -1708,3 +1708,23 @@ entry #1.
     raise needs an actual reason -- a dependency that requires it, or a real bug
     found on an old device -- not tidiness. The dead-guard cleanup is not a
     reason; see above.
+
+80. **Settings trimmed: Backup moved to the bottom, three explanatory blurbs
+    removed.** Requested, cosmetic. Backup and Permissions swapped so Backup is
+    the last section, and the body text was cut from three places, leaving header
+    + buttons only: Backup (the "everything in one file / restoring replaces /
+    sounds may fall back" paragraph), Permissions (the "degrades quietly"
+    paragraph), and the reminder history blurb ("Completed and removed reminders
+    collect as faded history..."). Buttons, dialogs and behaviour untouched --
+    only Text() nodes and section order changed.
+    NOTE FOR ANYONE TEMPTED TO ADD THEM BACK: the maintainer's position is that
+    the permission dialog's own per-row explanations are sufficient, and the
+    remaining Settings text (the per-type defaults intros, the "0 = permanent"
+    supporting text, etc.) is the part worth keeping. Do not reintroduce
+    section-level prose as a "helpful" touch.
+    ONE REAL LOSS, recorded rather than argued: the Backup blurb was the only
+    place warning that restoring REPLACES everything and that sounds can fall
+    back to the system default on another device. The replace warning still
+    appears in the restore confirmation dialog, so nothing dangerous is silent;
+    the cross-device sound caveat is now undocumented in-app. It remains in the
+    README.
