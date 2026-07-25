@@ -57,7 +57,14 @@ history; Clear history lives in Settings.
 ## Install
 
 Download the APK from the [latest release](../../releases/latest) and install
-it; builds are signed, so updates install over the previous version. On
+it; builds are signed, so updates install over the previous version.
+
+**Coming from V2.3 or earlier?** The signing key changed at V2.3.1, so an update
+will be refused. Back up first (Settings → Backup), then uninstall, install the
+new APK, restore your backup, and re-grant permissions via Settings →
+Permissions. Versions from V2.3.1 onward update over each other normally.
+
+On
 Android 13+, "display over other apps" is behind *Allow restricted settings*
 (Settings → Apps → AlarmClock → three-dot menu); without it, alarms still ring
 but show as a heads-up notification while the phone is in use.

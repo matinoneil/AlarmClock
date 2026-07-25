@@ -24,18 +24,13 @@ android {
     }
 
     signingConfigs {
-        getByName("debug") {
-            // A fixed, committed debug keystore (not the AGP-generated one, which
-            // differs per machine/CI-run) so every debug build -- local or from
-            // GitHub Actions -- is signed with the same key. Without this, installing
-            // a newer build over an older one fails with "signatures don't match"
-            // unless you uninstall first. This is a debug-only key with no
-            // confidentiality requirement, so it's fine to commit to the repo.
-            storeFile = file("../keystore/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
+        // No custom debug signingConfig any more. The committed keystore that used
+        // to live here was PUBLIC (see PROJECT_NOTES) and was retired at V2.3.1;
+        // AGP's own per-machine debug key is used instead. Entry 0.3's reason for
+        // pinning it -- consistent signing so CI debug builds installed over each
+        // other -- no longer applies, because CI ships the RELEASE variant signed
+        // from repository secrets. A build with no secrets set therefore produces
+        // an APK that will not install over a real one, which is the safe outcome.
 
         // Release signing comes from CI secrets and NEVER from the repo -- see the
         // "THE REPO IS PUBLIC, and the signing key is in it" section in

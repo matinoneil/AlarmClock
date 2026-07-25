@@ -123,7 +123,7 @@ gesture behaviour by reading code in the dev sandbox. It cannot build, run or
 profile this app; five attempts produced four wrong answers and one wasted
 release. What actually worked was on-device measurement and asking the
 maintainer for a precise symptom shape.
-## THE REPO IS PUBLIC, and the signing key is in it
+## THE REPO IS PUBLIC. The signing key WAS in it (resolved at V2.3.1)
 
 Verified from the GitHub API (`private: false`, `visibility: public`) and by
 fetching `keystore/debug.keystore` over raw.githubusercontent.com with NO
@@ -2182,6 +2182,25 @@ entry #1.
     installed" / signature error, and the only fix is uninstall + reinstall. Shipping
     a signing-key change silently would look exactly like a broken build. The repo
     is public with a star on it, so assume at least one other install exists.
+    PHASE 2 COMPLETE at V2.3.2: the maintainer reinstalled onto the new key, and
+    keystore/debug.keystore is now deleted along with the custom debug
+    signingConfig that pointed at it. AGP's own per-machine debug key is the
+    fallback. Entry 0.3 is therefore HISTORICAL -- do not "restore" the committed
+    keystore because 0.3 argues for it; that argument died when CI moved to signing
+    the release variant from secrets.
+    A secret-less build now produces an APK that cannot install over a real one.
+    That is the safe outcome, not a regression: a mis-configured build fails
+    visibly at install time instead of shipping something that looks genuine.
+    PROCESS FAILURE: step 11 was dropped. The maintainer confirmed the reinstall,
+    the conversation moved to an unrelated bug, and the deletion did not happen for
+    several turns -- leaving the retired key committed after it no longer needed to
+    be. Nothing was harmed (the key was already worthless once V2.3.1 was
+    installed), but a multi-step plan with a handoff in the middle needs the
+    remaining steps restated at the handoff, not held in the session's head.
+    README UPDATED: the install section claimed "builds are signed, so updates
+    install over the previous version" with no caveat, which is now false for
+    anyone on V2.3 or earlier. It carries the uninstall/reinstall instructions and
+    names V2.3.1 as the boundary.
     NOT DONE: no LICENSE file yet. The repo is public with `license: null`, which
     means all rights reserved. Held back only because an MIT copyright line needs
     the maintainer's actual name and guessing a legal name into a public licence
