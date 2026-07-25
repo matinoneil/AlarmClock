@@ -1441,369 +1441,152 @@ entry #1.
     a backup may no longer resolve -- the ring path falls back to the system
     alarm sound, which is safe but silently different from what was configured.
 
-75. **RETRACTED: the claimed fillMaxSize viewport bug was not a bug at all.** A REAL BUG, found while investigating #73's scroll complaint, but
-    NOT the cause of it -- see the correction at the end of this entry. Fixed on
-    its own merits. HomeScreen is
-    `Column(fillMaxSize) { if (fullScreenRevoked) Surface(banner); HorizontalPager(fillMaxSize) }`.
-    fillMaxSize() pins a child's MINIMUM constraints to the incoming maximum, so
-    the pager is measured at the Column's FULL height rather than the height
-    remaining after the banner -- it and the LazyColumns inside it extend past
-    the bottom of the Column by exactly the banner's height. The lazy list's max
-    scroll offset is computed against that oversized viewport, so the scroll
-    range is SHORTER than the content by the banner height and the last items sit
-    below the screen edge, unreachable. Symptom as reported: a long drag moves
-    the list a little and stops, i.e. scroll distance not matching finger
-    distance. Latent whenever the banner is hidden (the pager is then the only
-    child, so full height == remaining height), which is why it went unseen
-    since #66 shipped.
-    Explains the full timeline that #73's first theory could not: #66 exists
-    precisely BECAUSE Android 14 revokes USE_FULL_SCREEN_INTENT on update for
-    sideloaded apps -- so updating to V2.1.8 revoked it, the banner appeared, and
-    the layout broke; downgrading to V2.1.6/V2.1.7 left the permission revoked,
-    the banner still showing, and the feel identical. The #73 A/B was correctly
-    NEGATIVE (same code in all three) while the symptom was real. Both true at
-    once, which is why the A/B misled.
-    Fix: Modifier.weight(1f) on the pager instead of fillMaxSize(), so it takes
-    the height remaining after the banner. Correct independently of the scroll
-    report -- fillMaxSize() on a Column child with a preceding sibling is simply
-    wrong and clips content. A scan of every other fillMaxSize() in ui/ found no
-    second instance: the edit screens and list contents all apply it where the
-    child really is the sole occupant of its parent. Confirmation needs no build:
-    with the banner visible the lists mis-scroll, and granting the permission
-    removes the banner and should restore normal scrolling. Note this is NOT a
-    rare condition -- per #66 the permission is revoked on more or less every
-    sideloaded update, so the broken layout is the state the app lands in after
-    each release until the user taps the banner.
-    RETRACTION, and this is the important part of the entry: the analysis above is
-    WRONG. Compose's Row and Column pass the REMAINING space as the maximum to
-    subsequent children, so a non-weighted child with fillMaxSize() receives
-    maxHeight = whatever is left after the banner and fills exactly that. It was
-    already equivalent to weight(1f). There was never a viewport bug, the lists
-    were never mis-sized, and V2.1.9's one-line change is behaviorally a NO-OP.
-    The reasoning error: asserting that fillMaxSize() pins a child to the
-    parent's total height regardless of siblings. It does not. weight(1f) is kept
-    because it states the intent explicitly, not because it fixed anything.
-    V2.1.9's release notes describe a fix for a bug that did not exist and should
-    be treated as inaccurate.
-    (Kept for the record, the earlier and separate reason this was already known
-    not to be the maintainer's symptom:) the maintainer confirmed the banner
-    is NOT showing on his device -- all permissions are granted. The bug above is
-    latent exactly then (pager is the Column's only child, so fillMaxSize equals
-    the remaining height), so it CANNOT be producing his symptom. The timeline
-    story in this entry was a plausible fit, not an observation, and it was
-    wrong. The fix stays because the layout is genuinely incorrect whenever the
-    banner does appear; the scroll complaint remains UNDIAGNOSED.
-    SCORECARD for whoever picks this up, so the same ground isn't re-covered:
-    three hypotheses proposed for the scroll feel, NONE confirmed -- (1) pager
-    consuming vertical drag delta on experimental foundation 1.6.8, (2) per-card
-    Modifier.alpha graphics layers, (3) this banner/fillMaxSize viewport bug
-    (RULED OUT by observation). Ruled out separately and solidly: V2.1.8 as a
-    cause, dependency drift, build variant, classic nested-scroll conflicts, the
-    minute ticker, and the rings-in computation.
-    MEASUREMENT RESULT (Profile HWUI rendering, on-device): bars spike over the
-    green line in BOTH the list tabs AND the Settings screen, hardest of all when
-    swiping between tabs. That kills hypothesis 2 as the differentiator -- the
-    jank is APP-WIDE, not specific to the cards, the alpha layers or the lazy
-    lists -- and the tab-swipe spike is unsurprising, since composing and
-    measuring two full pages at once is the heaviest thing the app does.
-    HYPOTHESIS 4, the first one derived from measurement rather than code
-    reading: ART optimisation state. This app ships no Baseline Profile and has
-    R8 off, so a freshly installed APK runs largely interpreted/JIT until
-    background dexopt profiles and AOT-compiles the hot paths over hours to days
-    of idle charging. Compose is unusually sensitive to this. It fits the whole
-    timeline without strain: V2.1.6 had been installed for WEEKS (fully
-    optimised, never noticed); updating to V2.1.8 invalidated that and felt off;
-    then three reinstalls in one afternoon left every version equally
-    unoptimised, which is exactly why they all felt the same. The repeated
-    reinstalls are the confound that made version A/B useless here.
-    ALSO EXCLUDED, since it is the obvious suspect and will be asked again: #71j
-    (the permission chain moving from LaunchedEffect into onCreate) is NOT the
-    cause. It looks guilty -- the only UI-adjacent change in V2.1.8, shipped in
-    the exact version where the symptom was first noticed -- but V2.1.6 and
-    V2.1.7 do not contain it and felt identical on re-test, so the jank exists
-    without it. Mechanism agrees: it is a one-time cost completing before the
-    first frame, and the HWUI bars show SUSTAINED spikes across whole gestures in
-    two different screens. With all permissions granted it also falls through
-    every branch without launching anything. Note the asymmetry worth
-    remembering: the version A/B was worthless for hypothesis 4 (ART state was
-    equal across three fresh installs) yet decisive for this one (the code
-    genuinely differs between those versions) -- an A/B only isolates variables
-    that actually differ across the arms.
-    AND #71j WAS NOT EVEN A REGRESSION -- correcting an overstatement made when it
-    was first flagged. A LaunchedEffect body runs on the composition dispatcher,
-    i.e. the MAIN THREAD, so the old arrangement did the same disk read on the
-    same thread; the change moved it from just after the first frame to just
-    before it. Measured shape of the work: one getSystemService, one
-    checkSelfPermission, one SharedPreferences load of a tiny XML file, three
-    binder calls, then (with permissions granted) fall-through with no launch.
-    Order of 5-30ms, ONCE, leaving no listener, coroutine or pending work behind.
-    Net lifetime cost versus the old code: about zero. Moving it after setContent
-    is optional tidiness, NOT a fix, and is not worth a release on its own --
-    especially since any new APK re-invalidates the ART profile and restarts the
-    waiting experiment below.
-    Worth noting WHY this needed correcting twice: flagging it as "mine to own"
-    in conversation inflated a non-issue into a prime suspect, and the maintainer
-    reasonably kept returning to it. Own real mistakes; do not manufacture them,
-    because they get treated as leads.
-    CORROBORATING OBSERVATION, volunteered later and the best lead in the entry:
-    during the reinstall round the package install STALLED, the maintainer force
-    closed the installer, and the app ended up installed anyway. That is exactly
-    the state hypothesis 4 describes. A sideloaded APK with no Baseline Profile
-    gets only a quick verify pass at install time -- no AOT compilation -- and runs
-    interpreted/JIT until the background dexopt job recompiles it from collected
-    profiles while the device is idle and charging. An interrupted install plausibly
-    leaves the app installed but never properly optimised, and it stays that way
-    until that job runs. Fits every measurable: app-wide frame spikes including
-    Settings, worst on the heaviest work, no code-level explanation anywhere in ui/.
-    CHEAPEST NEXT ACTION, no data risk: reinstall the SAME version over itself
-    (same versionCode, so it is an update and the database survives -- no backup
-    dance), let the installer finish uninterrupted however long it takes, then
-    leave the device plugged in and idle overnight before judging. If the stall
-    recurs, suspect Play Protect scanning, a common cause of sideload install
-    hangs.
-    FALSIFIABLE PREDICTION, agreed as the next step, no code change: leave the
-    device 3-4 days charging overnight with no reinstalls. If the jank fades it
-    was optimisation state and there is no bug. If it is unchanged, hypothesis 4
-    is dead too and the remaining candidate is hypothesis 1 (pager).
-    IF a real fix is ever wanted: a Baseline Profile shipped in the APK is the
-    standard answer and would help every screen. It needs a Macrobenchmark run on
-    a device or CI emulator -- a project, not a patch, and impossible from the
-    dev sandbox. Enabling R8 would help marginally; do NOT bundle it into a perf
-    hunch, per #17's reasoning about minification in alarm-critical code.
-    The measurement that produced the above, kept for reference: Developer options
-    -> Profile HWUI rendering (on-screen bars) while scrolling a list tab versus
-    the Settings screen splits the remaining families in one minute and needs no
-    build -- bars spiking over the line means rendering cost (hypothesis 2 and
-    the cards' rounded-shape elevation shadows), bars clean while the list still
-    under-tracks means gesture/delta handling (hypothesis 1). Worth noting a
-    unifying possibility nobody has tested: sustained dropped frames DO make
-    content visibly trail the finger and then settle on lift, which reads exactly
-    as "scroll speed doesn't match my swipe" -- so the two reported symptoms may
-    be one cause, not two.
-    RUNNING TALLY for the scroll complaint, so nobody repeats any of it: FOUR
-    hypotheses offered, three demonstrably wrong -- (1) pager consuming vertical
-    drag delta: unproven, never tested; (2) per-card Modifier.alpha layers:
-    killed by the HWUI measurement showing app-wide spikes including Settings;
-    (3) this fillMaxSize viewport bug: RETRACTED, never existed, shipped anyway
-    as V2.1.9; (4) ART optimisation state: still the best-supported by the
-    measurement, still untested. The pattern is clear enough to be worth stating
-    as a rule: **do not diagnose rendering, layout or gesture behavior by reading
-    code in the dev sandbox.** It cannot build, run, or profile this app, and
-    four attempts produced three wrong answers and one wasted release. The only
-    honest paths are a real profiler on a real device or the Baseline Profile
-    project, both of which need a local Android dev environment the maintainer
-    does not currently have.
-    PROCESS LESSON, second half of #73's: a clean negative A/B is not proof the
-    report is imaginary. Here a DEVICE-STATE change (a permission Android
-    revoked during the update) rode in on the version change and persisted
-    across the downgrades, so version A/B could never isolate it. When an A/B
-    comes back negative but the user keeps reporting the symptom, ask what
-    changed on the device, not just in the code -- and BELIEVE the user; this
-    entry exists because the maintainer pushed back after the symptom was
-    written off.
+75. **RETRACTED: the claimed fillMaxSize viewport bug never existed, and
+    V2.1.9 shipped a no-op.** Investigating #73's scroll complaint produced a
+    theory that `fillMaxSize()` on HomeScreen's pager pinned it to the Column's
+    FULL height rather than the height remaining after the permission banner,
+    clipping the lists and shortening their scroll range. That analysis is
+    WRONG. Compose's Row/Column pass the REMAINING space as the maximum to a
+    subsequent non-weighted child, so `fillMaxSize()` there was already
+    equivalent to `weight(1f)`. Nothing was ever mis-sized. `weight(1f)` is kept
+    only because it states intent explicitly. **V2.1.9's release notes describe a
+    fix for a bug that did not exist and should be treated as inaccurate.** The
+    reasoning error worth remembering: asserting that `fillMaxSize()` ignores
+    siblings. It does not.
+    Separately fatal to the theory even before the retraction: the maintainer
+    confirmed the banner is NOT showing on his device, so the alleged bug was
+    latent exactly when the symptom occurred.
+    MEASUREMENT RESULT (Profile HWUI, on-device): bars spike over the green line
+    in BOTH the list tabs AND Settings, worst when swiping between tabs. That
+    killed the per-card-alpha theory -- the jank is APP-WIDE, not specific to the
+    cards or the lazy lists.
+    HYPOTHESIS 4, ART OPTIMISATION STATE -- the one still live; see #76 for its
+    current test. This app shipped no baseline profile and has R8 off, so a
+    freshly installed APK runs largely interpreted/JIT until background dexopt
+    AOT-compiles the hot paths during idle charging. Compose is unusually
+    sensitive to this. Fits the timeline without strain: V2.1.6 had been
+    installed for WEEKS (fully optimised, never noticed); V2.1.8 invalidated
+    that; then three reinstalls in one afternoon left every version equally
+    unoptimised, which is exactly why they all felt the same. **Those reinstalls
+    are the confound that made version A/B useless here.** Corroborating: during
+    that round an install STALLED, the installer was force-closed, and the app
+    ended up installed anyway -- precisely the never-properly-optimised state
+    this hypothesis describes. (If a sideload install ever hangs again, suspect
+    Play Protect scanning.) Sideloads get no Cloud Profiles, so local dexopt is
+    the only path.
+    #71j IS NOT THE CAUSE AND WAS NEVER A REGRESSION, recorded because it looks
+    guilty and will be asked again: it was the only UI-adjacent change in V2.1.8,
+    but V2.1.6/V2.1.7 lack it and felt identical on re-test. A `LaunchedEffect`
+    body runs on the composition dispatcher, i.e. the MAIN THREAD, so the old
+    arrangement did the same disk read on the same thread; the change only moved
+    ~5-30 ms of one-time work (one getSystemService, one checkSelfPermission, one
+    small SharedPreferences load, three binder calls, then fall-through) from
+    just after the first frame to just before it. Net lifetime cost: about zero.
+    Moving it back is optional tidiness, not a fix, and not worth a release.
+    PROCESS LESSONS, the durable part of this entry:
+    - **A/Bs only isolate variables that actually differ across the arms.** The
+      version A/B was worthless for hypothesis 4 (ART state was equal across
+      three fresh installs) yet decisive against #71j (the code genuinely
+      differs). Same experiment, opposite value.
+    - **A clean negative A/B is not proof the report is imaginary.** Device state
+      can ride in on a version change and persist across downgrades. When an A/B
+      comes back negative and the user still reports the symptom, ask what
+      changed on the DEVICE, not just in the code -- and believe the user. This
+      entry exists because the maintainer pushed back after being written off.
+    - **Own real mistakes; do not manufacture them.** Flagging #71j as "mine to
+      own" in conversation inflated a non-issue into a prime suspect that then
+      had to be knocked down twice.
+    - The five dead hypotheses and the do-not-code-read rule are summarised in
+      the "Dead ends" section at the top of this file.
+    SUPERSEDED BY #76: the symptom was finally described precisely and turned out
+    to be overscroll relaxation, a documented by-design Compose behaviour. #75's
+    hypotheses were all chasing the wrong shape.
 
-    NEW SESSION, SAME REPORT (25 Jul, hours after the above): reported again as
-    "a recent update made it very laggy, going back versions doesn't help, other
-    apps aren't this laggy". That is this entry verbatim, plus one datum: other
-    apps being fine is per-APP, which fits hypothesis 4 (ART state is per-app;
-    Play-installed apps get Cloud Profiles and have been dexopt'd for weeks) and
-    rules out device-wide causes like thermal throttling or an OS update.
-    ELAPSED TIME ON THE AGREED WAIT TEST: none. V2.1.9 was tagged 01:07 and the
-    prediction written at 08:30 the SAME DAY. It has not been run; any reinstall
-    since restarts it.
-    CLOSED WITHOUT A RELEASE, so nobody spends one on it: androidx.profileinstaller
-    is already in this APK transitively -- Google's docs state it is present in
-    effectively every Compose APK -- so adding it explicitly is a no-op. Compose's
-    library baseline profiles therefore DO ship and DO get written at first run;
-    what waits on background dexopt (idle + charging) is the AOT compile.
-    Sideloads get no Cloud Profiles, so local dexopt is the only path. Explains
-    hypothesis 4's mechanism; does not test it.
-    HYPOTHESIS 5, device state rather than code, per this entry's own closing
-    lesson: OEM per-app refresh-rate policy. Several OEMs run system UI and
-    recognised apps at 90/120 Hz while capping others at 60, and a sideloaded
-    app is a candidate for the slow lane -- app-specific, constant across every
-    version, immune to reinstalls, invisible to code reading: every property this
-    report has. Check costs 30 seconds and no build -- Developer options -> Show
-    refresh rate, then compare the number while scrolling a list tab versus a
-    known-smooth app. UNTESTED. Do not act on it.
-    NO CODE CHANGE THIS SESSION, deliberately. Five hypotheses now exist and the
-    sandbox has never been able to test one; nothing ships for this symptom until
-    a measurement on the device points somewhere.
-    HYPOTHESIS 5 DEAD (on-device, same day): the refresh-rate overlay reads 120
-    across the whole app, so there is no OEM per-app 60 Hz cap. Caveat for
-    whoever reads this as an all-clear: that overlay reports the PANEL's refresh
-    rate, not the app's achieved frame rate, so it kills the per-app-cap
-    mechanism and nothing else -- frame drops remain possible at 120 Hz, and the
-    HWUI bars above already showed over-budget frames.
-    SYMPTOM REFINED by the maintainer: "it's not the fps, it just feels CLUNKY."
-    That points back at #73's original wording -- the list moving less than the
-    finger -- i.e. gesture/delta handling rather than render cost. NOT treated as
-    diagnosed: asked for a precise symptom shape (finger tracking / fling
-    behaviour / whether screens outside the pager differ) instead of generating
-    hypothesis 6 from the sandbox, per this entry's closing rule.
-    SYMPTOM PINNED DOWN (three on-device answers, same day) AND IT KILLS THE LAST
-    CODE-LEVEL CANDIDATE: (1) a slow drag tracks the finger 1:1 -- the
-    under-tracking that WAS #73's original wording DOES NOT REPRODUCE, so
-    hypothesis 1 (pager consuming vertical delta) is DEAD and the pager stops
-    being a suspect; (2) a hard flick coasts but STUTTERS -- dropped frames during
-    motion, not gesture handling; (3) the clunk is IDENTICAL on Settings and the
-    edit screens, both outside the pager and both plain Columns with no
-    Modifier.alpha -- re-killing hypothesis 2 and ruling out the lazy lists, the
-    cards and the pager together.
-    WHAT THAT LEAVES: nothing in ui/. The app is uniformly slower than it should
-    be on every screen with correct gesture handling, i.e. code EXECUTION speed,
-    not layout, composition structure or scroll plumbing. Two non-exclusive
-    explanations remain: hypothesis 4 (ART state not yet AOT-compiled) and the
-    plainer one nobody had stated -- this app ships NO baseline profile and has R8
-    off, so it may simply run slower than the Play-installed apps it is being
-    compared against, with no bug anywhere. #73 reached that conclusion once
-    already. Hypotheses 1, 2, 3 and 5 are all dead; do not reopen them.
-    NEWLY VIABLE, correcting this entry's "impossible from the dev sandbox"
-    verdict on baseline profiles: rules can be HAND-WRITTEN as
-    src/main/baseline-prof.txt -- AGP consumes that path with no plugin and no
-    Macrobenchmark module, and the format is a superset of HRF that accepts
-    WILDCARDS, so one rule over no/hanss/alarmclock/** covers the app's own code.
-    androidx.profileinstaller is already present transitively, so delivery works.
-    What it buys, stated precisely to avoid this entry's habitual overclaim: it
-    does NOT AOT-compile at sideload install time; it hands ART the right
-    hot-path list up front so the FIRST background dexopt (idle + charging)
-    compiles the right thing instead of the runtime spending days collecting a
-    profile first. Zero behavioral risk -- a compilation hint cannot change
-    semantics, which is exactly what separates it from R8 and #17's objection to
-    minification in alarm-critical code. Coarser than a Macrobenchmark-generated
-    profile; over-inclusion costs APK size, not correctness.
-    NOT SHIPPED, awaiting the maintainer's call: it costs a release, and any new
-    APK re-invalidates ART state and restarts the pending wait test, so the two
-    options genuinely conflict. Needs an [OPEN] entry first if it goes ahead.
-    SUPERSEDED IN PART: see entry #76. The symptom was finally described precisely
-    ("reaching the bottom, the cushion has to finish before an up-swipe takes")
-    and it is overscroll relaxation, a documented by-design Compose behaviour,
-    not a perf bug. #75's four hypotheses were all chasing the wrong shape.
+76. **Reaching a list edge blocked the next swipe until the stretch "cushion"
+    paid back.** The real symptom behind the #73/#75 saga, once the maintainer
+    described it precisely: swipe to the bottom, then start swiping up again --
+    the up-swipe does not take until the bounce-back has finished.
+    CAUSE, from Compose's own docs rather than code reading: `OverscrollEffect`
+    decorates scroll events and consumes delta BEFORE the scrolling container
+    sees it, and `LazyColumn`/`verticalScroll` both configure one automatically.
+    Its documented relaxation rule subtracts the outstanding overscroll FIRST
+    when the drag reverses, so the stretch charged up at the edge has to be paid
+    back before the list moves. By design, present in every Compose app -- which
+    is why it was identical on every version (all pinned to foundation 1.6.8),
+    identical on every screen, unaffected by reinstalls, and invisible to five
+    sessions of code reading.
+    FIX SHIPPED (V2.2, commit 926d089):
+    `CompositionLocalProvider(LocalOverscrollConfiguration provides null)`
+    wrapping `AlarmClockTheme` in MainActivity's `setContent`, with
+    `@OptIn(ExperimentalFoundationApi::class)` on `onCreate`. Covers all three
+    tabs, Settings and every editor. NOT applied to RingingActivity or
+    ReminderSnoozeActivity, which have their own `setContent` and no long lists
+    -- add it there if either ever grows one. Trade-off knowingly accepted: no
+    bounce at any edge; hitting the end stops dead.
+    API VERSION TRAP, per #41: on foundation 1.6.8 the API is
+    `LocalOverscrollConfiguration`, typed `OverscrollConfiguration?`, null
+    meaning no overscroll, and it is `@ExperimentalFoundationApi` -- the OptIn is
+    mandatory or the build breaks. `LocalOverscrollFactory` /
+    `rememberPlatformOverscrollFactory` are a LATER foundation release; do not
+    use them on this BOM. `OverscrollConfiguration` on 1.6.8 exposes only
+    glowColor and drawPadding, so this is on/off, not tunable.
+    FIELD RESULT: "better, still some lag but a bit more manageable now." First
+    thing in the whole saga to be VERIFIED rather than theorised.
 
-76. **Reaching a list edge blocked the next swipe until the stretch
-    "cushion" pays back.** The #73/#75 saga's real symptom, finally stated
-    precisely by the maintainer: swipe down to the bottom, then start swiping up
-    again -- the up-swipe does not take until the bounce-back has finished. Not
-    framerate (the maintainer explicitly says it is not fps, and a slow drag
-    tracks the finger 1:1), and not the pager (identical on Settings and the edit
-    screens, which are outside it).
-    SUSPECTED CAUSE, from Compose's own docs rather than code reading:
-    OverscrollEffect decorates scroll events, consuming delta BEFORE the
-    scrolling container sees it, and LazyColumn/verticalScroll both configure one
-    automatically. Its documented relaxation rule is that when an overscroll is
-    in progress and the user scrolls the other way, the overscroll amount is
-    subtracted FIRST and only the remainder reaches the list. So the stretch
-    charged up at the edge has to be paid back before the list moves, and while
-    the spring is still relaxing an incoming drag is absorbed. That is by design
-    and present in every Compose app -- which is exactly why it is identical on
-    every version of this app (all pinned to foundation 1.6.8), identical on
-    every screen, unaffected by reinstalls, and invisible to five sessions of
-    code reading. Frame drops would AMPLIFY it (a spring animating at low fps
-    takes longer in wall-clock to discharge) so hypothesis 4 may still compound,
-    but it is not the cause.
-    CONFIRMATION CHECK, on-device, 30 seconds, no build: does the delay happen
-    ONLY right after hitting the top or bottom edge? If it also happens
-    mid-list, this is wrong and hypothesis 4 is back. Asked, not assumed.
-    INTENDED FIX (not written yet, awaiting the maintainer's go): disable
-    overscroll app-wide with CompositionLocalProvider(LocalOverscrollConfiguration
-    provides null) around the app content at the setContent/theme level, so it
-    covers the tabs, Settings and the editors alike. VERIFIED against the pinned
-    BOM per #41: on foundation 1.6.8 the API is LocalOverscrollConfiguration,
-    typed OverscrollConfiguration?, null meaning no overscroll at all, and it is
-    @ExperimentalFoundationApi -- so it NEEDS @OptIn(ExperimentalFoundationApi::class)
-    or the build breaks exactly like #41. The LocalOverscrollFactory /
-    rememberPlatformOverscrollFactory replacement is a LATER foundation release;
-    do not use it on this BOM. Note OverscrollConfiguration on 1.6.8 exposes only
-    glowColor and drawPadding -- there is no spring-stiffness knob, so this is
-    on/off, not tunable.
-    CONFIRMED IN PART by the maintainer: mid-list scrolling is "much better" once
-    the edges are out of the picture, so overscroll relaxation WAS a real and
-    dominant component. It is not everything -- see the second half below.
-    FIX AS SHIPPED: CompositionLocalProvider(LocalOverscrollConfiguration provides
-    null) wrapping AlarmClockTheme inside MainActivity's setContent, with
-    @OptIn(ExperimentalFoundationApi::class) on onCreate. Covers every scrollable
-    under MainActivity: all three tabs, Settings, every editor. NOT applied to
-    RingingActivity or ReminderSnoozeActivity, which have their own setContent and
-    no long lists -- add it there too if either ever grows one. Trade-off
-    knowingly accepted: no bounce at any edge anywhere; hitting the end stops
-    dead. Purely visual, zero alarm-path risk (no DB, scheduling, service or
-    notification code), which is what separates this from #17's R8 question.
-
-    RESIDUAL SYMPTOM, and the second half of this entry: with edges excluded it
-    is still "not good" -- described as a delay between the swipe and it being
-    rendered, i.e. input-to-render latency, uniform across screens. A comparable
-    Compose app on the SAME phone has the same cushion but noticeably less of
-    this, which is the useful control: same device, same OS, same overscroll
-    implementation, different app.
-    THE MISCONCEPTION THAT KEPT #75 OPEN FOR THREE SESSIONS, worth stating
-    plainly: "it's a Pixel 9 Pro so performance isn't the issue." ART compilation
-    state is NOT a hardware question. Interpreted/JIT Compose is several times
-    slower than AOT-compiled Compose and no amount of silicon closes that gap;
-    the fast chip only means the gap shows up as input latency rather than as
-    visible slideshow framerate. The comparison app came from Play WITH a
-    baseline profile, cloud profiles and weeks of accumulated dexopt. This app
-    had none of the three. That is the entire difference, and it is why five
-    sessions of reading ui/ found nothing.
-    SECOND FIX SHIPPED, hand-written baseline profile at
-    app/src/main/baseline-prof.txt, ONE line:
-    HSPLno/hanss/alarmclock/**->**(**)**  -- exactly the wildcard shape Google
-    documents for manual rules (their example is
-    HSPLandroidx/compose/ui/layout/**->**(**)**). Compose's own libraries already
-    ship profiles inside their AARs and AGP merges them into the APK; nothing
-    profiled THIS app's code, which is what runs every frame in every screen.
-    DELIBERATELY NO COMMENT LINES IN THAT FILE: '#' is not verified as legal in
-    HRF, and an unparseable rule would fail compileReleaseArtProfile -- the same
-    class of mistake as #38's XML comment. Do not "tidy it up" by adding comments
-    without checking first.
+    SECOND HALF -- residual input latency, and the misconception that kept this
+    open for three sessions. With edges excluded the feel is still off,
+    described as a delay between the swipe and it being rendered, uniform across
+    screens. The maintainer's reasoning was "it's a Pixel 9 Pro so performance
+    isn't the issue." **ART compilation state is not a hardware question.**
+    Interpreted/JIT Compose is several times slower than AOT-compiled Compose and
+    no amount of silicon closes that gap; a fast chip only means the gap presents
+    as input latency rather than visible slideshow framerate. The control that
+    settles it: a comparable Compose app on the SAME phone has the same cushion
+    but much less of this -- because it came from Play with a baseline profile,
+    cloud profiles and weeks of dexopt. This app had none of the three.
+    BASELINE PROFILE SHIPPED (V2.2), correcting #75's "impossible from the dev
+    sandbox" verdict: rules can be HAND-WRITTEN. `app/src/main/baseline-prof.txt`,
+    one line, `HSPLno/hanss/alarmclock/**->**(**)**` -- exactly the wildcard shape
+    Google documents for manual rules. AGP consumes that path with no plugin and
+    no Macrobenchmark module. Compose's libraries already ship profiles inside
+    their AARs; nothing profiled THIS app's code, which runs every frame on every
+    screen. **Deliberately no comment lines in that file:** `#` is not verified as
+    legal in HRF and an unparseable rule would fail `compileReleaseArtProfile` --
+    same class of mistake as #38's XML comment. Don't "tidy it up".
     WHAT THE PROFILE DOES AND DOES NOT DO, since #75 overclaimed four times: it
     does NOT AOT-compile at sideload install time. It hands ART the correct
     hot-path list immediately so the FIRST background dexopt (idle + charging)
     compiles the right code, instead of the runtime spending days collecting a
-    profile first. Expect improvement after a charging cycle, not on first
-    launch.
-    HOW TO EVALUATE THE TWO CHANGES SEPARATELY, since they shipped together: the
-    overscroll fix is an IMMEDIATE binary check (hit the bottom, swipe straight
-    back up -- either the delay is gone or it isn't). The profile needs an
-    overnight idle charge before judging. Independently revertable.
-    BUILD RISKS IN THIS COMMIT, both known and handled: (a) the missing-OptIn trap
-    from #41 -- handled; (b) compileReleaseArtProfile is now fed an input file for
-    the first time. If CI fails, those are the two suspects, in that order.
-    SHIPPED AS V2.2 on commit 926d089 -- a LINE bump, chosen by the maintainer.
-    Process note: the session first suggested "V2.2.0", which is wrong twice over
-    against #28 -- that rule says suggest the next PATCH number on the current
-    line (V2.1.10 here) and never a semver-style minor bump, and this project's
-    line bumps are two-component (V2.1, V2.0), never three. Suggest V2.1.10-style
-    next time and let the maintainer call any line bump.
-    FIELD RESULT ON V2.2, on-device (the maintainer): "better, still some lag but
-    a bit more manageable now." So the overscroll half is CONFIRMED as a real
-    improvement -- the first thing in the whole #73/#75/#76 saga to be verified
-    rather than theorised. The residual lag is unchanged and expected at this
-    point: the baseline profile cannot have taken effect yet, since AOT
-    compilation waits for background dexopt on an idle charging device.
-    THE WAIT TEST IS NOW ACTUALLY RUNNING, and unlike #75's version it is clean.
-    #75's attempt was worthless because three reinstalls in one afternoon left
-    every version equally unoptimised; this time V2.2 is installed once and left
-    alone, AND the profile means ART is handed the hot-path list instead of
+    profile. Judge it after an overnight idle charge, not on first launch. Zero
+    behavioral risk -- a compilation hint cannot change semantics, which is what
+    separates it from R8 and #17's objection.
+    EVALUATING THE TWO CHANGES SEPARATELY, since they shipped together: the
+    overscroll fix is an immediate binary check (hit the bottom, swipe straight
+    back up). The profile needs a charging cycle. Independently revertable.
+    WAIT TEST NOW RUNNING CLEAN, unlike #75's attempt: V2.2 installed once and
+    left alone, and the profile means ART is handed the hot-path list instead of
     spending days collecting one, so the expected timescale is one idle charging
-    cycle rather than days. CRITICAL for whoever picks this up mid-wait: do NOT
-    push a release the maintainer will install during this window -- any new APK
-    re-invalidates the ART profile and restarts the clock, which is precisely the
-    confound that wasted #75. Sit on non-urgent changes until he reports back.
-    OUTCOMES AND WHAT EACH MEANS: if the lag fades over a few days, hypothesis 4
-    was right, the profile is doing its job, and there was never a bug in ui/. If
-    it is unchanged after an idle charge, the profile did not help enough and the
-    remaining honest step is a Macrobenchmark-generated profile on a real device
-    (a local Android Studio project, impossible from the dev sandbox) -- NOT
-    another round of code reading, which has now produced five wrong hypotheses.
-    There is no adb here and no user-facing way to inspect dexopt state, so this
-    judgment is unavoidably subjective; per #73's lesson, treat a vague "feels
-    the same" as real information and ask what changed on the device, but do not
-    build a new theory on it.
+    cycle. **Do NOT push a release the maintainer would install during this
+    window** -- a new APK re-invalidates the ART profile and restarts the clock,
+    the exact confound that wasted #75. Sit on non-urgent changes until he
+    reports back.
+    OUTCOMES: lag fades -> hypothesis 4 was right, the profile works, there was
+    never a bug in ui/. Unchanged after an idle charge -> the profile isn't
+    enough, and the remaining honest step is a Macrobenchmark-generated profile on
+    a real device (a local Android Studio project), NOT another round of code
+    reading. There is no adb here and no user-facing way to inspect dexopt state,
+    so this judgment is unavoidably subjective; treat a vague "feels the same" as
+    real information.
+    SHIPPED AS V2.2 -- a LINE bump, chosen by the maintainer. Process note: the
+    session first suggested "V2.2.0", wrong twice over against #28, which says
+    suggest the next PATCH number on the current line (V2.1.10 here) and never a
+    semver-style minor bump -- and this project's line bumps are two-component
+    (V2.1, V2.0), never three.
     OBSERVED IN PASSING, no change made: TimerListScreen ticks every 250 ms
-    (delay(250) in a while loop) to drive the countdown, i.e. 4 recompositions a
-    second on that tab -- oversampling for a seconds display, and a
-    second-boundary-aligned tick like AlarmListScreen's would be both cheaper and
-    exact. Not touched here: it cannot explain a symptom that also occurs on
-    Settings, and bundling an unrelated change into a perf release is what #17
-    warns against. Worth doing on its own someday.
+    (`delay(250)` in a while loop) to drive the countdown, i.e. 4 recompositions
+    a second on that tab -- oversampling for a seconds display, and a
+    second-boundary-aligned tick like AlarmListScreen's would be cheaper and
+    exact. Not touched: it cannot explain a symptom that also occurs on Settings,
+    and bundling unrelated changes into a perf release is what #17 warns against.
+
 
