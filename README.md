@@ -57,9 +57,15 @@ Android 13+, "display over other apps" is behind *Allow restricted settings*
 (Settings → Apps → AlarmClock → three-dot menu); without it, alarms still ring
 but show as a heads-up notification while the phone is in use.
 
+Separately, Android often switches off the full-screen alarm permission after
+an update. When that happens the app shows a tappable banner above the tabs
+that opens the right settings screen; until it is re-enabled, alarms ring as
+ordinary notifications rather than taking over the display.
+
 ## Architecture
 
 `data/` holds the Room entities, DAOs, repository, and migrations; `alarm/` the
 schedulers, receivers, and the foreground ring service; `ui/` the Compose
-screens; `widget/` the home screen widget. Design history and working notes
-live in [PROJECT_NOTES.md](PROJECT_NOTES.md).
+screens; `viewmodel/` the single `AlarmViewModel` bridging them; `widget/` the
+home screen widget. Design history and working notes live in
+[PROJECT_NOTES.md](PROJECT_NOTES.md).
