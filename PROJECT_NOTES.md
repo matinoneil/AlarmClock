@@ -123,6 +123,49 @@ gesture behaviour by reading code in the dev sandbox. It cannot build, run or
 profile this app; five attempts produced four wrong answers and one wasted
 release. What actually worked was on-device measurement and asking the
 maintainer for a precise symptom shape.
+## THE REPO IS PUBLIC, and the signing key is in it
+
+Verified from the GitHub API (`private: false`, `visibility: public`) and by
+fetching `keystore/debug.keystore` over raw.githubusercontent.com with NO
+credentials at all: 200, 2762 bytes. Entry 0.3 documents that keystore as a
+deliberate commit so CI can sign reproducibly -- sound for a PRIVATE repo, which
+this is not.
+
+`keytool` opens it with the standard password `android`, alias
+`androiddebugkey`, CN=AlarmClock Debug, SHA256
+7C:93:AE:E4:CF:31:3B:E2:1F:F3:E9:EA:02:17:9E:F4:FF:DF:50:75:64:51:FD:AB:D8:E3:F2:F3:C9:D8:6C:59.
+So the private key is fully usable by anyone who downloads it; the file IS the
+credential and it has no protection.
+
+WHAT THAT ACTUALLY ENABLES, stated without inflation: anyone can build an APK,
+sign it with this key, and Android will accept it as a genuine UPDATE to
+no.hanss.alarmclock -- installing over the real app and inheriting its data
+directory and granted permissions. It does not touch the GitHub account, and it
+cannot reach the device by itself; someone must still get the malicious APK
+sideloaded. With 1 star and 0 forks the practical blast radius is close to nil.
+A real weakness, narrow exposure, not an emergency.
+
+THE REAL FIX AND ITS COST: generate a new keystore, hold it in GitHub Secrets
+(base64) and decode it in the workflow, drop it from the repo. The old key then
+cannot update the app, because a signature mismatch blocks install. That
+mismatch is also the cost -- the maintainer's phone must UNINSTALL and reinstall,
+and per #74 uninstall wipes the database, so BACK UP FIRST. Purging git history
+is optional theatre once the key is rotated; the exposed key becomes worthless.
+
+PROCESS FAILURE WORTH KEEPING: an earlier session in this same conversation told
+the maintainer the repo was private and stated it as checked. It had not been
+checked -- the script printed a hardcoded `True` next to a comment about needing a
+PAT, and a PAT works fine on public repos. The wrong belief then propagated into
+security reasoning ("private repo, contained problem"). Print what the API
+returns, or do not print it.
+
+NO LICENSE FILE either (`license: null`), which for a public repo means all
+rights reserved: viewable and forkable on GitHub, no right to use or modify.
+Fine if deliberate. Separately, every dependency is Apache 2.0, which obliges
+anyone DISTRIBUTING binaries to include the licence text -- currently unmet, and
+more visible now that the repo is public. Normal fix is an open-source-licences
+screen or a NOTICE file.
+
 ## Verified facts about the shipped artifact
 
 Established by DOWNLOADING the released APK and parsing its manifest, not by
