@@ -180,9 +180,19 @@ fun HomeScreen(
             // The pager both animates tab taps and follows finger drags; vertical
             // list scrolling inside the pages is disambiguated by the pager's own
             // orientation locking.
+            // weight(1f), NOT fillMaxSize(): fillMaxSize pins the child's minimum
+            // constraints to the Column's full incoming height, ignoring the height
+            // the banner above already took. The pager (and the LazyColumns inside
+            // it) then overhang the bottom of the screen by the banner's height, and
+            // because a lazy list computes its scroll range against its own
+            // viewport, the range comes out SHORTER than the content: a long drag
+            // moves the list a little and stops, with the last items stranded below
+            // the screen edge. weight(1f) gives it the remaining height instead.
+            // See entry #75. Latent while the banner is hidden, which is why this
+            // survived from #66 unnoticed.
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.weight(1f)
             ) { page ->
             when (page) {
                 TAB_TIMERS -> TimerListContent(

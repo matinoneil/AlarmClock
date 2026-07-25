@@ -1407,8 +1407,8 @@ entry #1.
     a backup may no longer resolve -- the ring path falls back to the system
     alarm sound, which is safe but silently different from what was configured.
 
-75. **[OPEN] The #66 banner breaks the list viewport: pager uses fillMaxSize()
-    inside a Column.** Root cause of the scroll complaint that #73 wrongly
+75. **The #66 banner broke the list viewport: pager used fillMaxSize() inside
+    a Column.** Root cause of the scroll complaint that #73 wrongly
     closed. HomeScreen is
     `Column(fillMaxSize) { if (fullScreenRevoked) Surface(banner); HorizontalPager(fillMaxSize) }`.
     fillMaxSize() pins a child's MINIMUM constraints to the incoming maximum, so
@@ -1429,12 +1429,17 @@ entry #1.
     the banner still showing, and the feel identical. The #73 A/B was correctly
     NEGATIVE (same code in all three) while the symptom was real. Both true at
     once, which is why the A/B misled.
-    Intended fix: Modifier.weight(1f) on the pager instead of fillMaxSize(), so
-    it takes the remaining height. Correct independently of the scroll report --
-    fillMaxSize() on a Column child that has a preceding sibling is simply wrong
-    and clips content. Confirmation available with no build: with the banner
-    visible the lists mis-scroll; granting the permission removes the banner and
-    should restore normal scrolling.
+    Fix: Modifier.weight(1f) on the pager instead of fillMaxSize(), so it takes
+    the height remaining after the banner. Correct independently of the scroll
+    report -- fillMaxSize() on a Column child with a preceding sibling is simply
+    wrong and clips content. A scan of every other fillMaxSize() in ui/ found no
+    second instance: the edit screens and list contents all apply it where the
+    child really is the sole occupant of its parent. Confirmation needs no build:
+    with the banner visible the lists mis-scroll, and granting the permission
+    removes the banner and should restore normal scrolling. Note this is NOT a
+    rare condition -- per #66 the permission is revoked on more or less every
+    sideloaded update, so the broken layout is the state the app lands in after
+    each release until the user taps the banner.
     PROCESS LESSON, second half of #73's: a clean negative A/B is not proof the
     report is imaginary. Here a DEVICE-STATE change (a permission Android
     revoked during the update) rode in on the version change and persisted
