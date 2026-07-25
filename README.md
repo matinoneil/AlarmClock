@@ -15,12 +15,18 @@ snooze chain to accidentally kill half asleep. Because all ten come from one
 definition, changing the start time regenerates every alarm, and one switch
 toggles the whole series.
 
+<img width="960" height="1871" alt="Alarms" src="https://github.com/user-attachments/assets/1ec68798-3c69-4ba6-bea4-940825a66530" />
+
+
 ## Timers
 
 Saved, reusable presets — duration, label, sound, vibration. A running timer
 counts down on its card and in a notification with **+30 s**, **−30 s**, and
 **Stop**; the ring at the end is as loud as any alarm. Running timers survive
 reboots.
+
+<img width="960" height="1903" alt="Timers" src="https://github.com/user-attachments/assets/67444fb9-974b-4d11-88a6-8a8d74adfc86" />
+
 
 ## Reminders
 
