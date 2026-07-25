@@ -1407,6 +1407,43 @@ entry #1.
     a backup may no longer resolve -- the ring path falls back to the system
     alarm sound, which is safe but silently different from what was configured.
 
+75. **[OPEN] The #66 banner breaks the list viewport: pager uses fillMaxSize()
+    inside a Column.** Root cause of the scroll complaint that #73 wrongly
+    closed. HomeScreen is
+    `Column(fillMaxSize) { if (fullScreenRevoked) Surface(banner); HorizontalPager(fillMaxSize) }`.
+    fillMaxSize() pins a child's MINIMUM constraints to the incoming maximum, so
+    the pager is measured at the Column's FULL height rather than the height
+    remaining after the banner -- it and the LazyColumns inside it extend past
+    the bottom of the Column by exactly the banner's height. The lazy list's max
+    scroll offset is computed against that oversized viewport, so the scroll
+    range is SHORTER than the content by the banner height and the last items sit
+    below the screen edge, unreachable. Symptom as reported: a long drag moves
+    the list a little and stops, i.e. scroll distance not matching finger
+    distance. Latent whenever the banner is hidden (the pager is then the only
+    child, so full height == remaining height), which is why it went unseen
+    since #66 shipped.
+    Explains the full timeline that #73's first theory could not: #66 exists
+    precisely BECAUSE Android 14 revokes USE_FULL_SCREEN_INTENT on update for
+    sideloaded apps -- so updating to V2.1.8 revoked it, the banner appeared, and
+    the layout broke; downgrading to V2.1.6/V2.1.7 left the permission revoked,
+    the banner still showing, and the feel identical. The #73 A/B was correctly
+    NEGATIVE (same code in all three) while the symptom was real. Both true at
+    once, which is why the A/B misled.
+    Intended fix: Modifier.weight(1f) on the pager instead of fillMaxSize(), so
+    it takes the remaining height. Correct independently of the scroll report --
+    fillMaxSize() on a Column child that has a preceding sibling is simply wrong
+    and clips content. Confirmation available with no build: with the banner
+    visible the lists mis-scroll; granting the permission removes the banner and
+    should restore normal scrolling.
+    PROCESS LESSON, second half of #73's: a clean negative A/B is not proof the
+    report is imaginary. Here a DEVICE-STATE change (a permission Android
+    revoked during the update) rode in on the version change and persisted
+    across the downgrades, so version A/B could never isolate it. When an A/B
+    comes back negative but the user keeps reporting the symptom, ask what
+    changed on the device, not just in the code -- and BELIEVE the user; this
+    entry exists because the maintainer pushed back after the symptom was
+    written off.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
