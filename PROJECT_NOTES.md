@@ -1772,6 +1772,26 @@ entry #1.
     ACTION_OPEN_DOCUMENT would give durable grants but replaces the ringtone list
     with a file browser and needs migrating URIs already saved. Not worth it now
     that the permission route works.
+    A NUMBER AFTER A RESTORE IS NOT THIS BUG -- read this before reopening #81.
+    restoreBackupJson writes every soundUri verbatim with NO validation (checked).
+    Restoring a backup onto a device that lacks the song leaves a live URI
+    pointing at a MediaStore row that does not exist, so getTitle finds zero rows
+    and returns getLastPathSegment: the same number, an entirely different cause
+    (missing FILE, not missing PERMISSION). The alarm still rings via
+    AlarmRingtoneService's default fallback, and #82's reset button is visible
+    because the URI is non-null, so the user can normalise it. Do NOT diagnose
+    this as a permission regression.
+    AND DO NOT MAKE RESTORE VALIDATE URIs: a restore is exactly when media is most
+    likely to be TEMPORARILY unresolvable -- permission not yet granted, MediaStore
+    still indexing after a device migration -- so nulling unreachable sounds would
+    silently wipe selections that were about to become valid. Non-destructive and
+    recoverable beats clever. The contained improvement instead is display-only:
+    render "Sound unavailable -- using default" when a URI will not resolve, rather
+    than a bare number. Not implemented.
+    THIS ALSO WEAKENS THE CACHE IDEA BELOW: a cached title would show the
+    last-known song name for a file that is gone, cheerfully claiming a sound that
+    cannot play. The ugly number is at least an honest failure signal. If the cache
+    is ever built, it must not mask an unresolvable URI.
     DEFERRED, worth doing if the label ever misbehaves again: cache the resolved
     title at pick time (a SharedPreferences uri->title map, no schema change) and
     display the stored name. That would also survive the user DENYING the
