@@ -1798,7 +1798,9 @@ entry #1.
     permission, and the separate case the service comment describes -- a song
     deleted or its MediaStore row reassigned by a library rescan -- where
     getLastPathSegment will still surface a number.
-    UNVERIFIED: not compiled or run. After installing, the permission is requested
+    FIELD-VERIFIED on V2.2.4/V2.2.5: permission granted, custom song survives a
+    force close and plays at ring time. #81 is closed for real.
+    Note: the permission is requested
     on the NEXT launch, not retroactively, and existing alarms keep working the
     moment it is granted -- the URI in the DB was always correct, only the access
     was missing.
@@ -1835,7 +1837,8 @@ entry #1.
     KNOWN COSMETIC EDGE: a non-null value that happens to BE the default URI still
     shows the reset button. Harmless -- tapping normalises it to null with the same
     audible result.
-    UNVERIFIED: not compiled or run.
+    FIELD-VERIFIED on V2.2.4/V2.2.5: the reset button returns the sound to the
+    default as intended.
 
 83. **Backing out of the ringtone picker wiped the current sound back to
     default.** With a custom song set, tapping the sound button and then exiting
@@ -1866,7 +1869,7 @@ entry #1.
     offered; and reverting to default is now a deliberate action via #82's reset
     button. If Silent is ever enabled, this guard must be changed to distinguish a
     cancel from a real silent pick.
-    UNVERIFIED: not compiled or run.
+    FIELD-VERIFIED on V2.2.5: cancelling the picker keeps the current selection.
 
 84. **An unresolvable sound now says so instead of showing a number.** Follow-up
     to #81/#83. Where a stored soundUri cannot be resolved -- the song was deleted,
@@ -1901,4 +1904,9 @@ entry #1.
     selections that were about to become valid. This entry makes the state HONEST
     rather than trying to repair it, and #82's reset button is how the user clears
     it deliberately.
-    UNVERIFIED: not compiled or run.
+    STILL UNVERIFIED, and the only part of the #81-#84 group that is: it builds
+    (V2.2.6 shipped) but the maintainer has confirmed 1-4 of the sound fixes
+    WITHOUT triggering this path, which needs a deliberately deleted song or a
+    backup restored onto a device lacking it. The `title == uri.lastPathSegment`
+    detector either catches the real case or it does not, and only a device can
+    say. Do not record it as working until someone actually sees the message.
