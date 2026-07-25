@@ -1511,6 +1511,22 @@ entry #1.
     in conversation inflated a non-issue into a prime suspect, and the maintainer
     reasonably kept returning to it. Own real mistakes; do not manufacture them,
     because they get treated as leads.
+    CORROBORATING OBSERVATION, volunteered later and the best lead in the entry:
+    during the reinstall round the package install STALLED, the maintainer force
+    closed the installer, and the app ended up installed anyway. That is exactly
+    the state hypothesis 4 describes. A sideloaded APK with no Baseline Profile
+    gets only a quick verify pass at install time -- no AOT compilation -- and runs
+    interpreted/JIT until the background dexopt job recompiles it from collected
+    profiles while the device is idle and charging. An interrupted install plausibly
+    leaves the app installed but never properly optimised, and it stays that way
+    until that job runs. Fits every measurable: app-wide frame spikes including
+    Settings, worst on the heaviest work, no code-level explanation anywhere in ui/.
+    CHEAPEST NEXT ACTION, no data risk: reinstall the SAME version over itself
+    (same versionCode, so it is an update and the database survives -- no backup
+    dance), let the installer finish uninterrupted however long it takes, then
+    leave the device plugged in and idle overnight before judging. If the stall
+    recurs, suspect Play Protect scanning, a common cause of sideload install
+    hangs.
     FALSIFIABLE PREDICTION, agreed as the next step, no code change: leave the
     device 3-4 days charging overnight with no reinstalls. If the jank fades it
     was optimisation state and there is no bug. If it is unchanged, hypothesis 4
