@@ -1337,12 +1337,32 @@ entry #1.
     LazyColumn nested in an experimental-era Pager disambiguates every drag
     through the pager's nested-scroll connection before the list sees it, which
     matches "the list moves less than my finger" precisely.
-    UNEXPLAINED, and stated rather than papered over: neither the hypothesis nor
-    anything ruled out above accounts for the maintainer experiencing this as NEW.
-    The A/B that would settle whether V2.1.8 is implicated at all is installing
-    V2.1.7 and retesting -- which needs a Settings backup first, since the lower
-    versionCode forces an uninstall and wipes the DB.
-    TWO OPTIONS, no code touched pending a decision: (1) bump the Compose BOM to
+    A/B RESULT: the maintainer installed V2.1.6 and V2.1.7 and could not tell them
+    apart from V2.1.8. So the symptom is PRE-EXISTING and version-independent,
+    V2.1.8 is fully cleared, and the "why is it new" tension in the first draft
+    of this entry dissolves -- it was never new, and every version tested
+    contains #40's pager. Not a regression; a standing UI quality issue.
+    SECOND CANDIDATE, found after the A/B and probably the fps half of the
+    report: every card in all three list tabs applies Modifier.alpha (0.5 for
+    disabled/done/idle, 0.75 for paused, from #16/#33/#50). Compose implements
+    Modifier.alpha via graphicsLayer, so each card is its own compositing layer
+    and every sub-1f card blends offscreen each frame. SettingsScreen has no
+    alpha modifier anywhere, which is precisely the screen that feels smoother.
+    Also checked and CLEARED in the same pass: the rings-in computation is
+    correctly remember()-keyed on (item, nowMillis) in both the series and
+    standalone branches, so peekNextTriggerTime runs once a minute, not per
+    frame, and items() carry stable keys.
+    The two reported symptoms plausibly have two different causes: "the list
+    moves less than my finger" is drag-delta consumption (pager), while "clunky,
+    fewer fps" is compositing cost (alpha layers). Fixing one need not fix the
+    other.
+    ORDER OF ATTACK now that it is not a regression: do the alpha fix first --
+    apply alpha to container/content COLORS instead of the whole card, removing
+    the layer per card. Small, surgical, costs no feature. Known visual
+    trade-off to accept or reject: color alpha does not fade a card's
+    shadow/elevation the way a full-card layer does, so dimmed cards read
+    slightly differently. Only if the drag-delta symptom survives that is the
+    pager worth touching, via: (1) bump the Compose BOM to
     a 1.7+ foundation where Pager is stable and drop the OptIn from #41 -- the
     principled fix, and #20(f) already wants this upgrade as its own
     on-device-tested release, not a drive-by; (2) revert #40's swipe-between-tabs
