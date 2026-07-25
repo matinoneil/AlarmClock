@@ -1646,7 +1646,7 @@ entry #1.
     and it is overscroll relaxation, a documented by-design Compose behaviour,
     not a perf bug. #75's four hypotheses were all chasing the wrong shape.
 
-76. **[OPEN] Reaching a list edge blocks the next swipe until the stretch
+76. **Reaching a list edge blocked the next swipe until the stretch
     "cushion" pays back.** The #73/#75 saga's real symptom, finally stated
     precisely by the maintainer: swipe down to the bottom, then start swiping up
     again -- the up-swipe does not take until the bounce-back has finished. Not
@@ -1682,10 +1682,65 @@ entry #1.
     do not use it on this BOM. Note OverscrollConfiguration on 1.6.8 exposes only
     glowColor and drawPadding -- there is no spring-stiffness knob, so this is
     on/off, not tunable.
-    Trade-off to accept or reject: no more bounce at the edges anywhere; hitting
-    the end simply stops. Purely visual, zero alarm-path risk -- no DB,
-    scheduling, service or notification code involved, which is what makes this
-    unlike #17's R8 question.
+    CONFIRMED IN PART by the maintainer: mid-list scrolling is "much better" once
+    the edges are out of the picture, so overscroll relaxation WAS a real and
+    dominant component. It is not everything -- see the second half below.
+    FIX AS SHIPPED: CompositionLocalProvider(LocalOverscrollConfiguration provides
+    null) wrapping AlarmClockTheme inside MainActivity's setContent, with
+    @OptIn(ExperimentalFoundationApi::class) on onCreate. Covers every scrollable
+    under MainActivity: all three tabs, Settings, every editor. NOT applied to
+    RingingActivity or ReminderSnoozeActivity, which have their own setContent and
+    no long lists -- add it there too if either ever grows one. Trade-off
+    knowingly accepted: no bounce at any edge anywhere; hitting the end stops
+    dead. Purely visual, zero alarm-path risk (no DB, scheduling, service or
+    notification code), which is what separates this from #17's R8 question.
+
+    RESIDUAL SYMPTOM, and the second half of this entry: with edges excluded it
+    is still "not good" -- described as a delay between the swipe and it being
+    rendered, i.e. input-to-render latency, uniform across screens. A comparable
+    Compose app on the SAME phone has the same cushion but noticeably less of
+    this, which is the useful control: same device, same OS, same overscroll
+    implementation, different app.
+    THE MISCONCEPTION THAT KEPT #75 OPEN FOR THREE SESSIONS, worth stating
+    plainly: "it's a Pixel 9 Pro so performance isn't the issue." ART compilation
+    state is NOT a hardware question. Interpreted/JIT Compose is several times
+    slower than AOT-compiled Compose and no amount of silicon closes that gap;
+    the fast chip only means the gap shows up as input latency rather than as
+    visible slideshow framerate. The comparison app came from Play WITH a
+    baseline profile, cloud profiles and weeks of accumulated dexopt. This app
+    had none of the three. That is the entire difference, and it is why five
+    sessions of reading ui/ found nothing.
+    SECOND FIX SHIPPED, hand-written baseline profile at
+    app/src/main/baseline-prof.txt, ONE line:
+    HSPLno/hanss/alarmclock/**->**(**)**  -- exactly the wildcard shape Google
+    documents for manual rules (their example is
+    HSPLandroidx/compose/ui/layout/**->**(**)**). Compose's own libraries already
+    ship profiles inside their AARs and AGP merges them into the APK; nothing
+    profiled THIS app's code, which is what runs every frame in every screen.
+    DELIBERATELY NO COMMENT LINES IN THAT FILE: '#' is not verified as legal in
+    HRF, and an unparseable rule would fail compileReleaseArtProfile -- the same
+    class of mistake as #38's XML comment. Do not "tidy it up" by adding comments
+    without checking first.
+    WHAT THE PROFILE DOES AND DOES NOT DO, since #75 overclaimed four times: it
+    does NOT AOT-compile at sideload install time. It hands ART the correct
+    hot-path list immediately so the FIRST background dexopt (idle + charging)
+    compiles the right code, instead of the runtime spending days collecting a
+    profile first. Expect improvement after a charging cycle, not on first
+    launch.
+    HOW TO EVALUATE THE TWO CHANGES SEPARATELY, since they shipped together: the
+    overscroll fix is an IMMEDIATE binary check (hit the bottom, swipe straight
+    back up -- either the delay is gone or it isn't). The profile needs an
+    overnight idle charge before judging. Independently revertable.
+    BUILD RISKS IN THIS COMMIT, both known and handled: (a) the missing-OptIn trap
+    from #41 -- handled; (b) compileReleaseArtProfile is now fed an input file for
+    the first time. If CI fails, those are the two suspects, in that order.
+    OBSERVED IN PASSING, no change made: TimerListScreen ticks every 250 ms
+    (delay(250) in a while loop) to drive the countdown, i.e. 4 recompositions a
+    second on that tab -- oversampling for a seconds display, and a
+    second-boundary-aligned tick like AlarmListScreen's would be both cheaper and
+    exact. Not touched here: it cannot explain a symptom that also occurs on
+    Settings, and bundling an unrelated change into a perf release is what #17
+    warns against. Worth doing on its own someday.
 
 ## Restarting this project in a new chat
 

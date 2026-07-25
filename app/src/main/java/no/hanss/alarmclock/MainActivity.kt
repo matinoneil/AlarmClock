@@ -11,6 +11,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollConfiguration
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -111,6 +114,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -121,6 +125,15 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) requestNextMissingPermission()
 
         setContent {
+            // Entry #76: the stretch overscroll at a list edge has to be "paid
+            // back" before the container scrolls again -- OverscrollEffect consumes
+            // scroll delta BEFORE the list sees it, and subtracts the outstanding
+            // overscroll first when the drag reverses. Reaching the bottom and
+            // immediately swiping up therefore spent the first part of the gesture
+            // discharging the spring instead of scrolling. null disables it for
+            // every scrollable below here: the tabs, Settings and all the editors.
+            // Purely visual -- no scheduling, DB, service or notification code.
+            CompositionLocalProvider(LocalOverscrollConfiguration provides null) {
             AlarmClockTheme {
                 val navController = rememberNavController()
 
@@ -198,6 +211,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
             }
         }
     }
