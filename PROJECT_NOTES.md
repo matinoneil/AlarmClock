@@ -1295,9 +1295,15 @@ entry #1.
     in for the night makes getNextAlarmClock return the TIMER instead of the
     morning alarm, at exactly the moment Adaptive Charging evaluates -- a
     concrete way to lose the overnight charge shaping, not a theoretical one.
-    The fix shape remains as described (timers off setAlarmClock), still needing
-    on-device testing because of the Doze and background-FGS-exemption
-    trade-off.
+    DECIDED by the maintainer: leave timers on setAlarmClock. His usage is
+    timers under 10 minutes, only while actively using the phone (cooking), so
+    one is never running at overnight plug-in time -- the only moment the
+    collision would matter. Weighed against the real downside of the
+    alternative (setExactAndAllowWhileIdle is quota-limited and would put a
+    timer's ring at risk, a worse bug than a confused charging optimiser), the
+    swap isn't worth it. Don't re-propose this without a new symptom; if one
+    ever appears it would look like overnight charge shaping failing on a night
+    when a timer happened to be running, and the fix shape is recorded above.
 
 ## Restarting this project in a new chat
 
