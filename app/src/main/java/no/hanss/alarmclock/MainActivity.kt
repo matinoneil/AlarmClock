@@ -89,7 +89,9 @@ class MainActivity : ComponentActivity() {
         if (!notificationsGranted && notificationAsks < 2) {
             permPrefs.edit().putInt("notification_permission_asks", notificationAsks + 1).apply()
             requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else if (!viewModel.canScheduleExactAlarms() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        // SDK_INT first: Kotlin evaluates && left to right, so the old order called
+        // the API 31 method before reaching the guard that was meant to protect it (#78).
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !viewModel.canScheduleExactAlarms()) {
             safeStartActivity(
                 Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                     data = Uri.parse("package:$packageName")

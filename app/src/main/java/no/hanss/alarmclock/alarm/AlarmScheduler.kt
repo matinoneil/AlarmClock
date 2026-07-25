@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import java.util.Calendar
 import no.hanss.alarmclock.MainActivity
@@ -46,8 +47,14 @@ class AlarmScheduler(private val context: Context) {
         pendingIntent.cancel()
     }
 
+    /**
+     * AlarmManager.canScheduleExactAlarms() is API 31; minSdk here is 26, so the
+     * version check has to come FIRST or the call resolves against a method that
+     * does not exist on the device (entry #78). Below API 31 exact alarms need no
+     * user grant at all, so `true` is the correct answer rather than a fudge.
+     */
     fun canScheduleExactAlarms(): Boolean =
-        alarmManager.canScheduleExactAlarms()
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
 
     /** Exposes the next trigger time without touching AlarmManager, for the upcoming-alarm notification. */
     fun peekNextTriggerTime(alarm: Alarm): Long = nextTriggerTime(alarm)

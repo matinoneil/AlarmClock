@@ -1642,20 +1642,36 @@ entry #1.
     DEFERRED, deliberately: the button does not show a status summary before you
     open it, which would mean computing the rows in SettingsScreen too.
 
-78. **[NOT FIXED - latent] AlarmScheduler.canScheduleExactAlarms() calls an API
-    31 method with no version guard.** Found while writing #77, not touched
-    because bundling unrelated changes into a feature commit is what #17 warns
-    against. `AlarmScheduler.canScheduleExactAlarms()` is
-    `alarmManager.canScheduleExactAlarms()` with no SDK check, and
-    MainActivity.requestNextMissingPermission calls it as
+78. **AlarmScheduler.canScheduleExactAlarms() called an API 31 method with no
+    version guard.** Found while writing #77. `AlarmScheduler` had
+    `alarmManager.canScheduleExactAlarms()` bare, and MainActivity called it as
     `!viewModel.canScheduleExactAlarms() && Build.VERSION.SDK_INT >= S`. Kotlin
-    evaluates `&&` left to right, so the call happens BEFORE the version check.
-    On API 26-30 that method does not exist, which should mean NoSuchMethodError
-    on launch -- in alarm-critical code, from a permission check, which is exactly
-    the failure mode the standing agreement forbids.
-    Severity in practice is near zero and that is the only reason it can wait:
-    minSdk is 26 but the app runs on one Pixel 9 Pro, so the old path has never
-    executed. Flagged rather than fixed, and flagged as UNVERIFIED reasoning
-    rather than a confirmed crash -- #75 is a monument to declaring latent bugs
-    that turned out not to exist. Fix if wanted is two lines: guard inside
-    AlarmScheduler and reorder MainActivity's condition to test SDK_INT first.
+    evaluates `&&` left to right, so the call happened BEFORE the check that was
+    meant to protect it -- on API 26-30 that method does not exist, and minSdk is
+    26. In alarm-critical code, reached from a permission check on launch.
+    FIX: guard inside AlarmScheduler (`SDK_INT < S || alarmManager...`), returning
+    true below API 31 because exact alarms need no user grant there -- the correct
+    answer, not a fudge -- and reorder MainActivity's condition to test SDK_INT
+    first so the guard works by short-circuit rather than by luck. `android.os.Build`
+    was NOT imported in AlarmScheduler; that import ships with the fix, because a
+    missing import is how #31 broke the build.
+    JUSTIFICATION WORTH KEEPING, because the crash was never reproduced: the
+    NoSuchMethodError reasoning is sound but UNVERIFIED, and #75 is this file's
+    monument to confidently declaring latent bugs that turned out not to exist.
+    The fix was made anyway on the grounds that it is correct either way -- an
+    unguarded call to an API above minSdk is simply wrong on its own terms -- so
+    being right about the crash was never load-bearing. Prefer that framing to
+    "found a crash" next time.
+    Severity in practice was near zero: minSdk is 26 but the app runs on one
+    Pixel 9 Pro, so the old path had never executed.
+    SCAN RESULT, so nobody re-runs it: this was the ONLY unguarded above-minSdk
+    call in the codebase. canUseFullScreenIntent is guarded on the line above it;
+    the VibratorManager cast has an SDK_INT check, a legacy else branch AND a
+    try/catch (#71b); createNotificationChannel is API 26 == minSdk;
+    canDrawOverlays and isNotificationPolicyAccessGranted are API 23. Not a
+    pattern, a one-off.
+    STILL OPEN AS A DECISION, not a bug: raising minSdk from 26 to 31 would make
+    this whole class of problem impossible and let a chunk of the ~19 SDK_INT
+    guards go away. Cost is real but nil in practice for a one-device personal
+    app; it would also need the README's "Requires Android 8.0+" line updated.
+    Deliberately NOT bundled here.
