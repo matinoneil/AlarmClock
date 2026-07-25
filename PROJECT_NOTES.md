@@ -1904,12 +1904,8 @@ entry #1.
     selections that were about to become valid. This entry makes the state HONEST
     rather than trying to repair it, and #82's reset button is how the user clears
     it deliberately.
-    STILL UNVERIFIED, and the only part of the #81-#84 group that is: it builds
-    (V2.2.6 shipped) but the maintainer has confirmed 1-4 of the sound fixes
-    WITHOUT triggering this path, which needs a deliberately deleted song or a
-    backup restored onto a device lacking it. The `title == uri.lastPathSegment`
-    detector either catches the real case or it does not, and only a device can
-    say. Do not record it as working until someone actually sees the message.
+    FIELD-VERIFIED on V2.2.7: the maintainer confirmed the message appears. So the
+    `title == uri.lastPathSegment` detector does catch the real case.
 
 85. **Removed the redundant "3:00 timer" line under a resting timer.** Requested,
     cosmetic. A resting timer card showed the duration as the big number and then
@@ -1926,7 +1922,7 @@ entry #1.
     Four cases now: resting+unlabelled renders no subtitle row at all;
     resting+labelled shows just the label; running+unlabelled shows just the ring
     time; running+labelled shows "label · Rings at HH:MM".
-    UNVERIFIED: not compiled or run.
+    FIELD-VERIFIED on V2.2.7.
 
 86. **Auto-capitalisation on every free-text field, not just reminders.** #63 gave
     the reminder text KeyboardCapitalization.Sentences and stopped there, so every
@@ -1945,4 +1941,9 @@ entry #1.
     every OutlinedTextField in ui/ is either numeric or capitalised, with none
     unclassified -- verified by counting per file, so a future addition that is
     neither is easy to spot.
-    UNVERIFIED: not compiled or run.
+    NOT OBSERVED. Shipped in V2.2.8 and assumed working at the maintainer's
+    direction rather than tested, which is recorded plainly instead of as
+    verified -- the change is four identical one-line additions of an API already
+    proven in ReminderEditScreen, so the risk is genuinely low, but low risk is
+    not the same as observed. If capitalisation ever misbehaves on one screen,
+    start by checking whether that field got the line at all.
