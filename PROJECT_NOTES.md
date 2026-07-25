@@ -1740,6 +1740,31 @@ entry #1.
     line (V2.1.10 here) and never a semver-style minor bump, and this project's
     line bumps are two-component (V2.1, V2.0), never three. Suggest V2.1.10-style
     next time and let the maintainer call any line bump.
+    FIELD RESULT ON V2.2, on-device (the maintainer): "better, still some lag but
+    a bit more manageable now." So the overscroll half is CONFIRMED as a real
+    improvement -- the first thing in the whole #73/#75/#76 saga to be verified
+    rather than theorised. The residual lag is unchanged and expected at this
+    point: the baseline profile cannot have taken effect yet, since AOT
+    compilation waits for background dexopt on an idle charging device.
+    THE WAIT TEST IS NOW ACTUALLY RUNNING, and unlike #75's version it is clean.
+    #75's attempt was worthless because three reinstalls in one afternoon left
+    every version equally unoptimised; this time V2.2 is installed once and left
+    alone, AND the profile means ART is handed the hot-path list instead of
+    spending days collecting one, so the expected timescale is one idle charging
+    cycle rather than days. CRITICAL for whoever picks this up mid-wait: do NOT
+    push a release the maintainer will install during this window -- any new APK
+    re-invalidates the ART profile and restarts the clock, which is precisely the
+    confound that wasted #75. Sit on non-urgent changes until he reports back.
+    OUTCOMES AND WHAT EACH MEANS: if the lag fades over a few days, hypothesis 4
+    was right, the profile is doing its job, and there was never a bug in ui/. If
+    it is unchanged after an idle charge, the profile did not help enough and the
+    remaining honest step is a Macrobenchmark-generated profile on a real device
+    (a local Android Studio project, impossible from the dev sandbox) -- NOT
+    another round of code reading, which has now produced five wrong hypotheses.
+    There is no adb here and no user-facing way to inspect dexopt state, so this
+    judgment is unavoidably subjective; per #73's lesson, treat a vague "feels
+    the same" as real information and ask what changed on the device, but do not
+    build a new theory on it.
     OBSERVED IN PASSING, no change made: TimerListScreen ticks every 250 ms
     (delay(250) in a while loop) to drive the countdown, i.e. 4 recompositions a
     second on that tab -- oversampling for a seconds display, and a
