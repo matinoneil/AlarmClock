@@ -2089,3 +2089,37 @@ entry #1.
     closely, but it is the second schema migration of the day and an unregistered or
     malformed migration is the one failure here that costs data -- so if anything
     looks wrong after installing, check the timer LIST is intact first.
+
+89. **Release signing moved to CI secrets (phase 1 of the key rotation).** Response
+    to the public-repo finding above. The maintainer generated a fresh PKCS12
+    keystore with openssl (no JDK or Android Studio needed -- verified that a
+    keystore made by `openssl pkcs12 -export` is accepted by keytool/apksigner) and
+    set four repository secrets: KEYSTORE_B64, KEYSTORE_PASSWORD, KEY_ALIAS,
+    KEY_PASSWORD. PKCS12 cannot hold separate store and key passwords, so the two
+    password secrets are intentionally the same value.
+    WIRING: the workflow decodes KEYSTORE_B64 to $RUNNER_TEMP/release.keystore and
+    exports KEYSTORE_PATH via $GITHUB_ENV; build.gradle.kts creates a `release`
+    signingConfig only when that path exists and is non-blank, and the release
+    buildType uses `signingConfigs.findByName("release") ?: getByName("debug")`.
+    DESIGNED TO DEGRADE, NOT FAIL, which is why this could land before the rotation
+    was proven: with no secret set, the decode step logs and does nothing, no
+    release config is created, and the build signs with the committed debug key
+    exactly as before. That also keeps fork builds and any local build working. The
+    step is gated by a shell test rather than an `if:` expression on the secrets
+    context, deliberately -- the shell check is unambiguous and also handles a
+    base64 value pasted with line wrapping (whitespace is stripped before decode).
+    The secret value is never echoed; only the decoded byte count is logged.
+    .gitignore now covers *.keystore, *.jks, *.p12, tmp.key, tmp.crt. NOTE this does
+    NOT untrack keystore/debug.keystore -- gitignore never untracks an already
+    tracked file, which is intentional here: the debug key must keep working until
+    the new signature is proven on the device.
+    STILL TO DO (phase 2, in order): cut a release; confirm the APK REFUSES to
+    install over the existing app (signature mismatch IS the success signal); back
+    up app data per #74; uninstall, reinstall, restore, re-grant all six
+    permissions; only THEN delete keystore/debug.keystore. Doing it in any other
+    order either breaks builds or leaves the exposed key still able to update the
+    app.
+    NOT DONE: no LICENSE file yet. The repo is public with `license: null`, which
+    means all rights reserved. Held back only because an MIT copyright line needs
+    the maintainer's actual name and guessing a legal name into a public licence
+    file is not something to improvise.

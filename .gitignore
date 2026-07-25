@@ -8,3 +8,13 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Signing material must never be committed. See PROJECT_NOTES,
+# "THE REPO IS PUBLIC, and the signing key is in it". Note this does NOT untrack
+# keystore/debug.keystore, which is already tracked and is removed separately
+# once the rotation is proven.
+*.keystore
+*.jks
+*.p12
+tmp.key
+tmp.crt

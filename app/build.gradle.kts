@@ -36,6 +36,22 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+
+        // Release signing comes from CI secrets and NEVER from the repo -- see the
+        // "THE REPO IS PUBLIC, and the signing key is in it" section in
+        // PROJECT_NOTES. The workflow base64-decodes the keystore to a runner temp
+        // path and exports KEYSTORE_PATH; this config only exists when that has
+        // happened, so a local build, a fork, or any run without the secrets falls
+        // through to debug signing below instead of failing.
+        val releaseKeystore = System.getenv("KEYSTORE_PATH")
+        if (!releaseKeystore.isNullOrBlank() && file(releaseKeystore).exists()) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -47,7 +63,10 @@ android {
             // versa) with no uninstall. CI ships this variant because Compose
             // performance in debuggable builds is drastically worse -- the
             // debug variant is only for local inspection now.
-            signingConfig = signingConfigs.getByName("debug")
+            // Prefer the secret-backed release key; fall back to the committed debug
+            // key so nothing breaks on a machine or run without the secrets.
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

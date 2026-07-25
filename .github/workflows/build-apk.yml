@@ -56,7 +56,29 @@ jobs:
       # debuggable builds is drastically worse; see PROJECT_NOTES entry #17.
       # Signed with the same committed keystore as debug, so it installs over
       # older debug-signed installs without an uninstall.
+      # Decode the release signing key from repository secrets. Deliberately not
+      # gated on an `if:` expression -- the shell check keeps this working when the
+      # secret is absent (a fork, or before the key was set up), in which case the
+      # build falls back to the committed debug key rather than failing. The value
+      # is never echoed; whitespace is stripped in case the base64 was pasted
+      # wrapped. See PROJECT_NOTES, "THE REPO IS PUBLIC".
+      - name: Decode release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Release keystore decoded ($(stat -c%s "$RUNNER_TEMP/release.keystore") bytes)"
+          else
+            echo "No KEYSTORE_B64 secret set; falling back to debug signing"
+          fi
+
       - name: Build release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle assembleRelease ${{ steps.version.outputs.gradle_args }}
 
       - name: Upload APK as build artifact
