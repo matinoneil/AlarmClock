@@ -1867,3 +1867,38 @@ entry #1.
     button. If Silent is ever enabled, this guard must be changed to distinguish a
     cancel from a real silent pick.
     UNVERIFIED: not compiled or run.
+
+84. **An unresolvable sound now says so instead of showing a number.** Follow-up
+    to #81/#83. Where a stored soundUri cannot be resolved -- the song was deleted,
+    a backup was restored onto a device without it, or the MediaStore row was
+    reassigned by a library rescan -- the label showed a bare number. It now reads
+    "Sound unavailable - using default", which is what AlarmRingtoneService will
+    actually do.
+    HOW UNRESOLVABLE IS DETECTED, and this is the part not to "simplify": per
+    AOSP, Ringtone.getTitle() does NOT fail when it cannot read the media row. It
+    swallows the SecurityException and returns `uri.getLastPathSegment()`, which
+    for content://media/external/audio/media/1234 is the string "1234". So the
+    detector is `title == uri.lastPathSegment` -- an exact match means resolution
+    failed. Ugly but precise, and the only signal available without a separate
+    MediaStore query. A real title colliding with its own numeric row id is not a
+    realistic risk, and content://settings/system/alarm_alert resolves through a
+    different branch returning the underlying sound's real name, so it is
+    unaffected.
+    CONSOLIDATION: four near-identical copies of the resolution logic
+    (AlarmEditScreen, SeriesEditScreen, TimerEditScreen, SettingsScreen.soundName)
+    are replaced by one helper, ui/SoundLabel.kt::soundDisplayName(context, uri,
+    defaultLabel). defaultLabel is a parameter because the screens legitimately
+    differ -- editors say "Default alarm sound", Settings says "System default".
+    SettingsScreen keeps its local soundName() wrapper so its many call sites,
+    including dialog text, needed no edits.
+    Also dropped the now-misleading `?: "Default alarm sound"` at the three editor
+    Text sites: it was a redundant elvis on an already non-null value even before
+    this change, and leaving it beside a helper that handles the default would read
+    as though the default were handled there instead.
+    DELIBERATELY UNCHANGED: restore still writes sound URIs verbatim without
+    validation. See the reasoning in #81 -- a restore is exactly when media is most
+    likely to be temporarily unresolvable, so nulling unreachable sounds would wipe
+    selections that were about to become valid. This entry makes the state HONEST
+    rather than trying to repair it, and #82's reset button is how the user clears
+    it deliberately.
+    UNVERIFIED: not compiled or run.

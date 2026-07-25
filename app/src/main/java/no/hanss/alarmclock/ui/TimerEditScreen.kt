@@ -112,11 +112,7 @@ fun TimerEditScreen(
     }
 
     val soundLabel = remember(soundUri) {
-        soundUri?.let { uriString ->
-            runCatching {
-                RingtoneManager.getRingtone(context, Uri.parse(uriString))?.getTitle(context)
-            }.getOrNull()
-        } ?: "Default alarm sound"
+        soundDisplayName(context, soundUri, "Default alarm sound")
     }
 
     if (showDeleteConfirm && existing != null) {
@@ -218,7 +214,7 @@ fun TimerEditScreen(
                     ) {
                         Icon(Icons.Outlined.MusicNote, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(soundLabel ?: "Default alarm sound", maxLines = 1)
+                        Text(soundLabel, maxLines = 1)
                     }
                     // Only when there is something to revert: null already IS the
                     // system default, so on the default there is nothing to show (#82).

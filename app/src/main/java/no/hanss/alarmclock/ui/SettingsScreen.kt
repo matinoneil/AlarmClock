@@ -89,11 +89,7 @@ fun SettingsScreen(
     var confirmApplyTimers by remember { mutableStateOf(false) }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
 
-    fun soundName(uri: String?): String = uri?.let { u ->
-        runCatching {
-            RingtoneManager.getRingtone(context, Uri.parse(u))?.getTitle(context)
-        }.getOrNull()
-    } ?: "System default"
+    fun soundName(uri: String?): String = soundDisplayName(context, uri, "System default")
 
     // --- Ringtone pickers (same pattern as the editors) ---
     var pickerTarget by remember { mutableStateOf("alarm") }
