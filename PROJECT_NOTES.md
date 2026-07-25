@@ -123,6 +123,30 @@ gesture behaviour by reading code in the dev sandbox. It cannot build, run or
 profile this app; five attempts produced four wrong answers and one wasted
 release. What actually worked was on-device measurement and asking the
 maintainer for a precise symptom shape.
+## Verified facts about the shipped artifact
+
+Established by DOWNLOADING the released APK and parsing its manifest, not by
+reading build files -- worth redoing the same way rather than re-arguing from
+config. Done on V2.2.8 (versionCode 249) with pyaxmlparser.
+
+- **NOT debuggable.** The string `debuggable` does not appear in the shipped
+  manifest at all, so it defaults to false. CI runs `gradle assembleRelease` and
+  the release buildType never sets isDebuggable. This closes a reasonable
+  hypothesis for the #76 scroll clunkiness -- ART will not AOT-compile a
+  debuggable app, so a debug build would have explained everything. It is not one.
+  #17 already moved CI to assembleRelease for precisely this reason.
+- **The hand-written baseline profile IS reaching devices.** `assets/dexopt/baseline.prof`
+  and `baseline.profm` are both present in the APK, so AGP is compiling
+  src/main/baseline-prof.txt in and profileinstaller has something to install.
+  Previously assumed; now confirmed.
+- **minSdk 26 / targetSdk 34** in the shipped manifest, confirming #79's revert
+  landed.
+- **R8 IS OFF** (`isMinifyEnabled = false`). This is the one production-compile
+  step not being performed, and the last optimisation lever reachable without a
+  local Android dev environment. Deliberate per #17's caution about minification
+  in alarm-critical code; not a bug, but the honest answer to "are we doing a
+  production compile" is "yes, minus minification".
+
 
 ## Bug/change history
 
