@@ -2113,7 +2113,21 @@ entry #1.
     NOT untrack keystore/debug.keystore -- gitignore never untracks an already
     tracked file, which is intentional here: the debug key must keep working until
     the new signature is proven on the device.
-    STILL TO DO (phase 2, in order): cut a release; confirm the APK REFUSES to
+    ROTATION VERIFIED LIVE ON V2.3.1, from the built artifact rather than the log:
+    the release APK was downloaded and its signing certificate compared, which is
+    the only check that cannot be fooled by a mis-set secret (both branches of the
+    decode step exit 0, so a green log proves nothing).
+      NEW key, all builds from V2.3.1 onward, v2 signature scheme:
+        BC:75:6F:24:3E:51:93:62:D8:2C:34:B3:56:D9:16:2D:69:88:6E:9F:65:A3:99:A4:4A:63:61:51:14:E1:89:91
+      OLD leaked debug key, everything up to and including V2.3 -- RETIRED:
+        7C:93:AE:E4:CF:31:3B:E2:1F:F3:E9:EA:02:17:9E:F4:FF:DF:50:75:64:51:FD:AB:D8:E3:F2:F3:C9:D8:6C:59
+    V2.3.1 IS THE BOUNDARY TAG. Anything at or before V2.3 is signed with a key
+    that is public; treat those builds as unauthenticated. Anything from V2.3.1 on
+    is signed with a key only the maintainer holds.
+    Because the certificate comparison is definitive, the "try to install and watch
+    it fail" proof step is redundant and was skipped. It would still fail, which is
+    correct behaviour, not a bug.
+    STILL TO DO (phase 2, remaining): cut a release; confirm the APK REFUSES to
     install over the existing app (signature mismatch IS the success signal); back
     up app data per #74; uninstall, reinstall, restore, re-grant all six
     permissions; only THEN delete keystore/debug.keystore. Doing it in any other
