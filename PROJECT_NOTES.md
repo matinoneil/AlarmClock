@@ -2187,25 +2187,46 @@ entry #1.
     the maintainer's actual name and guessing a legal name into a public licence
     file is not something to improvise.
 
-90. **[OPEN] Restore never re-arms the bedtime reminder.** Reported after the
-    V2.3.1 uninstall/reinstall as "bedtime reminder settings wasn't backed up".
-    THE SETTINGS ARE BACKED UP -- checked, do not chase that. BackupSerializer
-    writes and reads all 15 SettingsStore values including bedtimeEnabled,
-    bedtimeHoursBefore and bedtimeMessage, and restoreBackupJson explicitly
-    assigns all three back. So the VALUES survive a restore.
-    WHAT DOES NOT SURVIVE IS THE SCHEDULE. restoreBackupJson re-arms everything
-    else and silently skips bedtime: alarms get `if (alarm.enabled)
-    scheduler.schedule(...)`, reminders get `ReminderOps.refresh(appContext, id)`,
-    and bedtime gets nothing. In normal use the reminder is armed by
-    viewModel.refreshBedtime(), called from SettingsScreen whenever the toggle or
-    the hours field changes -- a path a restore never goes through. Net effect: the
-    toggle reads ON, the hours and message are correct, and no bedtime
-    notification will ever fire until the user toggles it off and on again.
-    So it presents exactly as "the setting didn't come back" even though the value
-    did. Confirm with the maintainer which he saw -- values wrong, or values right
-    but no notification -- because only the second is this bug.
-    INTENDED FIX: call the same refresh restore already uses for reminders, from
-    inside restoreBackupJson after the settings assignments. Repository-level, not
-    via the ViewModel.
-    WHILE THERE: check whether anything else armed only from a UI path is likewise
-    skipped by restore. Reminders and alarms are covered; bedtime was not.
+90. **Restore displayed pre-restore settings and could silently overwrite the
+    restored ones.** Reported after the V2.3.1 uninstall/reinstall as "bedtime
+    reminder was off and the text was gone after restore".
+    MY FIRST DIAGNOSIS WAS WRONG and the correction is the useful part. I checked
+    that the bedtime VALUES are backed up (they are -- all 15 SettingsStore values
+    round-trip, and the keys have been in the format since V1.9.2, so an old backup
+    file is not the explanation), concluded the values therefore survived, and
+    blamed only a missing re-arm. The maintainer then said the values themselves
+    were gone, which killed that. Checking the UI instead of the data found it.
+    ACTUAL CAUSE: after `restoreBackupJson`, SettingsScreen re-read exactly TWO of
+    its fifteen settings-backed `remember` state variables -- defaultAlarmSound and
+    defaultTimerSound. Every other one kept its PRE-restore value, so the screen
+    displayed fresh-install defaults over correctly-restored data. Bedtime showed
+    off with an empty message because that is what the fresh install had.
+    AND IT WAS A DATA-LOSS TRAP, not merely cosmetic: each control writes its local
+    state to the store on interaction, so touching any stale field wrote the stale
+    value back over what had just been restored. The longer the user poked at
+    Settings after restoring, the more of the backup they destroyed.
+    FIX, two parts:
+    (a) SettingsScreen re-reads ALL FIFTEEN values after a restore. Note
+        reminderReshowEnabled/Minutes were declared INSIDE the Reminders
+        EditSection and thus unreachable from the restore handler's scope -- they are
+        hoisted to the top-level state block. **If a setting is ever added to
+        SettingsStore, it must be added to that refresh block too**; there is no
+        mechanism forcing it, which is exactly how this rotted.
+    (b) restoreBackupJson now calls refreshBedtime(). Restore re-armed alarms
+        (`scheduler.schedule`) and reminders (`ReminderOps.refresh`) but skipped
+        bedtime entirely, so even with correct values no notification would fire
+        until the toggle was touched. refresh() schedules or cancels according to
+        the flag, so it is right either way.
+    PROCESS LESSON, and it is the same one as #75: I reasoned about the DATA path,
+    proved it correct, and stopped -- when the symptom was in the VIEW. "The value is
+    stored correctly" and "the user can see the value" are different claims. When a
+    report contradicts a verified data path, suspect the display before re-verifying
+    the data.
+    STILL UNEXPLAINED, deliberately parked at the maintainer's request: app colours
+    changed after the reinstall and then reverted to the old ones on their own. No
+    theme, colour or resource file has changed since V2.1.9 -- verified by git log
+    over ui/theme/, res/values/ and res/values-night/ -- and V2.3.1 over V2.3 was
+    signing plumbing and docs only. The palette is Material You (dynamicColor =
+    true), i.e. wallpaper-derived with no app-side setting, which is consistent with
+    it changing and reverting without a code change. NOT investigated further. Do
+    not invent a mechanism for it.

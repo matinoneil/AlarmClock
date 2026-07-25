@@ -390,6 +390,12 @@ class AlarmRepository(context: Context) {
         settings.reminderReshowEnabled = data.reminderReshowEnabled
         settings.defaultTimerVibrate = data.defaultTimerVibrate
 
+        // Restore re-armed alarms and reminders but never bedtime, so the setting
+        // came back while the notification stayed dead until the user toggled it
+        // by hand (#90). refresh() both schedules and cancels, so it is correct
+        // whichever way the restored flag points.
+        refreshBedtime()
+
         notifyChanged()
         return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)
     }

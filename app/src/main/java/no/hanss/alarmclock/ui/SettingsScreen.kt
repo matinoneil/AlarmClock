@@ -86,6 +86,10 @@ fun SettingsScreen(
     var bedtimeHoursText by remember { mutableStateOf(viewModel.settings.bedtimeHoursBefore.toString()) }
     var bedtimeMessage by remember { mutableStateOf(viewModel.settings.bedtimeMessage) }
     var defaultTimerSound by remember { mutableStateOf(viewModel.settings.defaultTimerSoundUri) }
+    // Hoisted out of the "Reminders" EditSection so the restore handler below can
+    // refresh them; nested state was unreachable from its scope (#90).
+    var reshowEnabled by remember { mutableStateOf(viewModel.settings.reminderReshowEnabled) }
+    var reshowText by remember { mutableStateOf(viewModel.settings.reminderReshowMinutes.toString()) }
     var confirmApplyAlarms by remember { mutableStateOf(false) }
     var confirmApplyTimers by remember { mutableStateOf(false) }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
@@ -256,8 +260,28 @@ fun SettingsScreen(
                     scope.launch {
                         val message = try {
                             val (a, s, t) = viewModel.restoreBackupJson(json)
+                            // EVERY settings-backed field must be re-read here. Only
+                            // the two sound URIs were, so after a restore this screen
+                            // still displayed the PRE-restore values -- which looked
+                            // like the backup had lost them, and worse, touching any
+                            // stale control wrote that stale value straight back over
+                            // what had just been restored (#90). If a setting is added
+                            // to SettingsStore, add it here too.
                             defaultAlarmSound = viewModel.settings.defaultAlarmSoundUri
                             defaultTimerSound = viewModel.settings.defaultTimerSoundUri
+                            rampText = viewModel.settings.defaultVolumeRampSeconds.toString()
+                            snoozeText = viewModel.settings.defaultSnoozeMinutes.toString()
+                            defaultVibrate = viewModel.settings.defaultAlarmVibrate
+                            seriesSound = viewModel.settings.defaultSeriesSoundUri
+                            seriesRampText = viewModel.settings.defaultSeriesRampSeconds.toString()
+                            seriesSnoozeText = viewModel.settings.defaultSeriesSnoozeMinutes.toString()
+                            seriesVibrate = viewModel.settings.defaultSeriesVibrate
+                            timerVibrate = viewModel.settings.defaultTimerVibrate
+                            bedtimeEnabled = viewModel.settings.bedtimeEnabled
+                            bedtimeHoursText = viewModel.settings.bedtimeHoursBefore.toString()
+                            bedtimeMessage = viewModel.settings.bedtimeMessage
+                            reshowEnabled = viewModel.settings.reminderReshowEnabled
+                            reshowText = viewModel.settings.reminderReshowMinutes.toString()
                             "Restored $a alarms, $s series, $t timers"
                         } catch (e: Exception) {
                             "Restore failed: ${e.message}"
@@ -547,8 +571,6 @@ fun SettingsScreen(
 
             EditSection(title = "Reminders") {
                 val doneCount = uiForSettings.reminders.count { it.state == Reminder.STATE_DONE }
-                var reshowEnabled by remember { mutableStateOf(viewModel.settings.reminderReshowEnabled) }
-                var reshowText by remember { mutableStateOf(viewModel.settings.reminderReshowMinutes.toString()) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Bring back a swiped-away reminder", style = MaterialTheme.typography.bodyLarge)
