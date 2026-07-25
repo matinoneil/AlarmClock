@@ -2148,6 +2148,26 @@ entry #1.
     with the leaked key. That is the maintainer until step 10 completes, and
     possibly whoever starred the repo. Other people's installs cannot be fixed from
     here.
+    WHAT ROTATION MEANS FOR EVERY APK ALREADY PUBLISHED (58 tags' worth): they stay
+    downloadable and they still install on a clean device, but NONE of them can
+    install OVER the rotated app -- signature mismatch blocks it in both directions.
+    THE OPERATIONAL COST NOBODY WOULD NOTICE UNTIL THEY NEEDED IT: rollback dies.
+    Right now a bad release can be undone by installing the previous APK straight
+    over it, and #73/#75 leaned on exactly that to A/B V2.1.6 through V2.1.9 in one
+    afternoon. After rotation, going back to any pre-rotation build means uninstall
+    -> install old -> restore from a backup file, losing anything since the backup.
+    Post-rotation versions roll back among themselves normally. If a version A/B is
+    ever needed again for a #76-style question, take a backup FIRST.
+    PROVENANCE IS GONE FOR PRE-ROTATION RELEASES, and that is not fixable: since the
+    old key is public, a third party can sign an APK indistinguishable from any of
+    those builds. Not a reason to delete the old assets -- deletion recalls nothing
+    that has already been downloaded or cached -- but they should not be treated as
+    proof of authorship. Record the rotation tag as the boundary.
+    THE ROTATION RELEASE MUST SAY SO IN ITS NOTES. Anyone other than the maintainer
+    running an older build will have their update FAIL with an opaque "app not
+    installed" / signature error, and the only fix is uninstall + reinstall. Shipping
+    a signing-key change silently would look exactly like a broken build. The repo
+    is public with a star on it, so assume at least one other install exists.
     NOT DONE: no LICENSE file yet. The repo is public with `license: null`, which
     means all rights reserved. Held back only because an MIT copyright line needs
     the maintainer's actual name and guessing a legal name into a public licence
