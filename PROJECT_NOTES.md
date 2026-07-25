@@ -1641,6 +1641,51 @@ entry #1.
     NOT SHIPPED, awaiting the maintainer's call: it costs a release, and any new
     APK re-invalidates ART state and restarts the pending wait test, so the two
     options genuinely conflict. Needs an [OPEN] entry first if it goes ahead.
+    SUPERSEDED IN PART: see entry #76. The symptom was finally described precisely
+    ("reaching the bottom, the cushion has to finish before an up-swipe takes")
+    and it is overscroll relaxation, a documented by-design Compose behaviour,
+    not a perf bug. #75's four hypotheses were all chasing the wrong shape.
+
+76. **[OPEN] Reaching a list edge blocks the next swipe until the stretch
+    "cushion" pays back.** The #73/#75 saga's real symptom, finally stated
+    precisely by the maintainer: swipe down to the bottom, then start swiping up
+    again -- the up-swipe does not take until the bounce-back has finished. Not
+    framerate (the maintainer explicitly says it is not fps, and a slow drag
+    tracks the finger 1:1), and not the pager (identical on Settings and the edit
+    screens, which are outside it).
+    SUSPECTED CAUSE, from Compose's own docs rather than code reading:
+    OverscrollEffect decorates scroll events, consuming delta BEFORE the
+    scrolling container sees it, and LazyColumn/verticalScroll both configure one
+    automatically. Its documented relaxation rule is that when an overscroll is
+    in progress and the user scrolls the other way, the overscroll amount is
+    subtracted FIRST and only the remainder reaches the list. So the stretch
+    charged up at the edge has to be paid back before the list moves, and while
+    the spring is still relaxing an incoming drag is absorbed. That is by design
+    and present in every Compose app -- which is exactly why it is identical on
+    every version of this app (all pinned to foundation 1.6.8), identical on
+    every screen, unaffected by reinstalls, and invisible to five sessions of
+    code reading. Frame drops would AMPLIFY it (a spring animating at low fps
+    takes longer in wall-clock to discharge) so hypothesis 4 may still compound,
+    but it is not the cause.
+    CONFIRMATION CHECK, on-device, 30 seconds, no build: does the delay happen
+    ONLY right after hitting the top or bottom edge? If it also happens
+    mid-list, this is wrong and hypothesis 4 is back. Asked, not assumed.
+    INTENDED FIX (not written yet, awaiting the maintainer's go): disable
+    overscroll app-wide with CompositionLocalProvider(LocalOverscrollConfiguration
+    provides null) around the app content at the setContent/theme level, so it
+    covers the tabs, Settings and the editors alike. VERIFIED against the pinned
+    BOM per #41: on foundation 1.6.8 the API is LocalOverscrollConfiguration,
+    typed OverscrollConfiguration?, null meaning no overscroll at all, and it is
+    @ExperimentalFoundationApi -- so it NEEDS @OptIn(ExperimentalFoundationApi::class)
+    or the build breaks exactly like #41. The LocalOverscrollFactory /
+    rememberPlatformOverscrollFactory replacement is a LATER foundation release;
+    do not use it on this BOM. Note OverscrollConfiguration on 1.6.8 exposes only
+    glowColor and drawPadding -- there is no spring-stiffness knob, so this is
+    on/off, not tunable.
+    Trade-off to accept or reject: no more bounce at the edges anywhere; hitting
+    the end simply stops. Purely visual, zero alarm-path risk -- no DB,
+    scheduling, service or notification code involved, which is what makes this
+    unlike #17's R8 question.
 
 ## Restarting this project in a new chat
 
