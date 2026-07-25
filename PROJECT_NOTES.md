@@ -1407,8 +1407,7 @@ entry #1.
     a backup may no longer resolve -- the ring path falls back to the system
     alarm sound, which is safe but silently different from what was configured.
 
-75. **The #66 banner broke the list viewport: pager used fillMaxSize() inside
-    a Column.** A REAL BUG, found while investigating #73's scroll complaint, but
+75. **RETRACTED: the claimed fillMaxSize viewport bug was not a bug at all.** A REAL BUG, found while investigating #73's scroll complaint, but
     NOT the cause of it -- see the correction at the end of this entry. Fixed on
     its own merits. HomeScreen is
     `Column(fillMaxSize) { if (fullScreenRevoked) Surface(banner); HorizontalPager(fillMaxSize) }`.
@@ -1441,7 +1440,19 @@ entry #1.
     rare condition -- per #66 the permission is revoked on more or less every
     sideloaded update, so the broken layout is the state the app lands in after
     each release until the user taps the banner.
-    CORRECTION, same session, before any release: the maintainer confirmed the banner
+    RETRACTION, and this is the important part of the entry: the analysis above is
+    WRONG. Compose's Row and Column pass the REMAINING space as the maximum to
+    subsequent children, so a non-weighted child with fillMaxSize() receives
+    maxHeight = whatever is left after the banner and fills exactly that. It was
+    already equivalent to weight(1f). There was never a viewport bug, the lists
+    were never mis-sized, and V2.1.9's one-line change is behaviorally a NO-OP.
+    The reasoning error: asserting that fillMaxSize() pins a child to the
+    parent's total height regardless of siblings. It does not. weight(1f) is kept
+    because it states the intent explicitly, not because it fixed anything.
+    V2.1.9's release notes describe a fix for a bug that did not exist and should
+    be treated as inaccurate.
+    (Kept for the record, the earlier and separate reason this was already known
+    not to be the maintainer's symptom:) the maintainer confirmed the banner
     is NOT showing on his device -- all permissions are granted. The bug above is
     latent exactly then (pager is the Column's only child, so fillMaxSize equals
     the remaining height), so it CANNOT be producing his symptom. The timeline
@@ -1509,6 +1520,19 @@ entry #1.
     content visibly trail the finger and then settle on lift, which reads exactly
     as "scroll speed doesn't match my swipe" -- so the two reported symptoms may
     be one cause, not two.
+    RUNNING TALLY for the scroll complaint, so nobody repeats any of it: FOUR
+    hypotheses offered, three demonstrably wrong -- (1) pager consuming vertical
+    drag delta: unproven, never tested; (2) per-card Modifier.alpha layers:
+    killed by the HWUI measurement showing app-wide spikes including Settings;
+    (3) this fillMaxSize viewport bug: RETRACTED, never existed, shipped anyway
+    as V2.1.9; (4) ART optimisation state: still the best-supported by the
+    measurement, still untested. The pattern is clear enough to be worth stating
+    as a rule: **do not diagnose rendering, layout or gesture behavior by reading
+    code in the dev sandbox.** It cannot build, run, or profile this app, and
+    four attempts produced three wrong answers and one wasted release. The only
+    honest paths are a real profiler on a real device or the Baseline Profile
+    project, both of which need a local Android dev environment the maintainer
+    does not currently have.
     PROCESS LESSON, second half of #73's: a clean negative A/B is not proof the
     report is imaginary. Here a DEVICE-STATE change (a permission Android
     revoked during the update) rode in on the version change and persisted
