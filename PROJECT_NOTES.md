@@ -1308,6 +1308,49 @@ entry #1.
     ever appears it would look like overnight charge shaping failing on a night
     when a timer happened to be running, and the fix shape is recorded above.
 
+73. **[OPEN] Vertical scrolling in the three list tabs is clunky and eats part
+    of the drag.** Reported after V2.1.8: dragging the alarm or reminder list
+    moves it only a few lines regardless of how far the finger travels, and
+    feels low-framerate. Under 10 items in each list, so not list size, and it
+    persists across a reboot.
+    RULED OUT so far, all verified against the repo rather than assumed:
+    (a) V2.1.8 itself -- the V2.1.7..V2.1.8 diff touches NO file under ui/ and
+    no layout/theme resource; it is receivers, manifest, Gradle and the ring
+    service only. (b) Dependency drift -- AGP 8.5.0, Kotlin 1.9.24, KSP
+    1.9.24-1.0.20, Compose BOM 2024.06.00 and compiler extension 1.5.14 are all
+    pinned, nothing floats, so the V2.1.8 build resolves the same tree as
+    V2.1.7. (c) Build variant (#17's first question) -- the workflow runs
+    assembleRelease for pushes AND releases, so there is no debuggable APK to
+    have installed by mistake. (d) A nested-scroll conflict of the classic kind
+    -- every list tab is a plain LazyColumn, and no verticalScroll wraps a lazy
+    list anywhere in the tree. (e) The #27/#30 minute ticker resetting scroll
+    position -- delay(60_000 - now % 60_000) always lands in 1..60000ms so it
+    cannot hot-loop, and the LazyColumn's own saveable state survives
+    recomposition.
+    LOCALIZED by the maintainer on-device: the Settings screen is markedly
+    snappier and feels higher-framerate than the list tabs. Settings scrolls
+    via verticalScroll and sits OUTSIDE the pager; all three clunky tabs are
+    LazyColumns INSIDE #40's HorizontalPager. Same device, same build, same
+    session -- so this is the pager path, not the device.
+    LEADING HYPOTHESIS: the Pager APIs are still @ExperimentalFoundationApi on
+    foundation 1.6.8 (BOM 2024.06.00) per #41, stabilizing only in 1.7. A
+    LazyColumn nested in an experimental-era Pager disambiguates every drag
+    through the pager's nested-scroll connection before the list sees it, which
+    matches "the list moves less than my finger" precisely.
+    UNEXPLAINED, and stated rather than papered over: neither the hypothesis nor
+    anything ruled out above accounts for the maintainer experiencing this as NEW.
+    The A/B that would settle whether V2.1.8 is implicated at all is installing
+    V2.1.7 and retesting -- which needs a Settings backup first, since the lower
+    versionCode forces an uninstall and wipes the DB.
+    TWO OPTIONS, no code touched pending a decision: (1) bump the Compose BOM to
+    a 1.7+ foundation where Pager is stable and drop the OptIn from #41 -- the
+    principled fix, and #20(f) already wants this upgrade as its own
+    on-device-tested release, not a drive-by; (2) revert #40's swipe-between-tabs
+    to the previous AnimatedContent, removing the pager from the scroll path
+    entirely at the cost of the swipe gesture. Option 1 risks a broad UI
+    regression surface for one symptom; option 2 is small and surgical but gives
+    up a requested feature.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
