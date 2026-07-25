@@ -1595,6 +1595,18 @@ entry #1.
     NO CODE CHANGE THIS SESSION, deliberately. Five hypotheses now exist and the
     sandbox has never been able to test one; nothing ships for this symptom until
     a measurement on the device points somewhere.
+    HYPOTHESIS 5 DEAD (on-device, same day): the refresh-rate overlay reads 120
+    across the whole app, so there is no OEM per-app 60 Hz cap. Caveat for
+    whoever reads this as an all-clear: that overlay reports the PANEL's refresh
+    rate, not the app's achieved frame rate, so it kills the per-app-cap
+    mechanism and nothing else -- frame drops remain possible at 120 Hz, and the
+    HWUI bars above already showed over-budget frames.
+    SYMPTOM REFINED by the maintainer: "it's not the fps, it just feels CLUNKY."
+    That points back at #73's original wording -- the list moving less than the
+    finger -- i.e. gesture/delta handling rather than render cost. NOT treated as
+    diagnosed: asked for a precise symptom shape (finger tracking / fling
+    behaviour / whether screens outside the pager differ) instead of generating
+    hypothesis 6 from the sandbox, per this entry's closing rule.
 
 ## Restarting this project in a new chat
 
