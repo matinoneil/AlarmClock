@@ -1590,3 +1590,41 @@ entry #1.
     and bundling unrelated changes into a perf release is what #17 warns against.
 
 
+
+77. **[OPEN] No way to see which permissions are actually granted.** Requested
+    feature, not a bug: a box in Settings listing every permission the app
+    depends on with a green dot when it is granted, and a shortcut into the
+    right Android settings screen when it is not.
+    WHY IT IS WORTH HAVING HERE SPECIFICALLY: this app degrades quietly by
+    design (entries 0.1, #66, and the ramp note in requestNextMissingPermission)
+    -- a missing permission means heads-up instead of full-screen, or a
+    non-ramped alarm, not an error. Combined with #66's revocation on nearly
+    every sideloaded update, the user has no way to tell a working install from
+    a silently degraded one. The existing chain only ever prompts for the FIRST
+    missing permission per launch (#15, #22), so several can be missing with
+    nothing surfaced.
+    INTENDED APPROACH -- reuse, do not reinvent. Every check and every intent
+    already exists and is proven in MainActivity.requestNextMissingPermission()
+    and onResume: POST_NOTIFICATIONS via checkSelfPermission (auto-granted below
+    TIRAMISU); exact alarms via canScheduleExactAlarms with
+    ACTION_REQUEST_SCHEDULE_EXACT_ALARM (S+); DND access via
+    isNotificationPolicyAccessGranted with
+    ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS (no package data);
+    Settings.canDrawOverlays with ACTION_MANAGE_OVERLAY_PERMISSION;
+    canUseFullScreenIntent with ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT
+    (UPSIDE_DOWN_CAKE+). No new API surface is being guessed at, which is the
+    main reason this is lower risk than it looks.
+    NON-NEGOTIABLE: every settings launch goes through safeStartActivity's
+    try/catch. Its docstring exists because an unguarded startActivity there
+    crashed the app on launch -- OEM builds routinely lack the exact-alarm and
+    full-screen-intent screens. A permission INSPECTOR that crashes is worse
+    than no inspector. Where the screen is missing, show it as unavailable
+    rather than offering a dead tap.
+    MUST re-check on resume, or the dots go stale the moment the user comes back
+    from granting something. onResume already drives fullScreenRevoked this way.
+    Version gating matters: below TIRAMISU/S/UPSIDE_DOWN_CAKE the respective
+    permission is not user-revocable and must read as granted, not as missing,
+    or every pre-14 device shows a false red dot. minSdk is 26.
+    RELEASE TIMING CONFLICT, flagged deliberately: #76's ART wait test is
+    running, and any APK the maintainer installs restarts it. Code can land on
+    main without a release; the maintainer decides whether to ship now or hold.
