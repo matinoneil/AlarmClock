@@ -1495,12 +1495,22 @@ entry #1.
     equal across three fresh installs) yet decisive for this one (the code
     genuinely differs between those versions) -- an A/B only isolates variables
     that actually differ across the arms.
-    STILL WORTH FIXING on its own merits, as LAUNCH time and not scrolling: main
-    thread disk I/O before the first frame is a real regression. Move the call to
-    just after setContent, keeping the savedInstanceState == null guard.
-    Deliberately NOT shipped yet -- any new APK re-invalidates the ART profile and
-    restarts the waiting experiment below, so bundle it with whatever that
-    concludes.
+    AND #71j WAS NOT EVEN A REGRESSION -- correcting an overstatement made when it
+    was first flagged. A LaunchedEffect body runs on the composition dispatcher,
+    i.e. the MAIN THREAD, so the old arrangement did the same disk read on the
+    same thread; the change moved it from just after the first frame to just
+    before it. Measured shape of the work: one getSystemService, one
+    checkSelfPermission, one SharedPreferences load of a tiny XML file, three
+    binder calls, then (with permissions granted) fall-through with no launch.
+    Order of 5-30ms, ONCE, leaving no listener, coroutine or pending work behind.
+    Net lifetime cost versus the old code: about zero. Moving it after setContent
+    is optional tidiness, NOT a fix, and is not worth a release on its own --
+    especially since any new APK re-invalidates the ART profile and restarts the
+    waiting experiment below.
+    Worth noting WHY this needed correcting twice: flagging it as "mine to own"
+    in conversation inflated a non-issue into a prime suspect, and the maintainer
+    reasonably kept returning to it. Own real mistakes; do not manufacture them,
+    because they get treated as leads.
     FALSIFIABLE PREDICTION, agreed as the next step, no code change: leave the
     device 3-4 days charging overnight with no reinstalls. If the jank fades it
     was optimisation state and there is no bug. If it is unchanged, hypothesis 4
