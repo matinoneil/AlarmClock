@@ -40,6 +40,26 @@ class MainActivity : ComponentActivity() {
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
 
+    private val requestMediaAudioPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
+
+    /**
+     * The permission that lets this app READ a user-picked song, needed both to
+     * resolve its title and to play it (entry #81). Granular audio permission from
+     * API 33; the broad storage read before that.
+     */
+    private val mediaAudioPermission: String
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            @Suppress("DEPRECATION")
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+    private fun hasMediaAudioPermission(): Boolean =
+        checkSelfPermission(mediaAudioPermission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
     // Android 14+ revokes USE_FULL_SCREEN_INTENT on updates of sideloaded
     // apps (#66); this drives the home-screen banner rather than an
     // auto-opened settings screen. Refreshed in onResume so the banner
@@ -85,6 +105,7 @@ class MainActivity : ComponentActivity() {
             android.content.pm.PackageManager.PERMISSION_GRANTED
         val permPrefs = getSharedPreferences("permission_flow", MODE_PRIVATE)
         val notificationAsks = permPrefs.getInt("notification_permission_asks", 0)
+        val mediaAudioAsks = permPrefs.getInt("media_audio_permission_asks", 0)
 
         if (!notificationsGranted && notificationAsks < 2) {
             permPrefs.edit().putInt("notification_permission_asks", notificationAsks + 1).apply()
@@ -113,6 +134,13 @@ class MainActivity : ComponentActivity() {
                     data = Uri.parse("package:$packageName")
                 }
             )
+        } else if (!hasMediaAudioPermission() && mediaAudioAsks < 2) {
+            // LAST in the chain on purpose: without this the alarm still RINGS, it
+            // just rings with the stock sound instead of the song the user chose
+            // (#81), so it is less critical than everything above. Same two-ask cap
+            // as POST_NOTIFICATIONS, for the same reason.
+            permPrefs.edit().putInt("media_audio_permission_asks", mediaAudioAsks + 1).apply()
+            requestMediaAudioPermission.launch(mediaAudioPermission)
         }
     }
 

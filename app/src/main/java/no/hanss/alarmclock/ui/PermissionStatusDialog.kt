@@ -78,6 +78,16 @@ private fun currentPermissionRows(context: Context): List<PermissionRow> {
         context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
         PackageManager.PERMISSION_GRANTED
 
+    // Granular audio read from API 33, broad storage read before it (#81).
+    @Suppress("DEPRECATION")
+    val mediaAudioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+    val mediaAudioGranted =
+        context.checkSelfPermission(mediaAudioPermission) == PackageManager.PERMISSION_GRANTED
+
     // Mirrors MainActivity.onResume's shape exactly (>= && !granted) rather than
     // inverting it, because that form is already proven to compile and lint clean
     // against an API 34 method with minSdk 26.
@@ -124,6 +134,15 @@ private fun currentPermissionRows(context: Context): List<PermissionRow> {
             nm.isNotificationPolicyAccessGranted,
             if (nm.isNotificationPolicyAccessGranted) null
             else Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+        ),
+        PermissionRow(
+            "Music and audio access",
+            "Needed to read a song you picked as an alarm sound. Without it the alarm rings with the stock sound instead, and the song's name shows as a number.",
+            mediaAudioGranted,
+            // Runtime permissions have no dedicated settings screen; app details is
+            // the reliable destination and exists on every build.
+            if (mediaAudioGranted) null
+            else packageIntent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
         )
     )
 }
