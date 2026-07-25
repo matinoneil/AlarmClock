@@ -1782,3 +1782,36 @@ entry #1.
     on the NEXT launch, not retroactively, and existing alarms keep working the
     moment it is granted -- the URI in the DB was always correct, only the access
     was missing.
+
+82. **[OPEN] No way back to the stock alarm sound once a custom one is picked.**
+    Reported: after choosing a song, the sound is "stuck on that song" with no
+    route back to the standard alarm sound.
+    THE STATE MODEL IS ALREADY RIGHT, which is what makes this small: soundUri is
+    `String?` on Alarm/AlarmSeries/Timer and on the three Settings defaults, and
+    NULL ALREADY MEANS "use the system default alarm sound" -- soundName(null)
+    renders "System default", soundLabel falls back to "Default alarm sound", and
+    AlarmRingtoneService resolves null via getActualDefaultRingtoneUri. Nothing
+    needs a new field or a migration; the value just has no way to get back to
+    null from the UI.
+    WHY THE SYSTEM PICKER DOES NOT COVER IT, as far as can be determined without
+    the device: every picker call already sets EXTRA_RINGTONE_SHOW_DEFAULT=true,
+    so a "Default alarm sound" row is REQUESTED, and picking it would store the
+    explicit content://settings/system/alarm_alert URI, which behaves as the
+    default. That the maintainer cannot get back suggests the Pixel's Sound Picker
+    either does not surface that row or buries it. Not investigated further,
+    because an in-app control is OEM-independent and therefore the better fix
+    regardless of the answer -- do not spend a session chasing picker behaviour.
+    INTENDED APPROACH: six sites, all currently an identical full-width
+    OutlinedButton with a MusicNote icon -- AlarmEditScreen, SeriesEditScreen,
+    TimerEditScreen, and the three defaults in SettingsScreen. Wrap each in a Row
+    with the existing button at weight(1f) plus a trailing IconButton that sets
+    the value back to null, shown ONLY when the current value is non-null so the
+    UI gains nothing when already on the default. In the editors that is
+    `soundUri = null`; in Settings it must also write
+    viewModel.settings.defaultXSoundUri = null, matching the picker handler.
+    CHOSEN OVER THE DROPDOWN the maintainer suggested: a menu would cost an extra
+    tap on the common path (picking a sound) and add menu state to six places,
+    whereas a trailing reset appears only when it is actionable and leaves the
+    one-tap pick flow intact. Offered as a swap if he prefers the menu.
+    NOTE: a non-null value that happens to BE the default URI still shows the
+    reset button. Harmless -- tapping it normalises to null, same audible result.
