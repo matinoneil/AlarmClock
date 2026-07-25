@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.DropdownMenu
@@ -36,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -150,7 +153,26 @@ fun HomeScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (fullScreenRevoked) {
+            // #91: the banner is dismissable. Alarms still RING without this
+            // permission -- they just arrive as heads-up notifications instead of
+            // taking the screen -- so someone who does not want full-screen alarms
+            // should not be nagged forever. Hiding it is only acceptable because
+            // Settings -> Permissions (#77) still reports the true state, so the
+            // information is available on demand rather than lost.
+            var bannerDismissed by remember {
+                mutableStateOf(viewModel.settings.fullScreenBannerDismissed)
+            }
+            // Self-clearing: once the permission is granted the opt-out is dropped,
+            // so if Android revokes it again later the banner returns for someone
+            // who has demonstrably chosen to use the feature. Without this the
+            // dismissal would be a permanent, unreachable setting.
+            LaunchedEffect(fullScreenRevoked) {
+                if (!fullScreenRevoked && bannerDismissed) {
+                    bannerDismissed = false
+                    viewModel.settings.fullScreenBannerDismissed = false
+                }
+            }
+            if (fullScreenRevoked && !bannerDismissed) {
                 // Android revoked full-screen alarms (often after an APK
                 // update, #66); a tappable banner instead of hijacking the
                 // launch into system settings. Alarms still ring without it,
@@ -163,17 +185,34 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                        Text(
-                            "Full-screen alarms are turned off",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Text(
-                            "Android turns this off after some updates. Tap to re-enable; until then alarms ring as normal notifications.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                    Row(
+                        modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Full-screen alarms are turned off",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                "Android turns this off after some updates. Tap to re-enable; until then alarms ring as normal notifications.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        // Its own clickable, so tapping the X dismisses instead of
+                        // falling through to the Surface's onClick and opening settings.
+                        IconButton(onClick = {
+                            bannerDismissed = true
+                            viewModel.settings.fullScreenBannerDismissed = true
+                        }) {
+                            Icon(
+                                Icons.Outlined.Clear,
+                                contentDescription = "Hide this warning",
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
                     }
                 }
             }

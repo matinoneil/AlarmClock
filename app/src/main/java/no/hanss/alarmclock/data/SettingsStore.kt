@@ -87,6 +87,13 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt(KEY_REMINDER_RESHOW, 30)
         set(value) = prefs.edit().putInt(KEY_REMINDER_RESHOW, value.coerceAtLeast(0)).apply()
 
+    // #91: user dismissed the "full-screen alarms are off" banner. Cleared
+    // automatically once the permission is granted again, so a LATER revocation
+    // still warns someone who has shown they want the feature.
+    var fullScreenBannerDismissed: Boolean
+        get() = prefs.getBoolean(KEY_FS_BANNER_DISMISSED, false)
+        set(value) = prefs.edit().putBoolean(KEY_FS_BANNER_DISMISSED, value).apply()
+
     private companion object {
         const val KEY_DEFAULT_ALARM_SOUND = "default_alarm_sound_uri"
         const val KEY_DEFAULT_TIMER_SOUND = "default_timer_sound_uri"
@@ -103,5 +110,6 @@ class SettingsStore(context: Context) {
         const val KEY_TIMER_VIBRATE = "default_timer_vibrate"
         const val KEY_REMINDER_RESHOW = "reminder_reshow_minutes"
         const val KEY_REMINDER_RESHOW_ENABLED = "reminder_reshow_enabled"
+        const val KEY_FS_BANNER_DISMISSED = "full_screen_banner_dismissed"
     }
 }

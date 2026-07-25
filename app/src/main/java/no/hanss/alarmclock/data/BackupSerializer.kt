@@ -33,6 +33,7 @@ object BackupSerializer {
         val bedtimeEnabled: Boolean = false,
         val bedtimeHoursBefore: Int = 8,
         val bedtimeMessage: String = "",
+        val fullScreenBannerDismissed: Boolean = false,
         val defaultSeriesSoundUri: String? = null,
         val defaultSeriesRampSeconds: Int = 0,
         val defaultSeriesSnoozeMinutes: Int = 10,
@@ -63,6 +64,7 @@ object BackupSerializer {
         settings.put("reminderReshowMinutes", data.reminderReshowMinutes)
         settings.put("reminderReshowEnabled", data.reminderReshowEnabled)
         settings.put("defaultTimerVibrate", data.defaultTimerVibrate)
+        settings.put("fullScreenBannerDismissed", data.fullScreenBannerDismissed)
         root.put("settings", settings)
 
         root.put("standaloneAlarms", JSONArray().apply {
@@ -267,7 +269,8 @@ object BackupSerializer {
             defaultSeriesVibrate = settings.optBoolean("defaultSeriesVibrate", settings.optBoolean("defaultAlarmVibrate", true)),
             reminderReshowMinutes = settings.optInt("reminderReshowMinutes", 30).coerceAtLeast(0),
             reminderReshowEnabled = settings.optBoolean("reminderReshowEnabled", true),
-            defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true)
+            defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true),
+            fullScreenBannerDismissed = settings.optBoolean("fullScreenBannerDismissed", false)
         )
     }
 }

@@ -326,7 +326,8 @@ class AlarmRepository(context: Context) {
             defaultSeriesVibrate = settings.defaultSeriesVibrate,
             reminderReshowMinutes = settings.reminderReshowMinutes,
             reminderReshowEnabled = settings.reminderReshowEnabled,
-            defaultTimerVibrate = settings.defaultTimerVibrate
+            defaultTimerVibrate = settings.defaultTimerVibrate,
+            fullScreenBannerDismissed = settings.fullScreenBannerDismissed
         )
     )
 
@@ -389,6 +390,7 @@ class AlarmRepository(context: Context) {
         settings.reminderReshowMinutes = data.reminderReshowMinutes
         settings.reminderReshowEnabled = data.reminderReshowEnabled
         settings.defaultTimerVibrate = data.defaultTimerVibrate
+        settings.fullScreenBannerDismissed = data.fullScreenBannerDismissed
 
         // Restore re-armed alarms and reminders but never bedtime, so the setting
         // came back while the notification stayed dead until the user toggled it

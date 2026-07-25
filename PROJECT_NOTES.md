@@ -2249,3 +2249,34 @@ entry #1.
     true), i.e. wallpaper-derived with no app-side setting, which is consistent with
     it changing and reverting without a code change. NOT investigated further. Do
     not invent a mechanism for it.
+
+91. **The full-screen-alarm banner can be dismissed.** Requested: an X so someone
+    who does not want full-screen alarms is not warned about it forever.
+    NOTE WHICH PERMISSION THIS IS. The banner is USE_FULL_SCREEN_INTENT
+    ("full-screen alarms"), NOT SYSTEM_ALERT_WINDOW ("display over other apps").
+    The request came phrased as the latter; only the former has a banner. Do not
+    "fix" the banner text to match the other permission.
+    WHY DISMISSING IS DEFENSIBLE: alarms still RING without it -- they arrive as
+    heads-up notifications instead of taking the screen -- so this is a degraded
+    experience, not a broken alarm, and #66's banner reappears after nearly every
+    sideloaded update. Hiding it is only acceptable BECAUSE #77's permission
+    checker reports the true state on demand, so the information is available
+    rather than lost. If that checker is ever removed, revisit this.
+    SELF-CLEARING, and this is the part not to simplify away: the flag is reset
+    automatically whenever the permission is found granted. So dismissal means
+    "stop nagging me while it is off", and if Android revokes it again later the
+    banner returns for someone who has demonstrably chosen to use the feature.
+    Without that reset it would be a permanent setting with no UI to undo it --
+    there is deliberately no toggle for this anywhere.
+    IMPLEMENTATION: SettingsStore.fullScreenBannerDismissed (SharedPreferences, so
+    NO schema change and no migration). The X is its own IconButton inside the
+    banner Row, which matters: the banner Surface has its own onClick that opens
+    system settings, and a child clickable consumes the tap rather than falling
+    through. HomeScreen reads and writes viewModel.settings directly, so
+    MainActivity needed no changes.
+    BACKED UP, per #90's lesson that partial settings coverage is how these rot:
+    added to BackupData, the JSON write, the tolerant read, and both the export
+    and restore assignments in AlarmRepository. NOT added to SettingsScreen's
+    post-restore refresh block -- correct, because it is not displayed there; that
+    block only covers state the Settings screen holds.
+    UNVERIFIED: not compiled or run.
