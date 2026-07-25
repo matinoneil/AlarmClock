@@ -1471,6 +1471,25 @@ entry #1.
     then three reinstalls in one afternoon left every version equally
     unoptimised, which is exactly why they all felt the same. The repeated
     reinstalls are the confound that made version A/B useless here.
+    ALSO EXCLUDED, since it is the obvious suspect and will be asked again: #71j
+    (the permission chain moving from LaunchedEffect into onCreate) is NOT the
+    cause. It looks guilty -- the only UI-adjacent change in V2.1.8, shipped in
+    the exact version where the symptom was first noticed -- but V2.1.6 and
+    V2.1.7 do not contain it and felt identical on re-test, so the jank exists
+    without it. Mechanism agrees: it is a one-time cost completing before the
+    first frame, and the HWUI bars show SUSTAINED spikes across whole gestures in
+    two different screens. With all permissions granted it also falls through
+    every branch without launching anything. Note the asymmetry worth
+    remembering: the version A/B was worthless for hypothesis 4 (ART state was
+    equal across three fresh installs) yet decisive for this one (the code
+    genuinely differs between those versions) -- an A/B only isolates variables
+    that actually differ across the arms.
+    STILL WORTH FIXING on its own merits, as LAUNCH time and not scrolling: main
+    thread disk I/O before the first frame is a real regression. Move the call to
+    just after setContent, keeping the savedInstanceState == null guard.
+    Deliberately NOT shipped yet -- any new APK re-invalidates the ART profile and
+    restarts the waiting experiment below, so bundle it with whatever that
+    concludes.
     FALSIFIABLE PREDICTION, agreed as the next step, no code change: leave the
     device 3-4 days charging overnight with no reinstalls. If the jank fades it
     was optimisation state and there is no bug. If it is unchanged, hypothesis 4
