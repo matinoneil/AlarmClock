@@ -1455,7 +1455,32 @@ entry #1.
     (RULED OUT by observation). Ruled out separately and solidly: V2.1.8 as a
     cause, dependency drift, build variant, classic nested-scroll conflicts, the
     minute ticker, and the rings-in computation.
-    WHAT TO DO NEXT, and it is not more code reading: MEASURE. Developer options
+    MEASUREMENT RESULT (Profile HWUI rendering, on-device): bars spike over the
+    green line in BOTH the list tabs AND the Settings screen, hardest of all when
+    swiping between tabs. That kills hypothesis 2 as the differentiator -- the
+    jank is APP-WIDE, not specific to the cards, the alpha layers or the lazy
+    lists -- and the tab-swipe spike is unsurprising, since composing and
+    measuring two full pages at once is the heaviest thing the app does.
+    HYPOTHESIS 4, the first one derived from measurement rather than code
+    reading: ART optimisation state. This app ships no Baseline Profile and has
+    R8 off, so a freshly installed APK runs largely interpreted/JIT until
+    background dexopt profiles and AOT-compiles the hot paths over hours to days
+    of idle charging. Compose is unusually sensitive to this. It fits the whole
+    timeline without strain: V2.1.6 had been installed for WEEKS (fully
+    optimised, never noticed); updating to V2.1.8 invalidated that and felt off;
+    then three reinstalls in one afternoon left every version equally
+    unoptimised, which is exactly why they all felt the same. The repeated
+    reinstalls are the confound that made version A/B useless here.
+    FALSIFIABLE PREDICTION, agreed as the next step, no code change: leave the
+    device 3-4 days charging overnight with no reinstalls. If the jank fades it
+    was optimisation state and there is no bug. If it is unchanged, hypothesis 4
+    is dead too and the remaining candidate is hypothesis 1 (pager).
+    IF a real fix is ever wanted: a Baseline Profile shipped in the APK is the
+    standard answer and would help every screen. It needs a Macrobenchmark run on
+    a device or CI emulator -- a project, not a patch, and impossible from the
+    dev sandbox. Enabling R8 would help marginally; do NOT bundle it into a perf
+    hunch, per #17's reasoning about minification in alarm-critical code.
+    The measurement that produced the above, kept for reference: Developer options
     -> Profile HWUI rendering (on-screen bars) while scrolling a list tab versus
     the Settings screen splits the remaining families in one minute and needs no
     build -- bars spiking over the line means rendering cost (hypothesis 2 and
