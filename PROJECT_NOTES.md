@@ -24,6 +24,17 @@ several `[OPEN]` entries in one go. Keep entries terse — a paragraph, not an
 essay. This file is what replaces re-explaining context in chat every
 session, so it needs to stay current or that purpose is defeated.
 
+## Read this first — restarting in a new chat
+
+Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
+only) — treat any previously-pasted token as compromised. Then:
+
+> Continuing work on matinoneil/AlarmClock. Fresh token: `<token>`. Clone the
+> repo and read PROJECT_NOTES.md for context before starting. [bug/request]
+
+That's it — no need to paste history into the chat itself; it lives in the
+repo now.
+
 ## Who's doing what
 
 Division of labor: **Claude makes all code changes and pushes them; the
@@ -89,6 +100,29 @@ untested.
   instead of swallowing silently, and degrade to the next-best behavior
   (ring without a ramp; ring with the default sound; ring without vibration)
   rather than doing nothing or throwing.
+
+## Dead ends - do not reopen
+
+Conclusions only; the evidence is in the numbered entry. Everything here was
+proposed, investigated and ruled out. Re-proposing any of it costs a session.
+
+- **Pager consuming vertical drag delta** (HorizontalPager on experimental foundation 1.6.8) - dead, #76: a slow drag tracks the finger 1:1, and the symptom is identical on screens outside the pager.
+- **Per-card Modifier.alpha layers / card elevation shadows** - dead, #75: Profile HWUI showed frame spikes app-wide including Settings, which has neither.
+- **fillMaxSize viewport/clipping bug in HomeScreen** - never existed, #75. Compose's Column passes the REMAINING space as the max to a non-weighted child, so fillMaxSize() there was already equivalent to weight(1f). V2.1.9 shipped a behavioral no-op and its release notes are inaccurate.
+- **OEM per-app refresh-rate cap (60 Hz slow lane)** - dead, #75: the refresh-rate overlay reads 120 across the whole app.
+- **#71j, the permission chain moving from LaunchedEffect into onCreate** - not a regression and not the cause, #75. It looks guilty (only UI-adjacent change in V2.1.8) but V2.1.6/V2.1.7 lack it and felt identical; a LaunchedEffect body already ran on the main thread, so the change only moved ~5-30 ms of one-time work from just after the first frame to just before it.
+- **Adding androidx.profileinstaller explicitly** - no-op, #75/#76: it is already in the APK transitively via Compose.
+- **V2.1.8 as a cause, dependency drift, build variant, classic nested-scroll conflicts, the minute ticker, the rings-in computation** - all ruled out, #73/#75.
+
+Still live: **hypothesis 4, ART optimisation state** (#75/#76) - under test
+on-device as of V2.2. Do not ship a release the maintainer would install
+during that window; a new APK restarts the clock.
+
+**Rule earned the hard way (#75/#76):** do not diagnose rendering, layout or
+gesture behaviour by reading code in the dev sandbox. It cannot build, run or
+profile this app; five attempts produced four wrong answers and one wasted
+release. What actually worked was on-device measurement and asking the
+maintainer for a precise symptom shape.
 
 ## Bug/change history
 
@@ -1773,13 +1807,3 @@ entry #1.
     Settings, and bundling an unrelated change into a perf release is what #17
     warns against. Worth doing on its own someday.
 
-## Restarting this project in a new chat
-
-Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
-only) — treat any previously-pasted token as compromised. Then:
-
-> Continuing work on matinoneil/AlarmClock. Fresh token: `<token>`. Clone the
-> repo and read PROJECT_NOTES.md for context before starting. [bug/request]
-
-That's it — no need to paste history into the chat itself; it lives in the
-repo now.
