@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         applicationId = "no.hanss.alarmclock"
-        minSdk = 31
+        minSdk = 26
         targetSdk = 34
         versionCode = appVersionCode
         versionName = appVersionName
