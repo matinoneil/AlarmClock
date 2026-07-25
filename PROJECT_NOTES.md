@@ -1607,6 +1607,40 @@ entry #1.
     diagnosed: asked for a precise symptom shape (finger tracking / fling
     behaviour / whether screens outside the pager differ) instead of generating
     hypothesis 6 from the sandbox, per this entry's closing rule.
+    SYMPTOM PINNED DOWN (three on-device answers, same day) AND IT KILLS THE LAST
+    CODE-LEVEL CANDIDATE: (1) a slow drag tracks the finger 1:1 -- the
+    under-tracking that WAS #73's original wording DOES NOT REPRODUCE, so
+    hypothesis 1 (pager consuming vertical delta) is DEAD and the pager stops
+    being a suspect; (2) a hard flick coasts but STUTTERS -- dropped frames during
+    motion, not gesture handling; (3) the clunk is IDENTICAL on Settings and the
+    edit screens, both outside the pager and both plain Columns with no
+    Modifier.alpha -- re-killing hypothesis 2 and ruling out the lazy lists, the
+    cards and the pager together.
+    WHAT THAT LEAVES: nothing in ui/. The app is uniformly slower than it should
+    be on every screen with correct gesture handling, i.e. code EXECUTION speed,
+    not layout, composition structure or scroll plumbing. Two non-exclusive
+    explanations remain: hypothesis 4 (ART state not yet AOT-compiled) and the
+    plainer one nobody had stated -- this app ships NO baseline profile and has R8
+    off, so it may simply run slower than the Play-installed apps it is being
+    compared against, with no bug anywhere. #73 reached that conclusion once
+    already. Hypotheses 1, 2, 3 and 5 are all dead; do not reopen them.
+    NEWLY VIABLE, correcting this entry's "impossible from the dev sandbox"
+    verdict on baseline profiles: rules can be HAND-WRITTEN as
+    src/main/baseline-prof.txt -- AGP consumes that path with no plugin and no
+    Macrobenchmark module, and the format is a superset of HRF that accepts
+    WILDCARDS, so one rule over no/hanss/alarmclock/** covers the app's own code.
+    androidx.profileinstaller is already present transitively, so delivery works.
+    What it buys, stated precisely to avoid this entry's habitual overclaim: it
+    does NOT AOT-compile at sideload install time; it hands ART the right
+    hot-path list up front so the FIRST background dexopt (idle + charging)
+    compiles the right thing instead of the runtime spending days collecting a
+    profile first. Zero behavioral risk -- a compilation hint cannot change
+    semantics, which is exactly what separates it from R8 and #17's objection to
+    minification in alarm-critical code. Coarser than a Macrobenchmark-generated
+    profile; over-inclusion costs APK size, not correctness.
+    NOT SHIPPED, awaiting the maintainer's call: it costs a release, and any new
+    APK re-invalidates ART state and restarts the pending wait test, so the two
+    options genuinely conflict. Needs an [OPEN] entry first if it goes ahead.
 
 ## Restarting this project in a new chat
 
