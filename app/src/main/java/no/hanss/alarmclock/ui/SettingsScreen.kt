@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -292,14 +293,30 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { launchRingtonePicker("series", seriesSound) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(soundName(seriesSound), maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = { launchRingtonePicker("series", seriesSound) },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(soundName(seriesSound), maxLines = 1)
+                    }
+                    // Must persist as well as clear the local state, mirroring the
+                    // picker result handler above (#82).
+                    if (seriesSound != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = {
+                            seriesSound = null
+                            viewModel.settings.defaultSeriesSoundUri = null
+                        }) {
+                            Icon(
+                                Icons.Outlined.Clear,
+                                contentDescription = "Use the default alarm sound"
+                            )
+                        }
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -352,14 +369,30 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { launchRingtonePicker("alarm", defaultAlarmSound) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(soundName(defaultAlarmSound), maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = { launchRingtonePicker("alarm", defaultAlarmSound) },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(soundName(defaultAlarmSound), maxLines = 1)
+                    }
+                    // Must persist as well as clear the local state, mirroring the
+                    // picker result handler above (#82).
+                    if (defaultAlarmSound != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = {
+                            defaultAlarmSound = null
+                            viewModel.settings.defaultAlarmSoundUri = null
+                        }) {
+                            Icon(
+                                Icons.Outlined.Clear,
+                                contentDescription = "Use the default alarm sound"
+                            )
+                        }
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -462,14 +495,30 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { launchRingtonePicker("timer", defaultTimerSound) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(soundName(defaultTimerSound), maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = { launchRingtonePicker("timer", defaultTimerSound) },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(soundName(defaultTimerSound), maxLines = 1)
+                    }
+                    // Must persist as well as clear the local state, mirroring the
+                    // picker result handler above (#82).
+                    if (defaultTimerSound != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = {
+                            defaultTimerSound = null
+                            viewModel.settings.defaultTimerSoundUri = null
+                        }) {
+                            Icon(
+                                Icons.Outlined.Clear,
+                                contentDescription = "Use the default alarm sound"
+                            )
+                        }
+                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),

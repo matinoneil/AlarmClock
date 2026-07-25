@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -203,14 +204,27 @@ fun TimerEditScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { launchRingtonePicker() },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Outlined.MusicNote, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(soundLabel ?: "Default alarm sound", maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = { launchRingtonePicker() },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Outlined.MusicNote, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(soundLabel ?: "Default alarm sound", maxLines = 1)
+                    }
+                    // Only when there is something to revert: null already IS the
+                    // system default, so on the default there is nothing to show (#82).
+                    if (soundUri != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = { soundUri = null }) {
+                            Icon(
+                                Icons.Outlined.Clear,
+                                contentDescription = "Use the default alarm sound"
+                            )
+                        }
+                    }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
