@@ -1210,8 +1210,11 @@ entry #1.
     before an async write lands). (d) exportSchema false -> true, with the
     required KSP room.schemaLocation arg, so a version bump that forgets its
     Migration shows up as a schema diff in review. Destructive fallback STAYS
-    per the standing wipe-beats-crash preference. NOTE: schemas/ is emitted at
-    BUILD time, so it only populates once someone builds locally and commits
+    per the standing wipe-beats-crash preference. BUILD OUTCOME: V2.1.8 compiled and packaged fine, so both of this batch's
+    compile risks are settled -- the KSP room.schemaLocation arg is picked up
+    (exportSchema=true fails the build outright without it) and the API 33
+    VibrationAttributes reference is fine under its TIRAMISU guard. NOTE:
+    schemas/ is emitted at BUILD time, so it only populates once someone builds locally and commits
     it; CI builds won't. (e) allowBackup was true with both rule files empty,
     i.e. the default: the whole Room DB (reminder text, alarm labels) plus
     prefs to Google cloud backup -- in tension with #46's no-INTERNET privacy
