@@ -125,26 +125,28 @@ private fun TimerCard(
     } else {
         formatTimerDuration(timer.durationSeconds)
     }
-    val subtitle = buildString {
-        if (timer.label.isNotBlank()) {
-            append(timer.label)
-            append(" · ")
+    val ringsAt = if (running) {
+        val cal = java.util.Calendar.getInstance().apply {
+            timeInMillis = timer.runningUntilMillis ?: 0L
         }
-        if (running) {
-            val cal = java.util.Calendar.getInstance().apply {
-                timeInMillis = timer.runningUntilMillis ?: 0L
-            }
-            append(
-                String.format(
-                    "Rings at %02d:%02d",
-                    cal.get(java.util.Calendar.HOUR_OF_DAY),
-                    cal.get(java.util.Calendar.MINUTE)
-                )
-            )
-        } else {
-            append("${formatTimerDuration(timer.durationSeconds)} timer")
-        }
+        String.format(
+            "Rings at %02d:%02d",
+            cal.get(java.util.Calendar.HOUR_OF_DAY),
+            cal.get(java.util.Calendar.MINUTE)
+        )
+    } else {
+        null
     }
+
+    // A resting timer's duration is already the big number above, so the old
+    // "3:00 timer" line restated it and said nothing (#85). The subtitle now
+    // carries only the label, plus the ring time while running. Built as a list
+    // rather than a StringBuilder so the " · " separator cannot be left dangling
+    // when only one part is present.
+    val subtitle = listOfNotNull(
+        timer.label.takeIf { it.isNotBlank() },
+        ringsAt
+    ).joinToString(" · ")
 
     ListCard(enabled = running, onClick = onClick) {
         Column(
@@ -156,12 +158,16 @@ private fun TimerCard(
                 bigText,
                 style = MaterialTheme.typography.displaySmall.merge(ClockTextStyle)
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Skip the row entirely when there is nothing to say -- an empty Text
+            // plus its spacer would still take vertical space on the card.
+            if (subtitle.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         Switch(checked = running, onCheckedChange = onToggle)
     }

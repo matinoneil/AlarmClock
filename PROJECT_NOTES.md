@@ -1910,3 +1910,20 @@ entry #1.
     backup restored onto a device lacking it. The `title == uri.lastPathSegment`
     detector either catches the real case or it does not, and only a device can
     say. Do not record it as working until someone actually sees the message.
+
+85. **Removed the redundant "3:00 timer" line under a resting timer.** Requested,
+    cosmetic. A resting timer card showed the duration as the big number and then
+    repeated it in the subtitle as "3:00 timer", which restated the number
+    immediately above it. The subtitle now carries only the label, plus "Rings at
+    HH:MM" while running -- the maintainer explicitly wanted that one KEPT, since it
+    says something the big countdown does not.
+    THE CARE THIS NEEDED, because the subtitle was doing two jobs: it also renders
+    the timer's label, joined with " · ". Simply deleting the else branch would have
+    left a dangling separator on a labelled resting timer ("Pasta · ") and an empty
+    Text plus its 2.dp spacer on an unlabelled one, still eating vertical space.
+    Rebuilt as listOfNotNull(label, ringsAt).joinToString(" · ") so the separator
+    cannot dangle, and the whole row is skipped when the result is empty.
+    Four cases now: resting+unlabelled renders no subtitle row at all;
+    resting+labelled shows just the label; running+unlabelled shows just the ring
+    time; running+labelled shows "label · Rings at HH:MM".
+    UNVERIFIED: not compiled or run.
