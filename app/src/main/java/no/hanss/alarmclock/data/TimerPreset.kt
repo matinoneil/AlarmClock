@@ -21,6 +21,10 @@ data class TimerPreset(
     val label: String = "",
     val vibrate: Boolean = true,
     val soundUri: String? = null,
+    // Delete this preset once it has rung and been dismissed (#88), for a one-off
+    // timer you won't reuse. Unlike an alarm there is no snooze to complicate it:
+    // timers are dismiss-only.
+    val deleteAfterRinging: Boolean = false,
     // Epoch millis the running countdown ends at, or null when the timer is idle.
     val runningUntilMillis: Long? = null
 ) {

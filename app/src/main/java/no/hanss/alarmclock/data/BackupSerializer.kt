@@ -109,6 +109,7 @@ object BackupSerializer {
                     put("label", t.label)
                     put("vibrate", t.vibrate)
                     put("soundUri", t.soundUri ?: JSONObject.NULL)
+                    put("deleteAfterRinging", t.deleteAfterRinging)
                 })
             }
         })
@@ -207,7 +208,9 @@ object BackupSerializer {
                     durationSeconds = o.getInt("durationSeconds").coerceAtLeast(1),
                     label = o.optString("label", ""),
                     vibrate = o.optBoolean("vibrate", true),
-                    soundUri = o.optStringOrNull("soundUri")
+                    soundUri = o.optStringOrNull("soundUri"),
+                    // Absent in pre-#88 backups: tolerant optional read.
+                    deleteAfterRinging = o.optBoolean("deleteAfterRinging", false)
                     // runningUntilMillis intentionally absent: timers restore idle.
                 )
             }

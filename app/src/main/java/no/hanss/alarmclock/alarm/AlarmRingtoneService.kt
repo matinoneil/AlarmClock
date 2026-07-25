@@ -395,21 +395,40 @@ class AlarmRingtoneService : Service() {
      * cancel -- the same reason snooze() can launch and then stopSelf() immediately.
      */
     private fun deleteIfSelfDeleting() {
-        val snapshot = ringingSnapshot ?: return
-        // Timers have no such flag, and a series child must never be deleted out
-        // from under its series -- the toggle is only offered for standalone alarms.
-        if (isTimerRing || !snapshot.deleteAfterRinging || snapshot.seriesId != null) return
-        val id = snapshot.id
+        val id = currentAlarmId
         if (id <= 0L) return
+
+        if (isTimerRing) {
+            // Timers keep NO ringingSnapshot -- that snapshot exists only so alarm
+            // snooze can resurrect a vanished row, and timers have no snooze -- so the
+            // flag has to be read from the DB. Safe here: by dismissal the sound is
+            // long since loaded, which is the whole reason this runs on dismiss and
+            // not at fire time (#87, #88).
+            serviceScope.launch {
+                runCatching {
+                    val dao = AlarmDatabase.getInstance(applicationContext).timerDao()
+                    val timer = dao.getTimer(id)
+                    if (timer != null && timer.deleteAfterRinging) dao.delete(timer)
+                }.onFailure {
+                    Log.w(TAG, "Failed deleting self-deleting timer $id", it)
+                }
+            }
+            return
+        }
+
+        val snapshot = ringingSnapshot ?: return
+        // A series child must never be deleted out from under its series -- the
+        // toggle is only offered for standalone alarms.
+        if (!snapshot.deleteAfterRinging || snapshot.seriesId != null) return
         serviceScope.launch {
             runCatching {
-                AlarmDatabase.getInstance(applicationContext).alarmDao().deleteById(id)
+                AlarmDatabase.getInstance(applicationContext).alarmDao().deleteById(snapshot.id)
                 UpcomingAlarmManager(applicationContext).refresh()
                 AlarmWidgetUpdater.updateAll(applicationContext)
             }.onFailure {
                 // Never let cleanup bookkeeping escape and kill the process mid-ring
                 // (#71a). A surviving row is a cosmetic problem; a crash is not.
-                Log.w(TAG, "Failed deleting self-deleting alarm $id", it)
+                Log.w(TAG, "Failed deleting self-deleting alarm ${snapshot.id}", it)
             }
         }
     }

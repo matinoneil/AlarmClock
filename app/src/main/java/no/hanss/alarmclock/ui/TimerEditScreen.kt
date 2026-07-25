@@ -63,6 +63,7 @@ fun TimerEditScreen(
     var minutesText by remember { mutableStateOf(((initialTotal % 3600) / 60).toString()) }
     var secondsText by remember { mutableStateOf((initialTotal % 60).toString()) }
     var label by remember { mutableStateOf(existing?.label ?: "") }
+    var deleteAfterRinging by remember { mutableStateOf(existing?.deleteAfterRinging ?: false) }
     var vibrate by remember {
         mutableStateOf(
             existing?.vibrate
@@ -209,6 +210,21 @@ fun TimerEditScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Delete after it rings", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "For a one-off timer you won't reuse.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = deleteAfterRinging,
+                        onCheckedChange = { deleteAfterRinging = it }
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(
                         onClick = { launchRingtonePicker() },
                         modifier = Modifier.weight(1f).height(52.dp),
@@ -247,7 +263,8 @@ fun TimerEditScreen(
                         durationSeconds = totalSeconds,
                         label = label,
                         vibrate = vibrate,
-                        soundUri = soundUri
+                        soundUri = soundUri,
+                        deleteAfterRinging = deleteAfterRinging
                     )
                     viewModel.saveTimer(timer)
                     onDone()

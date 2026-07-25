@@ -2017,26 +2017,32 @@ entry #1.
     the only one touching the schema -- if anything is wrong, check migration
     registration FIRST, because that is the failure that costs data.
 
-88. **[OPEN] Give timers the same delete-after-use treatment as #87.** Requested:
-    a one-off timer preset should remove itself after it rings, rather than staying
-    in the list.
+88. **Added: delete-after-use for timers too.** Same treatment as #87, in
+    TimerEditScreen's Details section: "Delete after it rings" removes a one-off
+    timer preset once it has rung and been dismissed.
     SCHEMA CHANGE, DB 13 -> 14. `deleteAfterRinging: Boolean = false` on
-    TimerPreset, plus MIGRATION_13_14
-    (`ALTER TABLE `timers` ADD COLUMN `deleteAfterRinging` INTEGER NOT NULL DEFAULT 0`)
-    REGISTERED in .addMigrations() -- an unregistered migration wipes all data via
-    the destructive fallback. Table name is `timers`.
-    THE ONE REAL DIFFERENCE FROM #87: timers keep NO ringingSnapshot. That snapshot
-    exists solely so alarm snooze can resurrect a vanished row, and timers have no
-    snooze, so #87's trick of reading the flag off the snapshot does not work here.
-    The timer must be read from the DB at dismiss time instead --  safe, because by
-    dismissal the sound is long since loaded, which was the whole reason #87 delays
-    the delete to dismissal rather than fire time.
-    currentAlarmId holds the timer id while isTimerRing is true (the service already
-    reads the timer that way at ~line 162). TimerDao has no deleteById, but it has
-    @Delete delete(timer) -- and we need the row anyway to check the flag, so fetch
-    then delete.
-    deleteIfSelfDeleting() gains a timer branch; its current `if (isTimerRing) return`
-    guard is exactly what has to change.
-    No snooze concern at all here: timers are dismiss-only by design.
-    BACKUP: TimerPreset is serialised explicitly like Alarm, so it needs a `put`
-    and a tolerant optBoolean read.
+    TimerPreset, MIGRATION_13_14
+    (`ALTER TABLE `timers` ADD COLUMN `deleteAfterRinging` INTEGER NOT NULL DEFAULT 0`),
+    and -- the step that actually protects the data -- REGISTERED in
+    .addMigrations(). Verified present after the edit. Second migration of the day
+    after #87's 12 -> 13.
+    THE ONE REAL DIFFERENCE FROM #87: timers keep NO ringingSnapshot, because that
+    snapshot exists solely so alarm snooze can resurrect a vanished row and timers
+    have no snooze. So #87's trick of reading the flag off the snapshot does not
+    work, and the timer is read from the DB at dismiss time instead (currentAlarmId
+    holds the timer id while isTimerRing is true). Safe precisely because the delete
+    runs on DISMISS: the sound is long since loaded, so there is no race with the
+    service's own read the way deleting at fire time would have.
+    deleteIfSelfDeleting() now branches on isTimerRing -- the old
+    `if (isTimerRing) return` guard was exactly what had to change. TimerDao has no
+    deleteById, but the row must be fetched anyway to check the flag, so it fetches
+    then @Delete's it.
+    No snooze concern at all: timers are dismiss-only by design, so unlike #87 there
+    is no second path to keep clear of.
+    BACKUP: `put` plus a tolerant optBoolean read, so pre-V2.3 backups restore with
+    the flag off.
+    NOT OBSERVED. Shipped in V2.3 and assumed working at the maintainer's direction
+    rather than tested, recorded plainly instead of as verified. It mirrors #87
+    closely, but it is the second schema migration of the day and an unregistered or
+    malformed migration is the one failure here that costs data -- so if anything
+    looks wrong after installing, check the timer LIST is intact first.
