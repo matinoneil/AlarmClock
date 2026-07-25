@@ -1568,6 +1568,34 @@ entry #1.
     entry exists because the maintainer pushed back after the symptom was
     written off.
 
+    NEW SESSION, SAME REPORT (25 Jul, hours after the above): reported again as
+    "a recent update made it very laggy, going back versions doesn't help, other
+    apps aren't this laggy". That is this entry verbatim, plus one datum: other
+    apps being fine is per-APP, which fits hypothesis 4 (ART state is per-app;
+    Play-installed apps get Cloud Profiles and have been dexopt'd for weeks) and
+    rules out device-wide causes like thermal throttling or an OS update.
+    ELAPSED TIME ON THE AGREED WAIT TEST: none. V2.1.9 was tagged 01:07 and the
+    prediction written at 08:30 the SAME DAY. It has not been run; any reinstall
+    since restarts it.
+    CLOSED WITHOUT A RELEASE, so nobody spends one on it: androidx.profileinstaller
+    is already in this APK transitively -- Google's docs state it is present in
+    effectively every Compose APK -- so adding it explicitly is a no-op. Compose's
+    library baseline profiles therefore DO ship and DO get written at first run;
+    what waits on background dexopt (idle + charging) is the AOT compile.
+    Sideloads get no Cloud Profiles, so local dexopt is the only path. Explains
+    hypothesis 4's mechanism; does not test it.
+    HYPOTHESIS 5, device state rather than code, per this entry's own closing
+    lesson: OEM per-app refresh-rate policy. Several OEMs run system UI and
+    recognised apps at 90/120 Hz while capping others at 60, and a sideloaded
+    app is a candidate for the slow lane -- app-specific, constant across every
+    version, immune to reinstalls, invisible to code reading: every property this
+    report has. Check costs 30 seconds and no build -- Developer options -> Show
+    refresh rate, then compare the number while scrolling a list tab versus a
+    known-smooth app. UNTESTED. Do not act on it.
+    NO CODE CHANGE THIS SESSION, deliberately. Five hypotheses now exist and the
+    sandbox has never been able to test one; nothing ships for this symptom until
+    a measurement on the device points somewhere.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
