@@ -1948,39 +1948,47 @@ entry #1.
     not the same as observed. If capitalisation ever misbehaves on one screen,
     start by checking whether that field got the line at all.
 
-87. **[OPEN] Self-deleting one-shot alarms.** Requested: a toggle when creating or
-    editing an alarm, under the day selector, so a one-off alarm removes itself
-    after it has been used instead of lingering as a disabled row.
-    SCHEMA CHANGE -- read the policy comment in AlarmDatabase.getInstance before
-    touching this. New field `deleteAfterRinging: Boolean = false` on Alarm,
-    version 12 -> 13, and MIGRATION_12_13 must ship with it:
-    `ALTER TABLE alarms ADD COLUMN deleteAfterRinging INTEGER NOT NULL DEFAULT 0`.
-    A version bump WITHOUT a migration silently wipes every saved alarm through
-    fallbackToDestructiveMigration. Table name is `alarms`.
-    WHERE THE DELETE MUST HAPPEN, and this is the part that is not obvious:
-    NOT in AlarmReceiver where the one-shot currently gets `enabled = false`.
-    AlarmReceiver starts AlarmRingtoneService and the service then reads the alarm
-    row asynchronously in its own coroutine (AlarmRingtoneService ~line 175) to get
-    the sound, ramp and vibrate settings. Deleting the row at fire time races that
-    read, and losing it means ringing with the DEFAULT sound instead of the chosen
-    one -- exactly the failure shape #81 just fixed. So the delete goes in
-    handleDismiss(), after the sound is loaded and the user has actually dealt with
-    the alarm, which is also what "after use" honestly means.
-    MUST NOT DELETE ON SNOOZE: the alarm is still in use. handleSnooze already
-    re-persists it, and note the service keeps an in-memory snapshot specifically
-    so snooze can resurrect a vanished row -- do not confuse that mechanism with
-    this one. Deletion happens only on an explicit dismiss.
-    GUARDS: skip timers (the isTimer flag already exists in the service), and skip
-    any alarm with seriesId != null -- deleting one child out of a series would
-    silently gut the series, and the toggle is only offered in AlarmEditScreen
-    (standalone) anyway.
-    ACCEPTED LIMITATION: if the alarm is never explicitly dismissed (service
-    killed, user ignores it), nothing is deleted. AlarmReceiver's existing
-    `enabled = false` still applies, so it degrades to exactly today's behaviour
-    rather than to anything surprising.
-    UI: a toggle under the day selector, shown only when no repeat days are
-    selected, since "delete after use" is meaningless on a repeating alarm. Force
-    the stored value to false when days ARE selected, so no saved row can hold both.
-    BACKUP: BackupSerializer writes alarm fields explicitly, so it needs a `put`
-    AND a read that tolerates the field's absence (optBoolean with default false),
-    or restoring a pre-V2.2.9 backup would fail or lose the flag.
+87. **Added: self-deleting one-shot alarms.** A "Delete after it rings" toggle in
+    the alarm editor, under the day selector, so a one-off alarm removes itself once
+    dismissed instead of lingering as a disabled row.
+    SCHEMA CHANGE, DB 12 -> 13. New field `deleteAfterRinging: Boolean = false` on
+    Alarm, with MIGRATION_12_13 shipping alongside it:
+    `ALTER TABLE `alarms` ADD COLUMN `deleteAfterRinging` INTEGER NOT NULL DEFAULT 0`
+    -- and, the step that actually matters, ADDED TO THE .addMigrations() LIST.
+    Defining a Migration without registering it is indistinguishable from not
+    writing one: fallbackToDestructiveMigration would silently wipe every saved
+    alarm. Both were verified present after the edit. No committed schemas dir, so
+    exportSchema=true only warns, exactly as at v12.
+    THE DELETE RUNS ON DISMISS, NOT AT FIRE TIME, and this is the non-obvious part.
+    AlarmReceiver looked like the natural home (it already flips one-shots to
+    `enabled = false` there), but the service reads the alarm row ASYNCHRONOUSLY in
+    its own coroutine to get the sound, ramp and vibrate settings. Deleting at fire
+    time races that read, and losing it means ringing with the DEFAULT sound instead
+    of the chosen one -- precisely the failure shape #81 just fixed. By dismissal the
+    sound is long since loaded. AlarmRingtoneService.handleDismiss() ->
+    deleteIfSelfDeleting().
+    SNOOZE DOES NOT DELETE: handleSnooze never calls it, because the alarm is still
+    in use and the row is what snooze re-points. Do not "tidy" the two paths
+    together.
+    GUARDS: reads the flag off `ringingSnapshot` (the in-memory copy taken at ring
+    start, which exists for #21's vanishing-row case), skips timers via isTimerRing,
+    skips any alarm with seriesId != null so a series child can never be deleted out
+    from under its series, and skips id <= 0. Wrapped in runCatching that only logs
+    -- cleanup bookkeeping must never escape and kill the process mid-ring (#71a); a
+    surviving row is cosmetic, a crash is not.
+    LIFECYCLE, checked rather than assumed: launched on serviceScope, which
+    onDestroy does NOT cancel -- it only calls stopRinging(). That is the same
+    property snooze() already relies on to launch and then stopSelf() immediately.
+    UI: hidden rather than disabled when repeat days are selected, since "delete
+    after use" is meaningless on a repeating alarm; and the save forces
+    `deleteAfterRinging && selectedDays.isEmpty()`, so no stored row can hold both a
+    schedule and the flag.
+    BACKUP: BackupSerializer writes alarm fields explicitly, so both a `put` and a
+    tolerant `optBoolean("deleteAfterRinging", false)` read were needed -- a
+    pre-V2.2.9 backup restores with the flag off rather than failing.
+    ACCEPTED LIMITATION: an alarm that is never explicitly dismissed (service killed,
+    user ignores it) is not deleted. AlarmReceiver's existing `enabled = false` still
+    applies, so it degrades to exactly today's behaviour.
+    UNVERIFIED: not compiled or run. This is the largest change of the session and
+    the only one touching the schema -- if anything is wrong, check migration
+    registration FIRST, because that is the failure that costs data.

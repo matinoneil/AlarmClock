@@ -78,6 +78,7 @@ object BackupSerializer {
                     put("volumeRampSeconds", a.volumeRampSeconds)
                     put("snoozeMinutes", a.snoozeMinutes)
                     put("pausedUntilMillis", a.pausedUntilMillis ?: JSONObject.NULL)
+                    put("deleteAfterRinging", a.deleteAfterRinging)
                 })
             }
         })
@@ -170,7 +171,9 @@ object BackupSerializer {
                     volumeRampSeconds = o.optInt("volumeRampSeconds", 0).coerceAtLeast(0),
                     snoozeMinutes = o.optInt("snoozeMinutes", 10).coerceAtLeast(1),
                     // Absent in pre-#44 backups: tolerant optional read.
-                    pausedUntilMillis = if (!o.has("pausedUntilMillis") || o.isNull("pausedUntilMillis")) null else o.getLong("pausedUntilMillis")
+                    pausedUntilMillis = if (!o.has("pausedUntilMillis") || o.isNull("pausedUntilMillis")) null else o.getLong("pausedUntilMillis"),
+                    // Absent in pre-#87 backups: tolerant optional read.
+                    deleteAfterRinging = o.optBoolean("deleteAfterRinging", false)
                 )
             }
         }

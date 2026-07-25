@@ -62,6 +62,7 @@ fun AlarmEditScreen(
     val defaults = remember { no.hanss.alarmclock.data.SettingsStore(context) }
     var vibrate by remember { mutableStateOf(existing?.vibrate ?: (if (alarmId == -1L) defaults.defaultAlarmVibrate else true)) }
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
+    var deleteAfterRinging by remember { mutableStateOf(existing?.deleteAfterRinging ?: false) }
     // New alarms start from the settings default; edits keep the alarm's own
     // choice (including "null = system default") untouched.
     var pausedUntil by remember { mutableStateOf(existing?.pausedUntilMillis) }
@@ -169,6 +170,26 @@ fun AlarmEditScreen(
                         else selectedDays + day
                     }
                 )
+                // Only meaningful with no repeat days: a repeating alarm is never
+                // "used up" (#87). Hidden rather than disabled so the Repeat section
+                // stays uncluttered once days are chosen.
+                if (selectedDays.isEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Delete after it rings", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "For a one-off alarm you won't need again.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = deleteAfterRinging,
+                            onCheckedChange = { deleteAfterRinging = it }
+                        )
+                    }
+                }
             }
 
             EditSection(title = "Details") {
@@ -254,6 +275,9 @@ fun AlarmEditScreen(
                         soundUri = soundUri,
                         volumeRampSeconds = rampSeconds,
                         snoozeMinutes = snoozeMinutes,
+                        // Forced false when the alarm repeats, so no saved row can
+                        // hold both a schedule and "delete after use" (#87).
+                        deleteAfterRinging = deleteAfterRinging && selectedDays.isEmpty(),
                         // The pause rides along; the repository nulls a date
                         // already in the past (#44).
                         pausedUntilMillis = pausedUntil,

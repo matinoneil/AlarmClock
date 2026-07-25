@@ -40,6 +40,10 @@ data class Alarm(
     val soundUri: String? = null,
     val volumeRampSeconds: Int = 0, // 0 = ring at full volume immediately
     val snoozeMinutes: Int = 10,
+    // One-shot alarms only (#87): remove the row entirely once it has been
+    // dismissed, instead of leaving a disabled alarm behind forever. Forced false
+    // whenever daysOfWeek is non-empty, since a repeating alarm is never "used up".
+    val deleteAfterRinging: Boolean = false,
     // Exact epoch millis of an occurrence that should be skipped (from the "dismiss
     // next alarm" action on the upcoming-alarm notification), or null if none is
     // pending. Recomputing "when's the next occurrence" without this would just find

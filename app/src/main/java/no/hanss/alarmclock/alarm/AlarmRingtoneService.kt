@@ -378,8 +378,40 @@ class AlarmRingtoneService : Service() {
 
     private fun handleDismiss() {
         clearRingingMarker()
+        deleteIfSelfDeleting()
         stopRinging()
         stopSelf()
+    }
+
+    /**
+     * Self-deleting one-shot alarms (#87). Deliberately runs HERE and not in
+     * AlarmReceiver at fire time: the service reads the alarm row asynchronously to
+     * get its sound, so deleting it at fire time races that read and would ring the
+     * DEFAULT sound instead of the chosen one -- the same failure shape as #81. By
+     * dismissal the sound is long since loaded.
+     *
+     * Snooze must NOT come through here: the alarm is still in use, and the row is
+     * what snooze re-points. Launched on serviceScope, which onDestroy does not
+     * cancel -- the same reason snooze() can launch and then stopSelf() immediately.
+     */
+    private fun deleteIfSelfDeleting() {
+        val snapshot = ringingSnapshot ?: return
+        // Timers have no such flag, and a series child must never be deleted out
+        // from under its series -- the toggle is only offered for standalone alarms.
+        if (isTimerRing || !snapshot.deleteAfterRinging || snapshot.seriesId != null) return
+        val id = snapshot.id
+        if (id <= 0L) return
+        serviceScope.launch {
+            runCatching {
+                AlarmDatabase.getInstance(applicationContext).alarmDao().deleteById(id)
+                UpcomingAlarmManager(applicationContext).refresh()
+                AlarmWidgetUpdater.updateAll(applicationContext)
+            }.onFailure {
+                // Never let cleanup bookkeeping escape and kill the process mid-ring
+                // (#71a). A surviving row is a cosmetic problem; a crash is not.
+                Log.w(TAG, "Failed deleting self-deleting alarm $id", it)
+            }
+        }
     }
 
     private fun handleSnooze(alarmId: Long = currentAlarmId) {
