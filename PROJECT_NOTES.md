@@ -2241,14 +2241,6 @@ entry #1.
     stored correctly" and "the user can see the value" are different claims. When a
     report contradicts a verified data path, suspect the display before re-verifying
     the data.
-    STILL UNEXPLAINED, deliberately parked at the maintainer's request: app colours
-    changed after the reinstall and then reverted to the old ones on their own. No
-    theme, colour or resource file has changed since V2.1.9 -- verified by git log
-    over ui/theme/, res/values/ and res/values-night/ -- and V2.3.1 over V2.3 was
-    signing plumbing and docs only. The palette is Material You (dynamicColor =
-    true), i.e. wallpaper-derived with no app-side setting, which is consistent with
-    it changing and reverting without a code change. NOT investigated further. Do
-    not invent a mechanism for it.
 
 91. **The full-screen-alarm banner can be dismissed.** Requested: an X so someone
     who does not want full-screen alarms is not warned about it forever.
