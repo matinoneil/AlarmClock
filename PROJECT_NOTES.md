@@ -1308,8 +1308,8 @@ entry #1.
     ever appears it would look like overnight charge shaping failing on a night
     when a timer happened to be running, and the fix shape is recorded above.
 
-73. **[OPEN] Vertical scrolling in the three list tabs is clunky and eats part
-    of the drag.** Reported after V2.1.8: dragging the alarm or reminder list
+73. **Reported scroll clunkiness in the list tabs: NO REGRESSION FOUND, closed
+    without a code change.** Reported after V2.1.8: dragging the alarm or reminder list
     moves it only a few lines regardless of how far the finger travels, and
     feels low-framerate. Under 10 items in each list, so not list size, and it
     persists across a reboot.
@@ -1337,11 +1337,24 @@ entry #1.
     LazyColumn nested in an experimental-era Pager disambiguates every drag
     through the pager's nested-scroll connection before the list sees it, which
     matches "the list moves less than my finger" precisely.
-    A/B RESULT: the maintainer installed V2.1.6 and V2.1.7 and could not tell them
-    apart from V2.1.8. So the symptom is PRE-EXISTING and version-independent,
-    V2.1.8 is fully cleared, and the "why is it new" tension in the first draft
-    of this entry dissolves -- it was never new, and every version tested
-    contains #40's pager. Not a regression; a standing UI quality issue.
+    A/B RESULT, and the actual conclusion: the maintainer had run V2.1.6 for weeks
+    without ever noticing this, felt something off on V2.1.8, then reinstalled
+    V2.1.6 and V2.1.7 and found all three felt THE SAME as V2.1.8. That is
+    negative evidence, and strong: had V2.1.8 changed scrolling, the older
+    builds would have felt better on re-test. Scroll behavior has been constant
+    across all three versions; what changed was attention, not code -- an
+    ordinary thing with subtle UI feel, and hard to un-notice once it happens.
+    No regression exists. Closed with no code change.
+    PROCESS NOTE, worth more than the finding: the session built a confident
+    two-cause theory (pager delta consumption + alpha compositing) off a SINGLE
+    data point -- "Settings feels snappier than the tabs" -- and wrote it into
+    this file as though diagnosed. It wasn't. A plain Column of Settings rows
+    will always feel somewhat different from a lazy list of tonal cards with
+    nothing wrong at all, so that comparison never carried the weight put on it.
+    The A/B the maintainer ran is what produced real information. Next time a
+    subjective "feels worse" report arrives: get the version A/B FIRST, before
+    theorising, and remember that this sandbox can neither run nor profile the
+    app, so any perf claim from here is inference.
     SECOND CANDIDATE, found after the A/B and probably the fps half of the
     report: every card in all three list tabs applies Modifier.alpha (0.5 for
     disabled/done/idle, 0.75 for paused, from #16/#33/#50). Compose implements
@@ -1356,7 +1369,13 @@ entry #1.
     moves less than my finger" is drag-delta consumption (pager), while "clunky,
     fewer fps" is compositing cost (alpha layers). Fixing one need not fix the
     other.
-    ORDER OF ATTACK now that it is not a regression: do the alpha fix first --
+    THE TWO CANDIDATES BELOW ARE UNMEASURED HYPOTHESES, NOT DIAGNOSED CAUSES.
+    They are real properties of the code and MAY be worth acting on as
+    deliberate polish someday, but nothing has ever demonstrated they are
+    perceptible here. Do not "fix" them on the strength of this entry; measure
+    first (Android Studio Layout Inspector with recomposition counts, on a
+    release build, is the tool). If polish is ever wanted, the cheaper one is:
+    apply alpha to container/content COLORS instead of the whole card --
     apply alpha to container/content COLORS instead of the whole card, removing
     the layer per card. Small, surgical, costs no feature. Known visual
     trade-off to accept or reject: color alpha does not fade a card's
