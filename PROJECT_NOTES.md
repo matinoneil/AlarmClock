@@ -1947,3 +1947,40 @@ entry #1.
     proven in ReminderEditScreen, so the risk is genuinely low, but low risk is
     not the same as observed. If capitalisation ever misbehaves on one screen,
     start by checking whether that field got the line at all.
+
+87. **[OPEN] Self-deleting one-shot alarms.** Requested: a toggle when creating or
+    editing an alarm, under the day selector, so a one-off alarm removes itself
+    after it has been used instead of lingering as a disabled row.
+    SCHEMA CHANGE -- read the policy comment in AlarmDatabase.getInstance before
+    touching this. New field `deleteAfterRinging: Boolean = false` on Alarm,
+    version 12 -> 13, and MIGRATION_12_13 must ship with it:
+    `ALTER TABLE alarms ADD COLUMN deleteAfterRinging INTEGER NOT NULL DEFAULT 0`.
+    A version bump WITHOUT a migration silently wipes every saved alarm through
+    fallbackToDestructiveMigration. Table name is `alarms`.
+    WHERE THE DELETE MUST HAPPEN, and this is the part that is not obvious:
+    NOT in AlarmReceiver where the one-shot currently gets `enabled = false`.
+    AlarmReceiver starts AlarmRingtoneService and the service then reads the alarm
+    row asynchronously in its own coroutine (AlarmRingtoneService ~line 175) to get
+    the sound, ramp and vibrate settings. Deleting the row at fire time races that
+    read, and losing it means ringing with the DEFAULT sound instead of the chosen
+    one -- exactly the failure shape #81 just fixed. So the delete goes in
+    handleDismiss(), after the sound is loaded and the user has actually dealt with
+    the alarm, which is also what "after use" honestly means.
+    MUST NOT DELETE ON SNOOZE: the alarm is still in use. handleSnooze already
+    re-persists it, and note the service keeps an in-memory snapshot specifically
+    so snooze can resurrect a vanished row -- do not confuse that mechanism with
+    this one. Deletion happens only on an explicit dismiss.
+    GUARDS: skip timers (the isTimer flag already exists in the service), and skip
+    any alarm with seriesId != null -- deleting one child out of a series would
+    silently gut the series, and the toggle is only offered in AlarmEditScreen
+    (standalone) anyway.
+    ACCEPTED LIMITATION: if the alarm is never explicitly dismissed (service
+    killed, user ignores it), nothing is deleted. AlarmReceiver's existing
+    `enabled = false` still applies, so it degrades to exactly today's behaviour
+    rather than to anything surprising.
+    UI: a toggle under the day selector, shown only when no repeat days are
+    selected, since "delete after use" is meaningless on a repeating alarm. Force
+    the stored value to false when days ARE selected, so no saved row can hold both.
+    BACKUP: BackupSerializer writes alarm fields explicitly, so it needs a `put`
+    AND a read that tolerates the field's absence (optBoolean with default false),
+    or restoring a pre-V2.2.9 backup would fail or lose the flag.
