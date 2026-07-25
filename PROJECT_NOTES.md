@@ -1728,3 +1728,57 @@ entry #1.
     appears in the restore confirmation dialog, so nothing dangerous is silent;
     the cross-device sound caveat is now undocumented in-app. It remains in the
     README.
+
+81. **[OPEN] A picked song's name degrades to a bare number after the process
+    dies.** Reported: the chosen alarm sound shows as a number instead of the
+    song title, every time after an app update, and now also after a force close
+    and sometimes a plain restart.
+    CAUSE, confirmed against AOSP Ringtone.java rather than guessed: all four
+    name lookups (SettingsScreen.soundName, and the soundLabel in
+    AlarmEditScreen / SeriesEditScreen / TimerEditScreen) call
+    RingtoneManager.getRingtone(...).getTitle(context). getTitle queries
+    MediaStore for the title and CATCHES SecurityException internally -- the AOSP
+    source comments the swallow as "missing cursor is handled below" -- then, when
+    the cursor is null or not exactly one row, returns `uri.getLastPathSegment()`.
+    For content://media/external/audio/media/1234 that last segment is "1234".
+    Hence a number.
+    WHY IT CORRELATES WITH PROCESS DEATH: this app declares NO media permission
+    (no READ_MEDIA_AUDIO, no READ_EXTERNAL_STORAGE -- checked). The only read
+    access it ever has to a user's own audio file is the temporary URI grant that
+    ACTION_RINGTONE_PICKER hands back, and that grant dies with the process. So
+    while the picker's grant is alive the title resolves; after an update, a force
+    close, or any cold start that lost the grant, the query is denied and the
+    platform silently returns the numeric ID. System sounds under
+    content://media/internal/... are world-readable and unaffected, which is why
+    this only ever happens to a user-picked SONG.
+    WHY runCatching DOES NOT HELP, worth stating because it looks like it should:
+    no exception ever reaches the app. The platform swallows it and returns a
+    valid-but-degraded String, so `.getOrNull()` sees success.
+    THE BIGGER QUESTION, NOT YET ANSWERED AND MORE IMPORTANT THAN THE LABEL:
+    playback needs the same read access. AlarmRingtoneService already has a
+    fallback for exactly this (createPlayer returns null -> ring with the device
+    default, logged as "Configured alarm sound failed to load"), and its comment
+    blames stale/deleted URIs -- but a revoked grant produces the identical
+    failure. If so, a custom song silently stops being the alarm sound after
+    every update and rings the system default instead. MUST BE TESTED ON DEVICE
+    BEFORE ANY FIX IS CHOSEN: set a custom song, force close the app, let an
+    alarm fire, and see whether the song or the default plays. Do NOT assume
+    either answer -- and check logcat for that warning line.
+    FIX OPTIONS, deliberately not chosen yet because they are different sizes:
+    (a) LABEL ONLY -- persist the resolved title when the user picks it (a
+    SharedPreferences uri->title cache avoids a schema change and migration
+    entirely) and display the stored name instead of re-resolving. Cheap, no new
+    permission, fixes the cosmetic complaint and nothing else.
+    (b) ROOT FIX -- declare READ_MEDIA_AUDIO (33+) with READ_EXTERNAL_STORAGE
+    maxSdkVersion=32 and request it at runtime, so MediaStore reads and playback
+    both work without a grant. Fixes label AND playback permanently. Costs a new
+    runtime permission, a slot in the #15/#22 request chain ordering, and a row
+    in #77's permission checker.
+    (c) ACTION_OPEN_DOCUMENT + takePersistableUriPermission instead of the
+    ringtone picker. Genuinely durable grants, but replaces the ringtone list UX
+    with a file browser and needs a migration path for URIs already saved. Note
+    ACTION_RINGTONE_PICKER does NOT return a persistable grant, so
+    takePersistableUriPermission cannot be bolted onto the current picker.
+    Recommendation pending the playback test: if playback is fine, (a). If
+    playback also breaks, (b) -- and then (a) as well, so the label survives the
+    user denying the permission.
