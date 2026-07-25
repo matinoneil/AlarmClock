@@ -1390,6 +1390,23 @@ entry #1.
     regression surface for one symptom; option 2 is small and surgical but gives
     up a requested feature.
 
+74. **Field-verified: #34's JSON backup/restore works end to end.** Not a bug.
+    While A/B testing #73 the maintainer had to install V2.1.6 over V2.1.8, which
+    Android refuses as a downgrade (lower versionCode), so it needed an
+    uninstall -- wiping the database. He backed up via Settings, went back and
+    forth across three versions, and restored successfully onto V2.1.8. First
+    time the feature has been exercised for real rather than assumed to work.
+    STANDING PRACTICE this establishes: any future version A/B on-device costs
+    an uninstall, so back up FIRST, every time. Worth saying out loud when
+    suggesting a downgrade test, because the data loss is silent and total
+    otherwise. Untested direction, do not assume: restoring a NEWER backup onto
+    an OLDER app version (the serializer's reads are tolerant and ignore
+    unknown keys, so it SHOULD degrade gracefully, but nobody has tried it).
+    Residual caveat carried over from #34/#6, flagged to the maintainer: an
+    uninstall drops content:// URI grants, so custom alarm sounds restored from
+    a backup may no longer resolve -- the ring path falls back to the system
+    alarm sound, which is safe but silently different from what was configured.
+
 ## Restarting this project in a new chat
 
 Generate a brand-new GitHub PAT first (repo scope, `matinoneil/AlarmClock`
