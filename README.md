@@ -25,8 +25,7 @@ counts down on its card and in a notification with **+30 s**, **−30 s**, and
 **Stop**; the ring at the end is as loud as any alarm. Running timers survive
 reboots.
 
-<img width="250" height="500" alt="Timers" src="https://github.com/user-attachments/assets/67444fb9-974b-4d11-88a6-8a8d74adfc86" />
-
+<img width="250" height="500" alt="timer" src="https://github.com/user-attachments/assets/6c9b5d22-3acd-46c2-b640-e3d902215c41" />
 
 ## Reminders
 
