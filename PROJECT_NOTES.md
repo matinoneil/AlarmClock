@@ -1408,8 +1408,9 @@ entry #1.
     alarm sound, which is safe but silently different from what was configured.
 
 75. **The #66 banner broke the list viewport: pager used fillMaxSize() inside
-    a Column.** Root cause of the scroll complaint that #73 wrongly
-    closed. HomeScreen is
+    a Column.** A REAL BUG, found while investigating #73's scroll complaint, but
+    NOT the cause of it -- see the correction at the end of this entry. Fixed on
+    its own merits. HomeScreen is
     `Column(fillMaxSize) { if (fullScreenRevoked) Surface(banner); HorizontalPager(fillMaxSize) }`.
     fillMaxSize() pins a child's MINIMUM constraints to the incoming maximum, so
     the pager is measured at the Column's FULL height rather than the height
@@ -1440,6 +1441,30 @@ entry #1.
     rare condition -- per #66 the permission is revoked on more or less every
     sideloaded update, so the broken layout is the state the app lands in after
     each release until the user taps the banner.
+    CORRECTION, same session, before any release: the maintainer confirmed the banner
+    is NOT showing on his device -- all permissions are granted. The bug above is
+    latent exactly then (pager is the Column's only child, so fillMaxSize equals
+    the remaining height), so it CANNOT be producing his symptom. The timeline
+    story in this entry was a plausible fit, not an observation, and it was
+    wrong. The fix stays because the layout is genuinely incorrect whenever the
+    banner does appear; the scroll complaint remains UNDIAGNOSED.
+    SCORECARD for whoever picks this up, so the same ground isn't re-covered:
+    three hypotheses proposed for the scroll feel, NONE confirmed -- (1) pager
+    consuming vertical drag delta on experimental foundation 1.6.8, (2) per-card
+    Modifier.alpha graphics layers, (3) this banner/fillMaxSize viewport bug
+    (RULED OUT by observation). Ruled out separately and solidly: V2.1.8 as a
+    cause, dependency drift, build variant, classic nested-scroll conflicts, the
+    minute ticker, and the rings-in computation.
+    WHAT TO DO NEXT, and it is not more code reading: MEASURE. Developer options
+    -> Profile HWUI rendering (on-screen bars) while scrolling a list tab versus
+    the Settings screen splits the remaining families in one minute and needs no
+    build -- bars spiking over the line means rendering cost (hypothesis 2 and
+    the cards' rounded-shape elevation shadows), bars clean while the list still
+    under-tracks means gesture/delta handling (hypothesis 1). Worth noting a
+    unifying possibility nobody has tested: sustained dropped frames DO make
+    content visibly trail the finger and then settle on lift, which reads exactly
+    as "scroll speed doesn't match my swipe" -- so the two reported symptoms may
+    be one cause, not two.
     PROCESS LESSON, second half of #73's: a clean negative A/B is not proof the
     report is imaginary. Here a DEVICE-STATE change (a permission Android
     revoked during the update) rode in on the version change and persisted
