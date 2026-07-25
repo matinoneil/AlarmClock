@@ -1675,3 +1675,38 @@ entry #1.
     guards go away. Cost is real but nil in practice for a one-device personal
     app; it would also need the README's "Requires Android 8.0+" line updated.
     Deliberately NOT bundled here.
+
+79. **minSdk raised 26 -> 31 (Android 8.0 -> Android 12).** The decision left
+    open by #78, taken deliberately. Two lines: `minSdk = 31` in
+    app/build.gradle.kts, and the README's "Requires Android 8.0+ (API 26)"
+    becomes "Android 12+ (API 31)".
+    WHY: the project claimed support for API 26-30 that was never built for or
+    tested on -- #78 was an unguarded API 31 call sitting in the launch path, and
+    the only reason it never bit is that the app runs on one Pixel 9 Pro. Raising
+    the floor makes that entire class of bug impossible by construction rather
+    than by vigilance. Real cost: the APK will no longer install on Android
+    8-11. Accepted; there are no such devices in play.
+    CHECKED, not assumed: no lint config exists in either build file, so the
+    ObsoleteSdkInt warnings this produces cannot fail the build. All declared
+    dependencies support well below 31. Raising minSdk does not affect an
+    existing install on a device above the floor, so this updates over V2.2.2
+    normally.
+    MANIFEST UNCHANGED ON PURPOSE: SCHEDULE_EXACT_ALARM keeps its
+    android:maxSdkVersion="32", which still covers API 31-32 and is exactly why
+    USE_EXACT_ALARM sits beside it. Do not "clean up" either one.
+    DEAD GUARDS THIS CREATES -- NOT REMOVED, and the reason matters. About 15 of
+    the 25 Build.VERSION.SDK_INT checks are now always-true (or always-false):
+    every `>= O` (TimerNotificationManager, TimerReceiver, AlarmRingtoneService's
+    channel, ReminderNotificationManager, OverlayAlarmWindow's overlay type,
+    UpcomingAlarmManager, BedtimeNotificationManager, AlarmReceiver), the one
+    `>= O_MR1` in RingingActivity, and every `S` check (Theme's dynamic colour,
+    AlarmRingtoneService's VibratorManager cast, MainActivity's exact-alarm
+    branch, AlarmScheduler, PermissionStatusDialog). STILL LIVE and must stay:
+    all seven TIRAMISU (33) checks and all three UPSIDE_DOWN_CAKE (34) checks.
+    The honest accounting on removing them: the benefit is COSMETIC. An
+    always-true condition costs nothing at runtime and is not a correctness
+    problem. The cost is ~15 edits across eight files, six of them
+    alarm-critical, with no ability to compile or run anything here -- the exact
+    profile of change that produced #31, #38, #41 and #68. Recommendation:
+    never do it as its own release. Fold each removal into whatever next touches
+    that file for a real reason, where the diff is already being reviewed.
