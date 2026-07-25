@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -486,6 +487,7 @@ fun SettingsScreen(
                         scope.launch { viewModel.refreshBedtime() }
                     },
                     label = { Text("Message (empty = default)") },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     singleLine = true,
                     enabled = bedtimeEnabled,
                     modifier = Modifier.fillMaxWidth()

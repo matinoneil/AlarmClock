@@ -1927,3 +1927,22 @@ entry #1.
     resting+labelled shows just the label; running+unlabelled shows just the ring
     time; running+labelled shows "label · Rings at HH:MM".
     UNVERIFIED: not compiled or run.
+
+86. **Auto-capitalisation on every free-text field, not just reminders.** #63 gave
+    the reminder text KeyboardCapitalization.Sentences and stopped there, so every
+    other text field started lowercase. Now added to the four that were missing it:
+    "Label (optional)" in AlarmEditScreen and TimerEditScreen, "Series name" in
+    SeriesEditScreen, and the bedtime "Message (empty = default)" in
+    SettingsScreen. Each needed the
+    androidx.compose.ui.text.input.KeyboardCapitalization import as well;
+    KeyboardOptions was already imported everywhere.
+    Sentences, not Words, matching #63 -- capitalises the first letter only, which
+    is what was asked for and keeps the five fields consistent.
+    NUMERIC FIELDS DELIBERATELY UNTOUCHED, which is most of them: 16 across the
+    package carry KeyboardType.Number (ramp seconds, snooze minutes, timer
+    hours/minutes/seconds, hours of sleep, reshow minutes). Capitalisation on a
+    number pad is meaningless and would only muddy the diff. After this change
+    every OutlinedTextField in ui/ is either numeric or capitalised, with none
+    unclassified -- verified by counting per file, so a future addition that is
+    neither is easy to spot.
+    UNVERIFIED: not compiled or run.
