@@ -1284,9 +1284,20 @@ entry #1.
     10:30, and Pixel Adaptive Charging only engages for a wake-up alarm between
     03:00 and 10:00 with the phone plugged in between 21:00 and 04:00 -- so the
     OS declined on its own terms and the app was publishing the alarm correctly
-    all along. Retest with an early-morning alarm before treating anything here
-    as an app bug, and note this de-prioritises the timer swap above: it would
-    only matter if a running timer were masking a genuine 03:00-10:00 alarm.
+    all along. CONFIRMED on-device afterwards: an alarm set for 09:00 did
+    trigger Adaptive Charging. So the answer to "does an OEM charging optimiser
+    read a third-party alarm app's wake time" is YES on this device, via
+    AlarmManager.getNextAlarmClock, which setAlarmClock populates -- worth
+    knowing, since it is undocumented and widely assumed to be Clock-app-only.
+    That RAISES the priority of the timer observation above rather than lowering
+    it (an earlier draft of this entry had it backwards): because the signal is
+    genuinely consumed, a kitchen timer still running when the phone is plugged
+    in for the night makes getNextAlarmClock return the TIMER instead of the
+    morning alarm, at exactly the moment Adaptive Charging evaluates -- a
+    concrete way to lose the overnight charge shaping, not a theoretical one.
+    The fix shape remains as described (timers off setAlarmClock), still needing
+    on-device testing because of the Doze and background-FGS-exemption
+    trade-off.
 
 ## Restarting this project in a new chat
 
