@@ -2119,6 +2119,35 @@ entry #1.
     permissions; only THEN delete keystore/debug.keystore. Doing it in any other
     order either breaks builds or leaves the exposed key still able to update the
     app.
+    STEP 11 IS NOT JUST `git rm` -- the trap that would break the build. Deleting
+    keystore/debug.keystore while app/build.gradle.kts:34 still does
+    `storeFile = file("../keystore/debug.keystore")` leaves the debug signingConfig
+    pointing at a missing file, and the release buildType FALLS BACK to that config
+    when the secrets are absent. So step 11 must delete the file AND remove the
+    custom `getByName("debug")` block, letting AGP use its own per-machine debug
+    key. Entry 0.3's reason for committing that keystore -- consistent debug signing
+    across CI so builds install over each other -- no longer applies once CI signs
+    release builds with the secret-backed key. Losing per-machine consistency for
+    debug builds is harmless here: nobody builds locally, and a secret-less build
+    producing an APK that will not install over the real one is arguably a feature.
+    The `storePassword = "android"` literals disappear with that block; they were
+    the standard debug password and never leaked anything the keystore did not.
+    HISTORY PURGE REJECTED, with reasons, so nobody relitigates it: (a) after
+    rotation the old key cannot update the app at all -- a signature mismatch blocks
+    it -- so it is worthless for the only attack that mattered; (b) the cost is a
+    force-push over a PUBLIC repo, rewriting every commit SHA and all 58 tags, whose
+    GitHub Releases would then point at commits that no longer exist; (c) it cannot
+    work anyway -- the file has been publicly fetchable since 6 July, so caches,
+    scrapers and any clone may hold it, and none of that can be recalled. Point (c)
+    is exactly why the fix is ROTATION rather than deletion.
+    THE OLD KEY'S FINGERPRINT RECORDED ABOVE IS NOT A SECRET. Certificate
+    fingerprints are public by design and appear in every APK ever shipped. Keep
+    it: it is how a future session identifies an old-key-signed build.
+    RESIDUAL RISK THAT ROTATION DOES NOT FIX: anyone still running an
+    old-debug-key-signed install stays vulnerable to a malicious "update" signed
+    with the leaked key. That is the maintainer until step 10 completes, and
+    possibly whoever starred the repo. Other people's installs cannot be fixed from
+    here.
     NOT DONE: no LICENSE file yet. The repo is public with `license: null`, which
     means all rights reserved. Held back only because an MIT copyright line needs
     the maintainer's actual name and guessing a legal name into a public licence
