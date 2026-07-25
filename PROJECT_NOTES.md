@@ -2186,3 +2186,26 @@ entry #1.
     means all rights reserved. Held back only because an MIT copyright line needs
     the maintainer's actual name and guessing a legal name into a public licence
     file is not something to improvise.
+
+90. **[OPEN] Restore never re-arms the bedtime reminder.** Reported after the
+    V2.3.1 uninstall/reinstall as "bedtime reminder settings wasn't backed up".
+    THE SETTINGS ARE BACKED UP -- checked, do not chase that. BackupSerializer
+    writes and reads all 15 SettingsStore values including bedtimeEnabled,
+    bedtimeHoursBefore and bedtimeMessage, and restoreBackupJson explicitly
+    assigns all three back. So the VALUES survive a restore.
+    WHAT DOES NOT SURVIVE IS THE SCHEDULE. restoreBackupJson re-arms everything
+    else and silently skips bedtime: alarms get `if (alarm.enabled)
+    scheduler.schedule(...)`, reminders get `ReminderOps.refresh(appContext, id)`,
+    and bedtime gets nothing. In normal use the reminder is armed by
+    viewModel.refreshBedtime(), called from SettingsScreen whenever the toggle or
+    the hours field changes -- a path a restore never goes through. Net effect: the
+    toggle reads ON, the hours and message are correct, and no bedtime
+    notification will ever fire until the user toggles it off and on again.
+    So it presents exactly as "the setting didn't come back" even though the value
+    did. Confirm with the maintainer which he saw -- values wrong, or values right
+    but no notification -- because only the second is this bug.
+    INTENDED FIX: call the same refresh restore already uses for reminders, from
+    inside restoreBackupJson after the settings assignments. Repository-level, not
+    via the ViewModel.
+    WHILE THERE: check whether anything else armed only from a UI path is likewise
+    skipped by restore. Reminders and alarms are covered; bedtime was not.
