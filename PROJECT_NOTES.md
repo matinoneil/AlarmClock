@@ -2324,3 +2324,44 @@ entry #1.
     notification should vanish when tapped -- keying it to protection too would
     have been an unrequested behaviour change.
     UNVERIFIED: not compiled or run.
+
+93. **[OPEN] App-wide defaults for the two reminder persistence toggles, plus a
+    copy cleanup.** Requested: a Settings entry that sets both #92 toggles as
+    the standard for all NEW reminders, and clearer wording around them in both
+    the editor and Settings ("a bit confusing now").
+    THE SEMANTIC TRAP HERE, worth stating before any code: Settings ALREADY has
+    two reminder values (reminderReshowEnabled/Minutes) and they are a LIVE
+    FOLLOW, not a default -- RESHOW_FOLLOW_GLOBAL (-1) means "whatever Settings
+    says right now", and per #60 that sentinel is the migration default, so most
+    older reminders are still on it. The request is for creation-time defaults,
+    which is a different thing. Conflating them is how this ends up confusing
+    again.
+    INTENDED APPROACH: Settings becomes "defaults for new reminders" -- a
+    template that is COPIED at creation, mirroring the editor's two switches and
+    two dropdowns exactly (same controls, same labels, same options), so the two
+    screens teach each other instead of using different vocabulary. New prefs
+    reminderDefaultNagEnabled (true) / reminderDefaultRenotifyMinutes (1440) for
+    the nag half; the existing reshow pair is REUSED for the swipe half rather
+    than adding parallel prefs. Defaults chosen to reproduce today's behaviour
+    exactly, so nothing changes until the maintainer changes a default.
+    FOLLOW_GLOBAL is retained ONLY as a legacy read path, resolved against those
+    same two values (so old rows keep behaving exactly as they do today, with no
+    data migration), and the "App default" entry comes OUT of the editor's
+    dropdown. The editor therefore only ever shows CONCRETE values: a legacy -1
+    row resolves to what it is actually doing right now, and saving pins it.
+    Consequence to accept: a -1 row keeps following Settings until it is next
+    saved. No migration, no schema change.
+    WATCH THE EDITOR/ENTITY DIVERGENCE this creates. For a -1 row while the
+    global switch is OFF, the editor's switch must read OFF (that is what the
+    reminder actually does) while Reminder.swipeProtected still reads true (it
+    deliberately reports the row's OWN intent, #92). Both are correct for their
+    own purpose. Do NOT "fix" one to match the other.
+    SETTINGS COUNT: #90's post-restore refresh block goes from fifteen values to
+    seventeen. Both new prefs must reach SettingsStore, BackupData, the JSON
+    write, the tolerant read, both AlarmRepository assignments AND that refresh
+    block -- #90 and #91 both record partial coverage as how this rots.
+    ALSO CHANGING A CONTROL, not just text: Settings' free-form "After
+    (minutes)" text field becomes the same preset dropdown the editor uses. That
+    asymmetry is part of what makes the pair confusing. Cost is that arbitrary
+    values can no longer be typed, only kept (out-of-preset stored values are
+    still offered as-is). Easy to revert to a text field if disliked.
