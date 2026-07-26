@@ -2558,23 +2558,28 @@ entry #1.
     If something misbehaves, V2.3.3 is the last release with none of these and
     V2.3.4 splits #95 off from the other three.
 
-96. **[OPEN] Restore never re-arms timers, so a restored running timer never
-    rings.** Found while working out what a restore test was actually worth, NOT
-    from a report -- so it may never have bitten anyone.
+96. **Restore never re-arms timers, so a restored running timer never rings --
+    KNOWN AND ACCEPTED, do not "fix" this unasked.** Found while working out what
+    a restore test was actually worth, NOT from a report.
     restoreBackupJson re-arms alarms (`scheduler.schedule`) and reminders
     (`ReminderOps.refresh`), and since #90 bedtime, but for timers it only does
     `timerDao.insert(it)`. A backup taken while a timer was counting down
     therefore restores a row with runningUntilMillis set and NO AlarmManager
-    entry behind it: the app believes it is running, and it will never fire.
+    entry behind it: the app believes it is running and it will never fire.
     #95 MADE IT VISIBLE rather than causing it: refreshRunningTimers() now posts
     the countdown notification for exactly those rows, so instead of failing
-    silently the user gets a notification that ticks down to zero and then does
-    nothing. Worse symptom, same underlying bug, and arguably the honest one.
-    THE FIX IS ALREADY WRITTEN ELSEWHERE: BootReceiver's timer block does the
-    right thing -- re-arm anything still in the future, reset anything already
+    silently it ticks down to zero and then does nothing.
+    THE MAINTAINER DECLINED THE FIX -- "such an edge case and I can live with
+    it", since it needs a backup made mid-countdown to hit. Recorded as an
+    accepted limitation, NOT as a pending task: do not raise it again as a new
+    discovery, and do not fix it as drive-by tidying. If it is ever revisited he
+    should be asked first.
+    THE SYMPTOM TO RECOGNISE, which is the real reason this entry exists: a
+    countdown notification that reaches 00:00 and then nothing happens, shortly
+    after a restore. That is this, not a broken scheduler or a ringing-service
+    regression -- do not go debugging AlarmRingtoneService for it.
+    IF IT IS EVER FIXED, the code is already written elsewhere: BootReceiver's
+    timer block re-arms anything still in the future and resets anything already
     expired to idle rather than ringing it late. Restore should do the same, and
-    the reasoning about not ringing a stale kitchen timer applies identically.
-    Reset-to-idle must happen BEFORE refreshRunningTimers() or it will post for a
-    row that is about to be cleared.
-    NOT YET FIXED -- surfaced to the maintainer, awaiting a decision, since it
-    needs a backup made mid-countdown to hit and is not why he was restoring.
+    the reset must happen BEFORE refreshRunningTimers() or that will post for a
+    row about to be cleared.
