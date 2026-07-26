@@ -2557,3 +2557,24 @@ entry #1.
     timer swipe on its own merits.
     If something misbehaves, V2.3.3 is the last release with none of these and
     V2.3.4 splits #95 off from the other three.
+
+96. **[OPEN] Restore never re-arms timers, so a restored running timer never
+    rings.** Found while working out what a restore test was actually worth, NOT
+    from a report -- so it may never have bitten anyone.
+    restoreBackupJson re-arms alarms (`scheduler.schedule`) and reminders
+    (`ReminderOps.refresh`), and since #90 bedtime, but for timers it only does
+    `timerDao.insert(it)`. A backup taken while a timer was counting down
+    therefore restores a row with runningUntilMillis set and NO AlarmManager
+    entry behind it: the app believes it is running, and it will never fire.
+    #95 MADE IT VISIBLE rather than causing it: refreshRunningTimers() now posts
+    the countdown notification for exactly those rows, so instead of failing
+    silently the user gets a notification that ticks down to zero and then does
+    nothing. Worse symptom, same underlying bug, and arguably the honest one.
+    THE FIX IS ALREADY WRITTEN ELSEWHERE: BootReceiver's timer block does the
+    right thing -- re-arm anything still in the future, reset anything already
+    expired to idle rather than ringing it late. Restore should do the same, and
+    the reasoning about not ringing a stale kitchen timer applies identically.
+    Reset-to-idle must happen BEFORE refreshRunningTimers() or it will post for a
+    row that is about to be cleared.
+    NOT YET FIXED -- surfaced to the maintainer, awaiting a decision, since it
+    needs a backup made mid-countdown to hit and is not why he was restoring.
