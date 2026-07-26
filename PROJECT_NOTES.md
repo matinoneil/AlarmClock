@@ -2273,36 +2273,54 @@ entry #1.
     block only covers state the Settings screen holds.
     UNVERIFIED: not compiled or run.
 
-92. **[OPEN] Split the two persistence mechanisms into two independent toggles.**
-    Requested: in a reminder, "remind me again" and swipe-away protection should
-    be two separate toggles, settable independently, on new AND existing
-    reminders.
-    NOTE FIRST that the two mechanisms are ALREADY orthogonal in the data model
-    -- #62 gave both dropdowns an "Off" option precisely for this. What is
-    coupled is the UI: #61's single "Keep reminding until done" switch gates
-    BOTH dropdowns and hides them when off, so off lives in two places (the
-    master switch and each dropdown's own "Off") and the two look like one
-    setting. This entry is therefore mostly a UI restructure, not new
-    behaviour -- do not go looking for a missing mechanism.
-    INTENDED APPROACH: two switches, one per mechanism, each owning its own
-    "off" and revealing its dropdown when on; the "Off" options come OUT of both
-    dropdowns so off is expressed in exactly one place. `persistent` stops being
-    a user-facing master and becomes DERIVED at save: `persistent = nag ||
-    swipeProtection`. That keeps all four combinations #62 documents, including
-    nag-on + reshow-off (a swipe sticks until the next re-alert) and nag-off +
-    reshow-on (silent, but comes back after a swipe).
-    NO DB MIGRATION, deliberately: no new column, and existing rows are read
-    through two computed properties (`nagging` = persistent && renotify > 0,
-    `swipeProtected` = persistent && reshow != RESHOW_OFF) so a legacy
-    persistent=false row -- whose renotify/reshow values the old editor left
-    untouched when it hid the dropdowns -- still reads as both-off. This is what
-    makes "old ones" work without touching the schema.
-    ONE BEHAVIOUR CHANGE, believed an improvement: today persistent=true with
-    nag off AND reshow off leaves a fired reminder ACTIVE forever with nothing
-    to bring it back. Both-toggles-off now means persistent=false, i.e. #61's
-    one-and-done (plain dismissable notification, swipe counts as Done), so the
-    dead state is unreachable by construction. Any existing row in it changes
-    behaviour on next save, not on upgrade.
-    ALSO: setOngoing should follow swipe protection rather than `persistent`,
-    or a nag-on/swipe-off reminder would still be unswipeable on pre-14 where
-    setOngoing actually blocks the swipe -- the opposite of what the toggle says.
+92. **Remind-again and swipe-away protection split into two independent
+    toggles.** Requested: two separate switches, settable independently, on new
+    AND existing reminders.
+    THE TWO MECHANISMS WERE ALREADY ORTHOGONAL IN THE DATA -- #62 gave both
+    dropdowns an "Off" option for exactly this. What was coupled was the UI:
+    #61's single "Keep reminding until done" switch gated both dropdowns and
+    hid them when off, so "off" existed in two places at once (the master
+    switch and each dropdown) and the pair read as one setting. This entry is
+    therefore mostly a UI restructure. Don't go hunting for a missing
+    mechanism.
+    WHAT SHIPPED: two EditSections, "Remind me again" and "Swipe-away
+    protection", each with its own switch that owns its own off and reveals its
+    dropdown when on. The "Off" entries came OUT of both dropdowns, so off is
+    expressed in exactly one place per mechanism. `persistent` is no longer
+    user-facing -- buildCandidate DERIVES it as `nagEnabled || swipeEnabled`,
+    and each switch writes its mechanism's off sentinel (renotify 0 /
+    reshow RESHOW_OFF). All four of #62's combinations survive; verified by
+    simulating the truth table that save -> load -> save is stable for each.
+    NO DB MIGRATION AND NO BACKUP FORMAT CHANGE, deliberately: no new column,
+    same three fields. Existing rows are read through two new computed
+    properties, `Reminder.nagging` (persistent && renotify > 0) and
+    `swipeProtected` (persistent && reshow != RESHOW_OFF). The `persistent &&`
+    is the load-bearing part -- a legacy one-and-done row still holds whatever
+    renotify/reshow the pre-#92 editor left when it merely HID the dropdowns,
+    so without it those stale values would read as toggles that are on. That's
+    what makes "old ones" work with no schema touch.
+    THE EDITOR NEVER HOLDS AN OFF SENTINEL in its two interval states (they
+    normalize to 1440 / FOLLOW_GLOBAL on load), so flicking a switch off and
+    on again doesn't lose the chosen interval, and the dropdowns' out-of-preset
+    fallback can't render "Every 0 minutes". Cost: turning a mechanism off and
+    reopening later shows its dropdown back at the default -- the stored value
+    is the sentinel, and keeping a shadow copy would need a column.
+    ONE DEAD STATE CLOSED. persistent=true with renotify 0 AND reshow OFF left
+    a fired reminder ACTIVE forever with nothing able to re-post it. Both
+    toggles off now means persistent=false, i.e. #61's one-and-done, so the
+    editor cannot produce it; and onSwipedAway's one-and-done test widened from
+    `!persistent` to `!nagging && !swipeProtected` so a row RESTORED from an
+    older backup in that state gets swipe-means-Done instead of sitting there.
+    NOT folded in: reshow=FOLLOW_GLOBAL while the global switch is off (#62).
+    swipeProtected reads the row's OWN intent, so that stays a swipe-sticks
+    case -- a global toggle must not silently complete reminders, and it can be
+    flipped back without editing every reminder.
+    setOngoing NOW FOLLOWS SWIPE PROTECTION instead of `persistent`. With the
+    nag on and protection off, `persistent` is still true, and setOngoing does
+    block the swipe on pre-14, so keying it off `persistent` would have made
+    the notification unswipeable in the one configuration that promises the
+    opposite. Only visible below Android 14. autoCancel deliberately stays on
+    `persistent`: it governs the TAP, not the swipe, and only a one-and-done
+    notification should vanish when tapped -- keying it to protection too would
+    have been an unrequested behaviour change.
+    UNVERIFIED: not compiled or run.

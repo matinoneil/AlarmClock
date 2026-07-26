@@ -112,9 +112,21 @@ fun ReminderEditScreen(
     var weekOfMonth by remember { mutableIntStateOf(existing?.repeatWeekOfMonth?.takeIf { it != 0 } ?: 1) }
     var weekdaySpec by remember { mutableIntStateOf(existing?.repeatWeekday?.takeIf { it != 0 } ?: isoWeekdayOf(initialDueAt)) }
     var dayOfMonth by remember { mutableIntStateOf(existing?.repeatDayOfMonth?.takeIf { it != 0 } ?: dayOfMonthOf(initialDueAt)) }
-    var renotifyMinutes by remember { mutableIntStateOf(existing?.renotifyMinutes ?: 1440) }
-    var reshowMinutes by remember { mutableIntStateOf(existing?.reshowMinutes ?: Reminder.RESHOW_FOLLOW_GLOBAL) }
-    var persistent by remember { mutableStateOf(existing?.persistent ?: true) }
+    // #92: one switch per mechanism, each owning its own "off". The two
+    // interval values below deliberately never hold their off sentinel (0 /
+    // RESHOW_OFF) while the editor is open, so switching a mechanism off and
+    // back on doesn't lose the chosen interval; off is written only at save.
+    var nagEnabled by remember { mutableStateOf(existing?.nagging ?: true) }
+    var swipeEnabled by remember { mutableStateOf(existing?.swipeProtected ?: true) }
+    var renotifyMinutes by remember {
+        mutableIntStateOf(existing?.renotifyMinutes?.takeIf { it > 0 } ?: 1440)
+    }
+    var reshowMinutes by remember {
+        mutableIntStateOf(
+            existing?.reshowMinutes?.takeIf { it != Reminder.RESHOW_OFF }
+                ?: Reminder.RESHOW_FOLLOW_GLOBAL
+        )
+    }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -408,7 +420,7 @@ fun ReminderEditScreen(
                         var cursor = buildCandidate(
                             existing, text, dueAtMillis, repeatType, interval,
                             daysOfWeek, dayOfMonth, weekdaySpec, weekOfMonth,
-                            renotifyMinutes, reshowMinutes, persistent
+                            renotifyMinutes, nagEnabled, reshowMinutes, swipeEnabled
                         )
                         val now = System.currentTimeMillis()
                         val hits = mutableListOf<Long>()
@@ -432,38 +444,54 @@ fun ReminderEditScreen(
                 }
             }
 
-            EditSection(title = "Remind again") {
+            // #92: the two persistence mechanisms get a section each. They
+            // were always independent in the data (#62), but a single master
+            // switch gating both dropdowns made them look like one setting,
+            // and "off" existed in two places at once.
+            EditSection(title = "Remind me again") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Keep reminding until done", style = MaterialTheme.typography.bodyLarge)
+                        Text("Re-alert until done", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            if (persistent) "The notification comes back until you press Done"
-                            else "One and done: notifies once, swiping it away marks it done",
+                            if (nagEnabled) "The notification alerts again on a schedule until you press Done"
+                            else "It alerts once, then waits quietly",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(checked = persistent, onCheckedChange = { persistent = it })
+                    Switch(checked = nagEnabled, onCheckedChange = { nagEnabled = it })
                 }
-                if (persistent) {
+                if (nagEnabled) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Until you press Done, the notification re-alerts this often",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
                     RenotifyDropdown(
                         renotifyMinutes = renotifyMinutes,
                         onSelect = { renotifyMinutes = it }
                     )
+                }
+            }
+
+            EditSection(title = "Swipe-away protection") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Bring it back if swiped away", style = MaterialTheme.typography.bodyLarge)
+                        // The both-off wording is the honest description of
+                        // the derived one-and-done state (#61/#92): with
+                        // neither mechanism on, the swipe has to mean
+                        // something, and Done is the only sane meaning.
+                        Text(
+                            when {
+                                swipeEnabled -> "A swiped notification comes back by itself"
+                                nagEnabled -> "A swipe clears it until the next re-alert"
+                                else -> "A swipe clears it and marks the reminder done"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = swipeEnabled, onCheckedChange = { swipeEnabled = it })
+                }
+                if (swipeEnabled) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "If the notification is swiped away, bring it back",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
                     ReshowDropdown(
                         reshowMinutes = reshowMinutes,
                         onSelect = { reshowMinutes = it }
@@ -479,7 +507,7 @@ fun ReminderEditScreen(
                         buildCandidate(
                             existing, text, dueAtMillis, repeatType, interval,
                             daysOfWeek, dayOfMonth, weekdaySpec, weekOfMonth,
-                            renotifyMinutes, reshowMinutes, persistent
+                            renotifyMinutes, nagEnabled, reshowMinutes, swipeEnabled
                         )
                     )
                     onDone()
@@ -567,13 +595,13 @@ private fun tomorrowAt(hour: Int): Long = Calendar.getInstance().apply {
 /**
  * Preset intervals for the unhandled-notification re-alert (#59). A stored
  * value outside the presets (from an edited backup) is offered as-is so it
- * never silently changes on save.
+ * never silently changes on save. No "Off" entry since #92 -- the section's
+ * switch owns that, and the caller guarantees a value > 0 here.
  */
 @Composable
 private fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val presets = listOf(
-        0 to "Off — never re-alerts",
         15 to "Every 15 minutes",
         30 to "Every 30 minutes",
         60 to "Every hour",
@@ -608,13 +636,13 @@ private fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
  * Per-reminder swipe comeback (#60). "App default" follows the Settings
  * value; "Instantly (permanent)" is 0; the rest are minutes. An
  * out-of-preset stored value is offered as-is, same policy as the others.
+ * No RESHOW_OFF entry since #92 -- the section's switch owns that.
  */
 @Composable
 private fun ReshowDropdown(reshowMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val presets = listOf(
         Reminder.RESHOW_FOLLOW_GLOBAL to "App default (from Settings)",
-        Reminder.RESHOW_OFF to "Off — a swipe dismisses it",
         0 to "Instantly (permanent)",
         1 to "After 1 minute",
         5 to "After 5 minutes",
@@ -751,8 +779,9 @@ private fun buildCandidate(
     weekdaySpec: Int,
     weekOfMonth: Int,
     renotifyMinutes: Int,
+    nagEnabled: Boolean,
     reshowMinutes: Int,
-    persistent: Boolean
+    swipeEnabled: Boolean
 ): Reminder {
     val usesSpec = repeatType == Reminder.REPEAT_MONTHLY_WEEKDAY ||
         repeatType == Reminder.REPEAT_YEARLY_WEEKDAY
@@ -769,9 +798,13 @@ private fun buildCandidate(
         ) dayOfMonth else 0,
         repeatWeekday = if (usesSpec) weekdaySpec else 0,
         repeatWeekOfMonth = if (usesSpec) weekOfMonth else 0,
-        renotifyMinutes = renotifyMinutes,
-        reshowMinutes = reshowMinutes,
-        persistent = persistent
+        // #92: each switch writes its mechanism's off sentinel, and
+        // `persistent` is derived as "either one is on". Both off therefore
+        // lands on #61's one-and-done rather than on a reminder that fires
+        // and then sits ACTIVE with nothing left to bring it back.
+        renotifyMinutes = if (nagEnabled) renotifyMinutes else 0,
+        reshowMinutes = if (swipeEnabled) reshowMinutes else Reminder.RESHOW_OFF,
+        persistent = nagEnabled || swipeEnabled
     )
     return base.copy(dueAtMillis = alignDueAtToPattern(base))
 }

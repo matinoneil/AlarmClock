@@ -48,8 +48,9 @@ object ReminderOps {
         notifications.post(active)
         // One-and-done (#61): the single post is the whole show -- no
         // re-alert armed; the swipe-away path marks it done. Renotify 0
-        // (#62) also arms nothing: the nag is off for this reminder.
-        if (active.persistent && active.renotifyMinutes > 0) {
+        // (#62) also arms nothing: the nag is off for this reminder. Both
+        // cases are what Reminder.nagging folds together (#92).
+        if (active.nagging) {
             ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + active.renotifyMinutes * 60_000L)
         }
     }
@@ -102,10 +103,19 @@ object ReminderOps {
         val dao = AlarmDatabase.getInstance(context).reminderDao()
         val reminder = dao.getReminder(reminderId) ?: return@withLock
         if (reminder.state != Reminder.STATE_ACTIVE) return@withLock
-        if (!reminder.persistent) {
+        if (!reminder.nagging && !reminder.swipeProtected) {
             // One-and-done (#61): dismissing the single notification IS the
             // acknowledgment -- otherwise the row would sit ACTIVE forever
             // and a repeating one would never roll.
+            // #92 widened this from `!persistent` to "neither mechanism is
+            // on", which is the same thing for anything the editor saves but
+            // ALSO catches a row restored from an old backup with
+            // persistent=1, renotify=0 and reshow=OFF -- previously a swipe
+            // there left it ACTIVE with nothing able to bring it back.
+            // Deliberately NOT caught: reshow=FOLLOW_GLOBAL with the global
+            // switch off (#62). swipeProtected reads the row's own intent, so
+            // that stays a swipe-sticks case -- a global toggle must not
+            // silently complete reminders, and it can be flipped back.
             markDoneLocked(context, reminderId)
             return@withLock
         }
@@ -125,7 +135,7 @@ object ReminderOps {
             // "Permanent" (#58): straight back at full volume -- the
             // maintainer wants the swipe to visibly and audibly not work.
             ReminderNotificationManager(context).post(reminder)
-            if (reminder.renotifyMinutes > 0) {
+            if (reminder.nagging) {
                 ReminderScheduler(context).schedule(reminderId, System.currentTimeMillis() + reminder.renotifyMinutes * 60_000L)
             }
         } else {

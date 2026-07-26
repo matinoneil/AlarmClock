@@ -102,8 +102,17 @@ class ReminderNotificationManager(private val context: Context) {
             // autoCancel -- only Done/Snooze should clear it. One-and-done
             // reminders (#61) invert both: a normal notification, gone on
             // tap or swipe (the swipe deleteIntent then marks it done).
+            // #92: setOngoing follows SWIPE PROTECTION rather than
+            // `persistent`. With the nag on but protection off, `persistent`
+            // is still true, and keying setOngoing off it would leave the
+            // notification unswipeable on pre-14 (where setOngoing really
+            // does block the swipe) -- the opposite of what the toggle says.
+            // autoCancel deliberately stays on `persistent`: it governs the
+            // TAP, not the swipe, so only a one-and-done notification should
+            // vanish when tapped. Post-#92 !persistent means both mechanisms
+            // are off, so this is the pre-#92 behaviour unchanged.
             .setGroup("no.hanss.alarmclock.REMINDERS")
-            .setOngoing(reminder.persistent)
+            .setOngoing(reminder.swipeProtected)
             .setAutoCancel(!reminder.persistent)
             .setDeleteIntent(swipedIntent)
             .addAction(0, "Done", doneIntent)

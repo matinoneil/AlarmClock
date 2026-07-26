@@ -55,6 +55,10 @@ data class Reminder(
     val reshowMinutes: Int = RESHOW_FOLLOW_GLOBAL,
     // #61: OFF = one-and-done -- the notification posts once, dismissable
     // like any other, no re-alerts, and a swipe counts as Done.
+    // #92: no longer a user-facing setting. The editor DERIVES it as
+    // "either mechanism is on", so one-and-done is what you get when both
+    // are switched off -- which also makes it impossible to save a reminder
+    // that fires and then sits ACTIVE forever with no way back.
     val persistent: Boolean = true,
     // Overrides dueAtMillis for scheduling while set; cleared when the
     // reminder fires. Never consulted by the repeat roll.
@@ -64,6 +68,23 @@ data class Reminder(
 
     /** What AlarmManager should actually be armed at while PENDING. */
     val effectiveDueAtMillis: Long get() = snoozedUntilMillis ?: dueAtMillis
+
+    /**
+     * #92: is the re-alert-until-done nag on for this reminder? Reads
+     * [persistent] as well as the interval, which is what lets a legacy
+     * one-and-done row (#61) read as off no matter what [renotifyMinutes] it
+     * still holds -- the pre-#92 editor hid the dropdowns without zeroing
+     * their values, so those fields are stale on exactly those rows.
+     */
+    val nagging: Boolean get() = persistent && renotifyMinutes > 0
+
+    /**
+     * #92: is swipe-away protection on? Same legacy caveat as [nagging].
+     * Note this is the row's OWN intent: RESHOW_FOLLOW_GLOBAL counts as
+     * protected here even though the global switch may resolve it to off
+     * (#62), because that's a Settings-level decision, not this reminder's.
+     */
+    val swipeProtected: Boolean get() = persistent && reshowMinutes != RESHOW_OFF
 
     companion object {
         const val RESHOW_FOLLOW_GLOBAL = -1
