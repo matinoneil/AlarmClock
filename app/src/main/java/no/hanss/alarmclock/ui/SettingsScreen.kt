@@ -96,6 +96,7 @@ fun SettingsScreen(
     var nagEnabled by remember { mutableStateOf(viewModel.settings.reminderDefaultNagEnabled) }
     var renotifyMinutes by remember { mutableIntStateOf(viewModel.settings.reminderDefaultRenotifyMinutes) }
     var upcomingProtection by remember { mutableStateOf(viewModel.settings.upcomingSwipeProtection) }
+    var timerProtection by remember { mutableStateOf(viewModel.settings.timerSwipeProtection) }
     var confirmApplyAlarms by remember { mutableStateOf(false) }
     var confirmApplyTimers by remember { mutableStateOf(false) }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
@@ -291,6 +292,7 @@ fun SettingsScreen(
                             nagEnabled = viewModel.settings.reminderDefaultNagEnabled
                             renotifyMinutes = viewModel.settings.reminderDefaultRenotifyMinutes
                             upcomingProtection = viewModel.settings.upcomingSwipeProtection
+                            timerProtection = viewModel.settings.timerSwipeProtection
                             "Restored $a alarms, $s series, $t timers"
                         } catch (e: Exception) {
                             "Restore failed: ${e.message}"
@@ -610,6 +612,42 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) { Text("Apply these to all timers") }
+            }
+
+            // #95: its own section rather than a row inside Timers above, which
+            // is a block of per-timer defaults ending in "Apply these to all
+            // timers" -- a global notification behaviour in there would look
+            // like another default needing that button. Mirrors #94's section
+            // so both swipe toggles read the same way.
+            EditSection(title = "Running timer notification") {
+                Text(
+                    "The silent countdown notification shown while a timer is running.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Bring it back if I swipe it away", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            if (timerProtection)
+                                "A swipe won't clear it — use Stop instead. It leaves on its own when the timer rings."
+                            else "A swipe clears it while the timer keeps running.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = timerProtection,
+                        onCheckedChange = {
+                            timerProtection = it
+                            viewModel.settings.timerSwipeProtection = it
+                            // Countdowns already on screen were built with the
+                            // old setting baked in; re-post them now.
+                            scope.launch { viewModel.refreshRunningTimers() }
+                        }
+                    )
+                }
             }
 
             EditSection(title = "Reminders") {

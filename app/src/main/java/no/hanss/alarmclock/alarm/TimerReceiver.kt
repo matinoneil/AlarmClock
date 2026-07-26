@@ -21,6 +21,9 @@ private const val TAG = "TimerReceiver"
 const val ACTION_TIMER_ADD_30 = "no.hanss.alarmclock.action.TIMER_ADD_30"
 const val ACTION_TIMER_MINUS_30 = "no.hanss.alarmclock.action.TIMER_MINUS_30"
 const val ACTION_TIMER_STOP = "no.hanss.alarmclock.action.TIMER_STOP"
+// #95: the countdown notification was swiped away by the user. Fires on user
+// dismissal only, never on the app's own cancel() calls.
+const val ACTION_TIMER_SWIPED = "no.hanss.alarmclock.action.TIMER_SWIPED"
 
 private const val ADJUST_MILLIS = 30_000L
 
@@ -50,6 +53,11 @@ class TimerReceiver : BroadcastReceiver() {
                             if (action == ACTION_TIMER_ADD_30) ADJUST_MILLIS else -ADJUST_MILLIS
                         )
                         ACTION_TIMER_STOP -> stop(context, timerId)
+                        ACTION_TIMER_SWIPED -> restoreAfterSwipe(context, timerId)
+                        // CAREFUL: this else RINGS THE TIMER. It exists because
+                        // the AlarmManager fire intent carries no action. Any
+                        // new action needs its own branch ABOVE this line or
+                        // every one of its broadcasts becomes a spurious ring.
                         else -> fire(context, timerId)
                     }
                 }
@@ -126,6 +134,21 @@ class TimerReceiver : BroadcastReceiver() {
         // Re-arm at the new time and redraw the notification's chronometer.
         TimerScheduler(context).schedule(updated)
         notifications.post(updated)
+    }
+
+    /**
+     * #95: the countdown notification was swiped away while protection is on.
+     * Re-post it from the CURRENT row so the swipe simply doesn't take -- and
+     * so a timer that fired, was stopped, or was deleted in the meantime stays
+     * gone: fire() clears runningUntilMillis before cancelling, and post()
+     * no-ops on a null one anyway. Runs under timerOpsMutex like every other
+     * branch, which is what makes a swipe racing the ring safe either way.
+     */
+    private suspend fun restoreAfterSwipe(context: Context, timerId: Long) {
+        val timer = AlarmDatabase.getInstance(context).timerDao().getTimer(timerId)
+        if (timer == null || !timer.isRunning) return
+        Log.i(TAG, "Running-timer notification for $timerId swiped away; restoring")
+        TimerNotificationManager(context).post(timer)
     }
 
     /** Stop from the notification: identical outcome to the list toggle off. */

@@ -120,6 +120,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun refreshUpcoming() = repository.refreshUpcoming()
 
+    suspend fun refreshRunningTimers() = repository.refreshRunningTimers()
+
     suspend fun applyDefaultsToAllTimers() = repository.applyDefaultsToAllTimers()
 
     suspend fun exportBackupJson(): String = repository.exportBackupJson()

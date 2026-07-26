@@ -11,6 +11,7 @@ import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import no.hanss.alarmclock.MainActivity
 import no.hanss.alarmclock.R
+import no.hanss.alarmclock.data.SettingsStore
 import no.hanss.alarmclock.data.TimerPreset
 
 // "_v2": the first release of this feature (V1.9.0) shipped an IMPORTANCE_LOW
@@ -91,7 +92,17 @@ class TimerNotificationManager(private val context: Context) {
                 setChronometer(R.id.timer_chronometer, chronoBase, null, true)
             }
 
-        val notification = NotificationCompat.Builder(context, RUNNING_TIMER_CHANNEL_ID)
+        // #95: swipe protection. The handler re-reads the row and re-posts
+        // only while the timer is still running, so a countdown that has since
+        // fired or been stopped stays gone -- that is what keeps "it should
+        // disappear when it rings" true without any extra bookkeeping. Absent
+        // when the setting is off, leaving the pre-#95 behaviour untouched.
+        // setOngoing stays unconditional either way (see #94).
+        val swipedPendingIntent =
+            if (SettingsStore(context).timerSwipeProtection) actionIntent(ACTION_TIMER_SWIPED)
+            else null
+
+        val builder = NotificationCompat.Builder(context, RUNNING_TIMER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setGroup("no.hanss.alarmclock.TIMERS")
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
@@ -116,10 +127,13 @@ class TimerNotificationManager(private val context: Context) {
             .addAction(0, "+30 s", actionIntent(ACTION_TIMER_ADD_30))
             .addAction(0, "\u221230 s", actionIntent(ACTION_TIMER_MINUS_30))
             .addAction(0, "Stop", actionIntent(ACTION_TIMER_STOP))
-            .build()
+
+        // Conditional rather than passing a nullable, per #94's build-safety
+        // note about NotificationCompat's annotation on this setter.
+        if (swipedPendingIntent != null) builder.setDeleteIntent(swipedPendingIntent)
 
         context.getSystemService(NotificationManager::class.java)
-            .notify(notificationId(timer.id), notification)
+            .notify(notificationId(timer.id), builder.build())
     }
 
     fun cancel(timerId: Long) {

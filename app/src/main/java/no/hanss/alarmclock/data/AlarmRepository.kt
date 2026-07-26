@@ -57,6 +57,15 @@ class AlarmRepository(context: Context) {
     // alarm edit.
     suspend fun refreshUpcoming() = upcomingAlarmManager.refresh()
 
+    // #95: same reasoning -- the swipe-protection setting is baked into each
+    // posted notification, so every live countdown has to be re-posted for a
+    // change to take effect. Scheduling is untouched; only the notification is
+    // rebuilt, and post() recomputes the chronometer base so the remaining
+    // time stays correct.
+    suspend fun refreshRunningTimers() {
+        timerDao.getAllRunningTimers().forEach { timerNotifications.post(it) }
+    }
+
     // --- Standalone alarms ---
 
     suspend fun saveStandaloneAlarm(alarm: Alarm): Long {
@@ -333,6 +342,7 @@ class AlarmRepository(context: Context) {
             reminderReshowMinutes = settings.reminderReshowMinutes,
             reminderReshowEnabled = settings.reminderReshowEnabled,
             upcomingSwipeProtection = settings.upcomingSwipeProtection,
+            timerSwipeProtection = settings.timerSwipeProtection,
             reminderDefaultNagEnabled = settings.reminderDefaultNagEnabled,
             reminderDefaultRenotifyMinutes = settings.reminderDefaultRenotifyMinutes,
             defaultTimerVibrate = settings.defaultTimerVibrate,
@@ -399,6 +409,7 @@ class AlarmRepository(context: Context) {
         settings.reminderReshowMinutes = data.reminderReshowMinutes
         settings.reminderReshowEnabled = data.reminderReshowEnabled
         settings.upcomingSwipeProtection = data.upcomingSwipeProtection
+        settings.timerSwipeProtection = data.timerSwipeProtection
         settings.reminderDefaultNagEnabled = data.reminderDefaultNagEnabled
         settings.reminderDefaultRenotifyMinutes = data.reminderDefaultRenotifyMinutes
         settings.defaultTimerVibrate = data.defaultTimerVibrate
@@ -412,6 +423,8 @@ class AlarmRepository(context: Context) {
         // #94, same reasoning: the restored flag decides whether the upcoming
         // notification carries a delete intent, so re-post it.
         refreshUpcoming()
+        // #95, same again for any countdown that survived the restore.
+        refreshRunningTimers()
 
         notifyChanged()
         return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)

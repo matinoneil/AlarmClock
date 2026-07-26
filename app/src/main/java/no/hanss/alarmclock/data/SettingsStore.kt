@@ -114,6 +114,13 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_UPCOMING_SWIPE_PROTECTION, true)
         set(value) = prefs.edit().putBoolean(KEY_UPCOMING_SWIPE_PROTECTION, value).apply()
 
+    // #95: the same for the running-timer countdown notification, so it can
+    // only be cleared with its own Stop action. Like #94 this only bites on
+    // Android 14+, and defaults ON as requested behaviour.
+    var timerSwipeProtection: Boolean
+        get() = prefs.getBoolean(KEY_TIMER_SWIPE_PROTECTION, true)
+        set(value) = prefs.edit().putBoolean(KEY_TIMER_SWIPE_PROTECTION, value).apply()
+
     // #91: user dismissed the "full-screen alarms are off" banner. Cleared
     // automatically once the permission is granted again, so a LATER revocation
     // still warns someone who has shown they want the feature.
@@ -140,6 +147,7 @@ class SettingsStore(context: Context) {
         const val KEY_REMINDER_DEFAULT_NAG = "reminder_default_nag_enabled"
         const val KEY_REMINDER_DEFAULT_RENOTIFY = "reminder_default_renotify_minutes"
         const val KEY_UPCOMING_SWIPE_PROTECTION = "upcoming_swipe_protection"
+        const val KEY_TIMER_SWIPE_PROTECTION = "timer_swipe_protection"
         const val KEY_FS_BANNER_DISMISSED = "full_screen_banner_dismissed"
     }
 }
