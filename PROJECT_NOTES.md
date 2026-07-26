@@ -2470,3 +2470,43 @@ entry #1.
     #93 and #94 -- all three shipped together and NONE had been on a device when
     the tag was cut. If any of them misbehaves that is the release to bisect
     from, and V2.3.3 is the last build without them.
+
+95. **[OPEN] Swipe protection for the running-timer notification.** Requested:
+    the same thing #94 did for the upcoming alarm, with a Settings toggle.
+    THE ONE REAL HAZARD, and the reason to read this entry before touching
+    TimerReceiver: onReceive's `when (action)` ends in `else -> fire(...)`, so
+    ANY action it does not recognise RINGS THE TIMER. A new action without an
+    explicit branch is not an inert no-op, it is a spurious ring on every swipe.
+    Add the branch above the else, and never rely on the else being harmless.
+    APPROACH, same shape as #94 and deliberately no bigger: a setDeleteIntent on
+    the countdown notification, attached ONLY when the setting is on, carrying
+    the timer id (there is one notification per running timer, id 3000 + id, so
+    unlike the single upcoming-alarm notification this one has to say WHICH
+    timer). Its handler re-reads the row and re-posts only if it is still
+    running. That is what makes "it should go away when it rings" free:
+    fire() clears runningUntilMillis before cancelling, and post() already
+    returns early on a null runningUntilMillis, so a fired/stopped/deleted
+    timer cannot be resurrected by a swipe.
+    THE HANDLER RUNS INSIDE timerOpsMutex like every other branch, which
+    settles the swipe-races-the-ring case for free: if fire() wins the lock the
+    row is already idle and the swipe no-ops; if the swipe wins it re-posts and
+    fire() then cancels it a moment later.
+    Re-post is SILENT -- the channel sets no sound and no vibration, plus
+    setOnlyAlertOnce -- so as with #94 there is no ding-per-swipe. The
+    chronometer base is recomputed from the current time on every post(), so a
+    restored notification shows the right remaining time, not a stale one.
+    setOngoing(true) STAYS UNCONDITIONAL, same reasoning as #94: making it
+    follow the toggle would newly allow swipes below Android 14. Toggle off ==
+    exactly the pre-#95 behaviour, and the toggle only bites on 14+.
+    SETTINGS PLACEMENT: its own "Running timer notification" section rather than
+    a row inside the existing Timers section. The Timers section is a block of
+    per-timer DEFAULTS ending in "Apply these to all timers", and a global
+    notification behaviour sitting inside it would look like another default
+    that needs that button pressed. Mirroring #94's section also means the two
+    swipe toggles read identically, which is the point after #93's cleanup.
+    LIVE NOTIFICATIONS need re-posting when the toggle flips, since the delete
+    intent is baked in at post time -- new repository/viewModel
+    refreshRunningTimers() over getAllRunningTimers(), called from the toggle
+    and from restoreBackupJson, exactly as #94 did with refreshUpcoming().
+    DEFAULT ON, as #94: it is the requested behaviour, and must be called out in
+    the release notes as a behaviour change rather than shipped quietly.
