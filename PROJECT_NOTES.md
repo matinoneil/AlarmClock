@@ -2331,7 +2331,9 @@ entry #1.
     `persistent`: it governs the TAP, not the swipe, and only a one-and-done
     notification should vanish when tapped -- keying it to protection too would
     have been an unrequested behaviour change.
-    UNVERIFIED: not compiled or run.
+    VERIFIED ON DEVICE at V2.3.5: the two toggles behave independently and
+    existing reminders read back in the toggle positions matching what they
+    were already doing. The simulated truth table held up in practice.
 
 93. **App-wide defaults for the two reminder toggles, and a copy cleanup on
     both screens.** Requested: a Settings entry setting both #92 toggles as the
@@ -2391,7 +2393,10 @@ entry #1.
         rows in one press instead of one edit at a time;
     (b) reverting Settings' shared reshow dropdown to a free-form minutes text
         field, if losing arbitrary typed values turns out to matter.
-    UNVERIFIED: not compiled or run.
+    VERIFIED ON DEVICE at V2.3.5: the new-reminder defaults take effect, the
+    rewritten copy reads correctly on both screens, and a backup restore shows
+    restored values rather than pre-restore ones -- which also exercises #90's
+    refresh block at its full nineteen values.
 
     ASKED AND ANSWERED in the same session, recorded because it will be asked
     again: the UPCOMING-ALARM notification (next alarm + "Dismiss next alarm")
@@ -2517,13 +2522,20 @@ entry #1.
     DEFAULT ON as #94, called out in the release notes as a behaviour change.
     SETTINGS COUNT NOW NINETEEN in #90's post-restore refresh block; the new
     pref went through all six places.
-    UNVERIFIED: not compiled or run.
+    VERIFIED ON DEVICE at V2.3.5: swiping a running countdown brings it back
+    with the correct remaining time and the timer still rings on schedule. So
+    the explicit branch really does sit above TimerReceiver's ring-by-default
+    else -- no spurious ring on swipe -- and post()'s recomputed chronometer
+    base is right.
     RELEASED AS V2.3.5 (commit f5c4002), cut by Claude on request like V2.3.4.
-    NOTE THE STACKING: V2.3.4 (#92-#94) had not been installed on a device when
-    V2.3.5 was tagged, so V2.3.5 shipped carrying four untested entries. Since
-    then #94's swipe path is CONFIRMED on device (see its entry). Still
-    unverified: #92 and #93 (the reminder toggles, their Settings defaults and
-    the legacy-row resolution) and #95 itself.
+    STACKING, RESOLVED: V2.3.5 shipped carrying four entries that had never been
+    on a device (#92-#95, since V2.3.4 went untested before V2.3.5 was tagged).
+    ALL FOUR ARE NOW CONFIRMED on device at V2.3.5 -- see each entry. Nothing
+    from this run is outstanding, so V2.3.5 is a trustworthy baseline rather
+    than a stack of unknowns. It got there by luck of the draw, though, not by
+    process: shipping four untested entries at once is exactly what the
+    unadopted pre-release-tag agreement (see Standing working agreements) exists
+    to prevent, and the outcome does not validate the habit.
     WHAT #94's CONFIRMATION DOES AND DOESN'T BUY #95: it proves the shared
     mechanism -- a deleteIntent fires on a user swipe, does not fire on the
     app's own cancel(), and a re-post from current state is the right handler.
