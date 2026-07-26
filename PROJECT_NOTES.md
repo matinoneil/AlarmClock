@@ -2465,7 +2465,12 @@ entry #1.
     local rather than handed a nullable, because NotificationCompat's nullability
     annotation on that setter was not worth betting a build on from a sandbox
     that cannot compile.
-    UNVERIFIED: not compiled or run.
+    VERIFIED ON DEVICE after V2.3.5 was installed: swiping the upcoming-alarm
+    notification inside the hour before an alarm brings it straight back, and
+    the alarm still rings. So the whole chain is confirmed working in the real
+    world -- deleteIntent firing on a user swipe, the receiver branch, and
+    refresh() re-posting rather than resurrecting something stale. This is the
+    FIRST on-device confirmation of anything in #92-#95.
     RELEASED AS V2.3.4 (commit 19b524f), the first release carrying entries #92,
     #93 and #94 -- all three shipped together and NONE had been on a device when
     the tag was cut. If any of them misbehaves that is the release to bisect
@@ -2514,7 +2519,18 @@ entry #1.
     pref went through all six places.
     UNVERIFIED: not compiled or run.
     RELEASED AS V2.3.5 (commit f5c4002), cut by Claude on request like V2.3.4.
-    NOTE THE STACKING: V2.3.4 (#92-#94) had still not been installed on a device
-    when V2.3.5 was tagged, so V2.3.5 is the first build carrying FOUR untested
-    entries. If something misbehaves, V2.3.3 is the last release with none of
-    them and V2.3.4 splits #95 off from the other three.
+    NOTE THE STACKING: V2.3.4 (#92-#94) had not been installed on a device when
+    V2.3.5 was tagged, so V2.3.5 shipped carrying four untested entries. Since
+    then #94's swipe path is CONFIRMED on device (see its entry). Still
+    unverified: #92 and #93 (the reminder toggles, their Settings defaults and
+    the legacy-row resolution) and #95 itself.
+    WHAT #94's CONFIRMATION DOES AND DOESN'T BUY #95: it proves the shared
+    mechanism -- a deleteIntent fires on a user swipe, does not fire on the
+    app's own cancel(), and a re-post from current state is the right handler.
+    That was the main unknown. It does NOT cover what is specific to #95: the
+    per-timer notification id, the explicit branch sitting above
+    TimerReceiver's ring-by-default else, or post() recomputing the chronometer
+    base so a restored countdown shows the correct remaining time. Test the
+    timer swipe on its own merits.
+    If something misbehaves, V2.3.3 is the last release with none of these and
+    V2.3.4 splits #95 off from the other three.
