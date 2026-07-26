@@ -2376,7 +2376,29 @@ entry #1.
     new prefs went through all six places (#91's checklist): SettingsStore,
     BackupData, JSON write, tolerant read, both AlarmRepository assignments, and
     that refresh block.
-    NOT DONE, offered instead: an "Apply these to all reminders" button, which
-    the Timers section already has as a precedent. It would settle the legacy
-    follow-global rows in one press rather than one edit at a time.
+    PARKED AT THE MAINTAINER'S REQUEST -- both offered, both explicitly held
+    with "keep a pin in them", so they are wanted eventually, NOT rejected:
+    (a) an "Apply these to all reminders" button, which the Timers section
+        already has as a precedent -- it would settle the legacy follow-global
+        rows in one press instead of one edit at a time;
+    (b) reverting Settings' shared reshow dropdown to a free-form minutes text
+        field, if losing arbitrary typed values turns out to matter.
     UNVERIFIED: not compiled or run.
+
+    ASKED AND ANSWERED in the same session, recorded because it will be asked
+    again: the UPCOMING-ALARM notification (next alarm + "Dismiss next alarm")
+    is NOT protected from swipes the way reminders are. It sets setOngoing(true)
+    and nothing else -- no deleteIntent, so no code path even observes a swipe,
+    and none of #57-#62's comeback machinery applies to it. On Android 14+ a
+    swipe therefore sticks until something calls UpcomingAlarmManager.refresh()
+    (an alarm added/edited/deleted/toggled, an alarm firing or being
+    snoozed/dismissed, series unpause, or boot); the scheduled CHECK_UPCOMING
+    fires at one hour out, which has already passed by the time the
+    notification is visible, so in the ordinary case nothing re-posts it before
+    the alarm rings. Below 14, setOngoing still blocks the swipe outright.
+    WHY THAT ASYMMETRY IS DEFENSIBLE and was left alone: for a reminder the
+    notification IS the entire delivery mechanism, which is the whole reason
+    #57-#62 exist; for an alarm it is a convenience view over something that
+    rings regardless, so a swipe costs the skip shortcut, not the alarm. The
+    ringing notification is a separate foreground-service one and unaffected.
+    Bedtime is deliberately setAutoCancel(true) per #47.
