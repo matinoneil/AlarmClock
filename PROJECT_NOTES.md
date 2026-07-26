@@ -2403,47 +2403,58 @@ entry #1.
     ringing notification is a separate foreground-service one and unaffected.
     Bedtime is deliberately setAutoCancel(true) per #47.
 
-94. **[OPEN] Swipe protection for the upcoming-alarm notification.** Requested:
-    a Settings toggle like the reminder one, for alarms AND alarm series, so the
+94. **Swipe protection for the upcoming-alarm notification.** Requested: a
+    Settings toggle like the reminder one, for alarms AND series, so the
     upcoming-alarm notification can only be cleared with its own action button
-    -- but it should still go away once the alarm actually rings.
-    ONE NOTIFICATION COVERS BOTH KINDS, so this is ONE toggle, not two. Series
-    alarms are `alarms` rows with a non-null seriesId (standalone rows have
-    null), refresh() reads getAllEnabledAlarms() which does not filter on it,
-    and the result is a single notification (id 2001) for whichever enabled
-    alarm is soonest. There is no separate series notification to protect. Do
-    not add a second toggle to the Alarm series Settings section expecting one.
-    NOTHING TO DO FOR THE RINGING NOTIFICATION, which is the other thing the
-    request could have meant: it is the foreground-service notification from
-    AlarmRingtoneService, so the service keeps ringing regardless of what
-    happens to it, and Snooze/Dismiss already end it. "If the alarm rings they
-    should be dismissed" is satisfied for free by the design below.
-    INTENDED APPROACH, deliberately smaller than the reminder machinery: the
+    -- while still going away once the alarm actually rings.
+    ONE NOTIFICATION COVERS BOTH KINDS, so this is ONE toggle. Series alarms are
+    `alarms` rows with a non-null seriesId (standalone rows have null),
+    refresh() reads getAllEnabledAlarms() which doesn't filter on it, and the
+    result is a single notification (id 2001) for whichever enabled alarm is
+    soonest. There is no separate series notification. Do NOT add a second
+    toggle to the Alarm series section expecting one, and note the setting lives
+    in its own "Upcoming alarm notification" section for exactly this reason --
+    a copy in each of the two alarm sections would imply two behaviours.
+    NOTHING NEEDED FOR THE RINGING NOTIFICATION, the other thing the request
+    could have meant: that one is AlarmRingtoneService's foreground-service
+    notification, the service rings regardless of what happens to it, and
+    Snooze/Dismiss already end it.
+    SHIPPED SMALL, deliberately not a second copy of #57-#62's machinery: the
     only change to the notification is a setDeleteIntent, attached ONLY when the
-    setting is on, routed to a new ACTION_UPCOMING_SWIPED which just calls
-    refresh(). No scheduler slot, no delay dropdown, no re-post of stale
-    content. refresh() recomputes from scratch, which is what makes the "goes
-    away once it rings" requirement free: if the alarm has since fired or been
-    dismissed, refresh() cancels or re-points to the next alarm instead of
-    restoring what was swiped. The comeback is instantaneous and SILENT, because
-    the channel is IMPORTANCE_LOW with setOnlyAlertOnce -- so unlike #58's
-    reminder equivalent there is no ding-per-swipe to worry about.
-    setOngoing(true) STAYS UNCONDITIONAL rather than following the toggle.
-    Turning it into a follow would make the notification newly swipeable below
-    Android 14 (where setOngoing genuinely blocks the swipe) when the toggle is
-    off -- an unrequested behaviour change on the platforms that already do what
-    the maintainer wants. Toggle off therefore == exactly today's behaviour.
-    Corollary worth stating: the toggle only does anything on 14+.
-    THE LOOP QUESTION, since refresh() calls cancelNotification() routinely (on
-    every alarm add/edit/delete/toggle) and not just at end-of-life the way the
-    reminder cancels do. deleteIntent fires on USER dismissal only, not on
-    NotificationManager.cancel() -- #57 established that in this codebase and
-    reminders have depended on it since. But even if that were wrong it does NOT
-    loop: the hypothetical chain is cancel -> deleteIntent -> refresh ->
-    cancel, and the second cancel has nothing to cancel, so no third delete
-    intent can fire. notify() replacing the same id does not fire it either.
-    Bounded either way; no debounce pref needed.
-    DEFAULT ON, unlike #93's defaults which preserved existing behaviour. This
-    IS the requested behaviour and a toggle defaulting off would look broken on
-    first install; it must be called out loudly in the release notes as a
-    behaviour change rather than shipped quietly.
+    setting is on, routed to a new ACTION_UPCOMING_SWIPED whose entire handler
+    is refresh(). No scheduler slot, no delay dropdown, no re-post of stale
+    content. refresh() recomputing from the alarm table is what makes "goes away
+    once it rings" free -- if the alarm has fired or been dismissed it cancels or
+    re-points to the next alarm instead of restoring what was swiped. The
+    comeback is instant and SILENT (IMPORTANCE_LOW channel + setOnlyAlertOnce),
+    so unlike #58's reminder equivalent there is no ding-per-swipe.
+    setOngoing(true) LEFT UNCONDITIONAL. Making it follow the toggle would newly
+    ALLOW swipes below Android 14 (where setOngoing does block them) whenever the
+    toggle is off -- an unrequested change on the platforms that already behave
+    the way the maintainer wants. Toggle off == exactly the pre-#94 behaviour.
+    Corollary to remember: the toggle only does anything on 14+.
+    THE LOOP QUESTION, since refresh() calls cancelNotification() routinely on
+    every alarm add/edit/delete/toggle, not just at end-of-life like the reminder
+    cancels. deleteIntent fires on USER dismissal only, never on
+    NotificationManager.cancel() -- #57 established that here and reminders have
+    depended on it since. And even if that were wrong it cannot loop: the chain
+    would be cancel -> deleteIntent -> refresh -> cancel, and the second cancel
+    has nothing to cancel, so no third delete intent fires. notify() replacing
+    the same id doesn't fire it either. No debounce needed.
+    A #90-CLASS GAP CLOSED ON THE WAY: the setting is baked into the posted
+    notification, so a live one has to be re-posted for a change to take effect.
+    New repository/viewModel refreshUpcoming() (mirroring refreshBedtime()),
+    called from the toggle AND from restoreBackupJson -- restore re-armed alarms
+    and reminders and, since #90, bedtime, but never touched the upcoming
+    notification, so a restored flag would have sat inert until the next alarm
+    edit. Same bug shape as #90, found by looking for it this time.
+    DEFAULT ON, unlike #93's behaviour-preserving defaults: this IS the requested
+    behaviour and a toggle defaulting off looks broken on first install. Called
+    out in the release notes as a behaviour change rather than shipped quietly.
+    SETTINGS COUNT NOW EIGHTEEN in #90's post-restore refresh block, and the new
+    pref went through all six places.
+    BUILD-SAFETY NOTE: setDeleteIntent is called conditionally on a non-null
+    local rather than handed a nullable, because NotificationCompat's nullability
+    annotation on that setter was not worth betting a build on from a sandbox
+    that cannot compile.
+    UNVERIFIED: not compiled or run.

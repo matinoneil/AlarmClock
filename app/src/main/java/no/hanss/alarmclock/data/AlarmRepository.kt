@@ -51,6 +51,12 @@ class AlarmRepository(context: Context) {
     /** For the settings screen after toggling/adjusting the bedtime reminder. */
     suspend fun refreshBedtime() = bedtimeManager.refresh()
 
+    // #94: the Settings toggle changes whether a delete intent is attached,
+    // which is baked into the posted notification -- so a live one has to be
+    // re-posted for the change to take effect instead of waiting for the next
+    // alarm edit.
+    suspend fun refreshUpcoming() = upcomingAlarmManager.refresh()
+
     // --- Standalone alarms ---
 
     suspend fun saveStandaloneAlarm(alarm: Alarm): Long {
@@ -326,6 +332,7 @@ class AlarmRepository(context: Context) {
             defaultSeriesVibrate = settings.defaultSeriesVibrate,
             reminderReshowMinutes = settings.reminderReshowMinutes,
             reminderReshowEnabled = settings.reminderReshowEnabled,
+            upcomingSwipeProtection = settings.upcomingSwipeProtection,
             reminderDefaultNagEnabled = settings.reminderDefaultNagEnabled,
             reminderDefaultRenotifyMinutes = settings.reminderDefaultRenotifyMinutes,
             defaultTimerVibrate = settings.defaultTimerVibrate,
@@ -391,6 +398,7 @@ class AlarmRepository(context: Context) {
         settings.defaultSeriesVibrate = data.defaultSeriesVibrate
         settings.reminderReshowMinutes = data.reminderReshowMinutes
         settings.reminderReshowEnabled = data.reminderReshowEnabled
+        settings.upcomingSwipeProtection = data.upcomingSwipeProtection
         settings.reminderDefaultNagEnabled = data.reminderDefaultNagEnabled
         settings.reminderDefaultRenotifyMinutes = data.reminderDefaultRenotifyMinutes
         settings.defaultTimerVibrate = data.defaultTimerVibrate
@@ -401,6 +409,9 @@ class AlarmRepository(context: Context) {
         // by hand (#90). refresh() both schedules and cancels, so it is correct
         // whichever way the restored flag points.
         refreshBedtime()
+        // #94, same reasoning: the restored flag decides whether the upcoming
+        // notification carries a delete intent, so re-post it.
+        refreshUpcoming()
 
         notifyChanged()
         return Triple(data.standaloneAlarms.size, data.series.size, data.timers.size)

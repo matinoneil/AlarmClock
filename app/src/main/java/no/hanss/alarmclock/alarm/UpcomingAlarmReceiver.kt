@@ -66,6 +66,14 @@ class UpcomingAlarmReceiver : BroadcastReceiver() {
                     ACTION_CHECK_UPCOMING -> {
                         manager.refresh()
                     }
+                    // #94: swiped away while protection is on. refresh() is the
+                    // whole handler -- it re-posts if the alarm is still
+                    // upcoming and cancels if it has already rung, so the
+                    // swipe simply doesn't take.
+                    ACTION_UPCOMING_SWIPED -> {
+                        Log.i(RECEIVER_TAG, "Upcoming-alarm notification swiped away; restoring")
+                        manager.refresh()
+                    }
                 }
                 AlarmWidgetUpdater.updateAll(context)
             } catch (e: Exception) {

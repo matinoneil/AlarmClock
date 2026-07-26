@@ -104,6 +104,16 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt(KEY_REMINDER_DEFAULT_RENOTIFY, 1440)
         set(value) = prefs.edit().putInt(KEY_REMINDER_DEFAULT_RENOTIFY, value.coerceAtLeast(1)).apply()
 
+    // #94: when on, swiping the upcoming-alarm notification away brings it
+    // straight back, so it can only be cleared with its own "Dismiss next
+    // alarm" action. Covers standalone AND series alarms -- there is only one
+    // such notification. Only has any effect on Android 14+, where setOngoing
+    // stopped blocking the swipe. Defaults ON: this is a requested behaviour,
+    // not a preservation of the old one.
+    var upcomingSwipeProtection: Boolean
+        get() = prefs.getBoolean(KEY_UPCOMING_SWIPE_PROTECTION, true)
+        set(value) = prefs.edit().putBoolean(KEY_UPCOMING_SWIPE_PROTECTION, value).apply()
+
     // #91: user dismissed the "full-screen alarms are off" banner. Cleared
     // automatically once the permission is granted again, so a LATER revocation
     // still warns someone who has shown they want the feature.
@@ -129,6 +139,7 @@ class SettingsStore(context: Context) {
         const val KEY_REMINDER_RESHOW_ENABLED = "reminder_reshow_enabled"
         const val KEY_REMINDER_DEFAULT_NAG = "reminder_default_nag_enabled"
         const val KEY_REMINDER_DEFAULT_RENOTIFY = "reminder_default_renotify_minutes"
+        const val KEY_UPCOMING_SWIPE_PROTECTION = "upcoming_swipe_protection"
         const val KEY_FS_BANNER_DISMISSED = "full_screen_banner_dismissed"
     }
 }

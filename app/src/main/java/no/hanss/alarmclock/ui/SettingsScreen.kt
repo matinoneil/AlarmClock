@@ -95,6 +95,7 @@ fun SettingsScreen(
     var reshowMinutes by remember { mutableIntStateOf(viewModel.settings.reminderReshowMinutes) }
     var nagEnabled by remember { mutableStateOf(viewModel.settings.reminderDefaultNagEnabled) }
     var renotifyMinutes by remember { mutableIntStateOf(viewModel.settings.reminderDefaultRenotifyMinutes) }
+    var upcomingProtection by remember { mutableStateOf(viewModel.settings.upcomingSwipeProtection) }
     var confirmApplyAlarms by remember { mutableStateOf(false) }
     var confirmApplyTimers by remember { mutableStateOf(false) }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
@@ -289,6 +290,7 @@ fun SettingsScreen(
                             reshowMinutes = viewModel.settings.reminderReshowMinutes
                             nagEnabled = viewModel.settings.reminderDefaultNagEnabled
                             renotifyMinutes = viewModel.settings.reminderDefaultRenotifyMinutes
+                            upcomingProtection = viewModel.settings.upcomingSwipeProtection
                             "Restored $a alarms, $s series, $t timers"
                         } catch (e: Exception) {
                             "Restore failed: ${e.message}"
@@ -472,6 +474,40 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) { Text("Apply these to all single alarms") }
+            }
+
+            // #94: its own section rather than a copy in each of the two alarm
+            // sections above, because there is only ONE upcoming notification
+            // and it already covers standalone and series alarms alike.
+            EditSection(title = "Upcoming alarm notification") {
+                Text(
+                    "The silent notification that appears an hour before your next alarm, for single alarms and series alike.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Bring it back if I swipe it away", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            if (upcomingProtection)
+                                "A swipe won't clear it — use Dismiss next alarm instead. It leaves on its own once the alarm rings."
+                            else "A swipe clears it until your next alarm comes up.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = upcomingProtection,
+                        onCheckedChange = {
+                            upcomingProtection = it
+                            viewModel.settings.upcomingSwipeProtection = it
+                            // A notification already on screen was built with
+                            // the old setting baked in; re-post it now.
+                            scope.launch { viewModel.refreshUpcoming() }
+                        }
+                    )
+                }
             }
 
             EditSection(title = "Bedtime reminder") {

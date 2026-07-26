@@ -11,15 +11,20 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmDatabase
+import no.hanss.alarmclock.data.SettingsStore
 
 private const val TAG = "UpcomingAlarmManager"
 private const val UPCOMING_CHANNEL_ID = "upcoming_alarm_channel"
 private const val UPCOMING_NOTIFICATION_ID = 2001
 private const val UPCOMING_CHECK_REQUEST_CODE = 999001
+private const val UPCOMING_SWIPED_REQUEST_CODE = 999002
 private const val WINDOW_MILLIS = 60 * 60 * 1000L // show once the alarm is within an hour out
 
 const val ACTION_CHECK_UPCOMING = "no.hanss.alarmclock.action.CHECK_UPCOMING"
 const val ACTION_DISMISS_NEXT_ALARM = "no.hanss.alarmclock.action.DISMISS_NEXT_ALARM"
+// #94: the notification was swiped away by the user. Fires on user dismissal
+// only, never on the app's own cancelNotification() calls.
+const val ACTION_UPCOMING_SWIPED = "no.hanss.alarmclock.action.UPCOMING_SWIPED"
 
 /**
  * Keeps a single silent, ongoing notification in sync with whichever enabled alarm is
@@ -114,7 +119,28 @@ class UpcomingAlarmManager(private val context: Context) {
         )
         val title = if (alarm.label.isNotBlank()) "${alarm.label} at $timeLabel" else "Alarm at $timeLabel"
 
-        val notification = NotificationCompat.Builder(context, UPCOMING_CHANNEL_ID)
+        // #94: swipe protection. The handler just calls refresh(), so the
+        // notification comes straight back (silently -- LOW channel plus
+        // setOnlyAlertOnce) while the alarm is still upcoming, and does NOT
+        // come back once it has rung or been dismissed, because refresh()
+        // recomputes from the alarm table rather than restoring what was
+        // swiped. That is what keeps "it should go away when it rings" true.
+        // Absent when the setting is off, which leaves the pre-#94 behaviour
+        // untouched. setOngoing stays unconditional either way: below
+        // Android 14 it already blocks the swipe outright, and making it
+        // follow the toggle would newly ALLOW swipes there.
+        val swipedPendingIntent = if (SettingsStore(context).upcomingSwipeProtection) {
+            PendingIntent.getBroadcast(
+                context,
+                UPCOMING_SWIPED_REQUEST_CODE,
+                Intent(context, UpcomingAlarmReceiver::class.java).apply {
+                    action = ACTION_UPCOMING_SWIPED
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else null
+
+        val builder = NotificationCompat.Builder(context, UPCOMING_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setGroup("no.hanss.alarmclock.ALARMS")
             .setContentTitle("Upcoming alarm")
@@ -124,10 +150,14 @@ class UpcomingAlarmManager(private val context: Context) {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .addAction(0, "Dismiss next alarm", dismissPendingIntent)
-            .build()
+
+        // Set only when non-null rather than passing a nullable through:
+        // NotificationCompat's nullability annotation on this setter is not
+        // worth betting a build on, and the conditional reads better anyway.
+        if (swipedPendingIntent != null) builder.setDeleteIntent(swipedPendingIntent)
 
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.notify(UPCOMING_NOTIFICATION_ID, notification)
+        manager.notify(UPCOMING_NOTIFICATION_ID, builder.build())
     }
 
     fun cancelNotification() {

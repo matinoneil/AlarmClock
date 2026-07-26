@@ -43,7 +43,9 @@ object BackupSerializer {
         val reminderReshowEnabled: Boolean = true,
         // #93: new-reminder defaults for the nag half.
         val reminderDefaultNagEnabled: Boolean = true,
-        val reminderDefaultRenotifyMinutes: Int = 1440
+        val reminderDefaultRenotifyMinutes: Int = 1440,
+        // #94: swipe protection for the upcoming-alarm notification.
+        val upcomingSwipeProtection: Boolean = true
     )
 
     fun toJson(data: BackupData): String {
@@ -68,6 +70,7 @@ object BackupSerializer {
         settings.put("reminderReshowEnabled", data.reminderReshowEnabled)
         settings.put("reminderDefaultNagEnabled", data.reminderDefaultNagEnabled)
         settings.put("reminderDefaultRenotifyMinutes", data.reminderDefaultRenotifyMinutes)
+        settings.put("upcomingSwipeProtection", data.upcomingSwipeProtection)
         settings.put("defaultTimerVibrate", data.defaultTimerVibrate)
         settings.put("fullScreenBannerDismissed", data.fullScreenBannerDismissed)
         root.put("settings", settings)
@@ -278,6 +281,9 @@ object BackupSerializer {
             // defaults are the pre-#93 hardcoded behaviour.
             reminderDefaultNagEnabled = settings.optBoolean("reminderDefaultNagEnabled", true),
             reminderDefaultRenotifyMinutes = settings.optInt("reminderDefaultRenotifyMinutes", 1440).coerceAtLeast(1),
+            // Absent in pre-#94 files. Defaults to the new behaviour, matching
+            // SettingsStore, so a restore doesn't silently turn it off.
+            upcomingSwipeProtection = settings.optBoolean("upcomingSwipeProtection", true),
             defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true),
             fullScreenBannerDismissed = settings.optBoolean("fullScreenBannerDismissed", false)
         )
