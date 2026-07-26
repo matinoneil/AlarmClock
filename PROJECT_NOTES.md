@@ -39,7 +39,15 @@ repo now.
 
 Division of labor: **Claude makes all code changes and pushes them; the
 maintainer creates the GitHub release (which triggers the CI build) and
-live-tests the resulting APK on the phone.** There is no local development
+live-tests the resulting APK on the phone.** Amended in practice: Claude may
+cut the release itself (POST to the releases API with the PAT) when the
+maintainer explicitly asks -- V2.3.4 was created that way. This does NOT change
+who verifies: Claude still cannot build or run anything, so a release it cut is
+exactly as unverified as one it only wrote notes for. Default remains that the
+maintainer releases; do not start cutting releases unasked. The tag must be
+capital-V (`V2.3.4`) even when the request says "2.3.4" -- the workflow strips
+the leading v/V for versionName and versionCode is the Actions run number, so no
+manual version bump is ever needed before tagging. There is no local development
 environment anymore — no Termux, no local git, no Android SDK, no emulator,
 on either side. Claude (via its tool environment) cannot compile or run the
 app — changes are written from reading the code + Android API docs/source
@@ -2458,3 +2466,7 @@ entry #1.
     annotation on that setter was not worth betting a build on from a sandbox
     that cannot compile.
     UNVERIFIED: not compiled or run.
+    RELEASED AS V2.3.4 (commit 19b524f), the first release carrying entries #92,
+    #93 and #94 -- all three shipped together and NONE had been on a device when
+    the tag was cut. If any of them misbehaves that is the release to bisect
+    from, and V2.3.3 is the last build without them.
