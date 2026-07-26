@@ -2331,7 +2331,11 @@ entry #1.
     `persistent`: it governs the TAP, not the swipe, and only a one-and-done
     notification should vanish when tapped -- keying it to protection too would
     have been an unrequested behaviour change.
-    UNVERIFIED: not compiled or run.
+    REPORTED WORKING on device at V2.3.5 -- the maintainer's words were that the
+    toggles "seem to work", i.e. the two switches behave independently in normal
+    use. Recorded as reported rather than verified, and deliberately NOT extended
+    to #93's parts: the Settings defaults reaching new reminders, the legacy-row
+    resolution (editorSwipeEnabled on a follow-global row), or a backup restore.
 
 93. **App-wide defaults for the two reminder toggles, and a copy cleanup on
     both screens.** Requested: a Settings entry setting both #92 toggles as the
@@ -2525,11 +2529,13 @@ entry #1.
     RELEASED AS V2.3.5 (commit f5c4002), cut by Claude on request like V2.3.4.
     STACKING: V2.3.5 shipped carrying four entries that had never been on a
     device (#92-#95, since V2.3.4 went untested before V2.3.5 was tagged).
-    CONFIRMED SINCE, on device: #94 (upcoming-alarm swipe) and #95 (timer
-    swipe). STILL UNVERIFIED: #92 and #93 -- the two reminder toggles, the
-    new-reminder defaults, the rewritten copy, the legacy-row resolution, and
-    a backup restore exercising #90's refresh block at nineteen values. Those
-    are the parts a swipe test never touches.
+    CONFIRMED SINCE, on device: #94 (upcoming-alarm swipe), #95 (timer swipe),
+    and #92 reported working (the two toggles behaving independently).
+    STILL UNVERIFIED, all of it #93: the Settings defaults reaching new
+    reminders, the legacy-row resolution for a reminder still on
+    RESHOW_FOLLOW_GLOBAL, and a backup restore exercising #90's refresh block at
+    nineteen values. The restore is the one that matters most -- #90 was a
+    silent data-loss trap, not merely a display bug.
     Shipping four untested entries at once is what the unadopted
     pre-release-tag agreement (see Standing working agreements) exists to
     prevent; two of them landing fine does not validate the habit.
