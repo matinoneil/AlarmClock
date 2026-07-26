@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import no.hanss.alarmclock.data.Reminder
+import no.hanss.alarmclock.data.SettingsStore
 import no.hanss.alarmclock.data.alignDueAtToPattern
 import no.hanss.alarmclock.data.nextOccurrenceAfter
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
@@ -116,15 +117,24 @@ fun ReminderEditScreen(
     // interval values below deliberately never hold their off sentinel (0 /
     // RESHOW_OFF) while the editor is open, so switching a mechanism off and
     // back on doesn't lose the chosen interval; off is written only at save.
-    var nagEnabled by remember { mutableStateOf(existing?.nagging ?: true) }
-    var swipeEnabled by remember { mutableStateOf(existing?.swipeProtected ?: true) }
+    // #93: a NEW reminder seeds all four from the Settings defaults, and an
+    // existing one shows CONCRETE values only -- see the two resolvers below.
+    val settings = viewModel.settings
+    var nagEnabled by remember {
+        mutableStateOf(existing?.nagging ?: settings.reminderDefaultNagEnabled)
+    }
+    var swipeEnabled by remember { mutableStateOf(editorSwipeEnabled(existing, settings)) }
     var renotifyMinutes by remember {
-        mutableIntStateOf(existing?.renotifyMinutes?.takeIf { it > 0 } ?: 1440)
+        mutableIntStateOf(
+            existing?.renotifyMinutes?.takeIf { it > 0 }
+                ?: settings.reminderDefaultRenotifyMinutes
+        )
     }
     var reshowMinutes by remember {
+        // Both sentinels are negative and every real value is >= 0, so this
+        // one test covers RESHOW_OFF and RESHOW_FOLLOW_GLOBAL alike.
         mutableIntStateOf(
-            existing?.reshowMinutes?.takeIf { it != Reminder.RESHOW_OFF }
-                ?: Reminder.RESHOW_FOLLOW_GLOBAL
+            existing?.reshowMinutes?.takeIf { it >= 0 } ?: settings.reminderReshowMinutes
         )
     }
 
@@ -448,13 +458,13 @@ fun ReminderEditScreen(
             // were always independent in the data (#62), but a single master
             // switch gating both dropdowns made them look like one setting,
             // and "off" existed in two places at once.
-            EditSection(title = "Remind me again") {
+            EditSection(title = "If you don't press Done") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Re-alert until done", style = MaterialTheme.typography.bodyLarge)
+                        Text("Remind me again", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            if (nagEnabled) "The notification alerts again on a schedule until you press Done"
-                            else "It alerts once, then waits quietly",
+                            if (nagEnabled) "It alerts again, as often as you choose below"
+                            else "It alerts once and then stays quiet",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -470,19 +480,19 @@ fun ReminderEditScreen(
                 }
             }
 
-            EditSection(title = "Swipe-away protection") {
+            EditSection(title = "If you swipe it away") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Bring it back if swiped away", style = MaterialTheme.typography.bodyLarge)
+                        Text("Bring it back", style = MaterialTheme.typography.bodyLarge)
                         // The both-off wording is the honest description of
                         // the derived one-and-done state (#61/#92): with
                         // neither mechanism on, the swipe has to mean
                         // something, and Done is the only sane meaning.
                         Text(
                             when {
-                                swipeEnabled -> "A swiped notification comes back by itself"
-                                nagEnabled -> "A swipe clears it until the next re-alert"
-                                else -> "A swipe clears it and marks the reminder done"
+                                swipeEnabled -> "It comes back on its own, after the delay below"
+                                nagEnabled -> "It stays gone until the next reminder above"
+                                else -> "It stays gone, and the reminder counts as done"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -597,9 +607,11 @@ private fun tomorrowAt(hour: Int): Long = Calendar.getInstance().apply {
  * value outside the presets (from an edited backup) is offered as-is so it
  * never silently changes on save. No "Off" entry since #92 -- the section's
  * switch owns that, and the caller guarantees a value > 0 here.
+ * Internal since #93: Settings shows the identical control for the
+ * new-reminder default, so the two screens can't drift apart.
  */
 @Composable
-private fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
+internal fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val presets = listOf(
         15 to "Every 15 minutes",
@@ -633,16 +645,19 @@ private fun RenotifyDropdown(renotifyMinutes: Int, onSelect: (Int) -> Unit) {
 }
 
 /**
- * Per-reminder swipe comeback (#60). "App default" follows the Settings
- * value; "Instantly (permanent)" is 0; the rest are minutes. An
+ * Per-reminder swipe comeback (#60). "Instantly (permanent)" is 0 -- #58
+ * chose that wording deliberately, so it stays; the rest are minutes. An
  * out-of-preset stored value is offered as-is, same policy as the others.
  * No RESHOW_OFF entry since #92 -- the section's switch owns that.
+ * #93 also dropped the RESHOW_FOLLOW_GLOBAL entry: Settings is now a
+ * copied-at-creation default rather than something to point at, and this
+ * same control appears IN Settings, where "App default" would be circular.
+ * Legacy rows still holding the sentinel are resolved before they get here.
  */
 @Composable
-private fun ReshowDropdown(reshowMinutes: Int, onSelect: (Int) -> Unit) {
+internal fun ReshowDropdown(reshowMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val presets = listOf(
-        Reminder.RESHOW_FOLLOW_GLOBAL to "App default (from Settings)",
         0 to "Instantly (permanent)",
         1 to "After 1 minute",
         5 to "After 5 minutes",
@@ -768,6 +783,30 @@ private fun localMidnightToUtc(localMillis: Long): Long {
  * the "Next:" preview so they can never disagree. dueAt comes back aligned
  * forward onto the pattern, time of day kept.
  */
+/**
+ * #93: what the swipe-protection switch should read for [existing]. Concrete
+ * values answer for themselves; a legacy RESHOW_FOLLOW_GLOBAL row (#60's
+ * migration default, so most pre-#60 reminders) answers with the global
+ * switch, because that is what the reminder is ACTUALLY doing right now --
+ * and saving then pins it.
+ *
+ * This deliberately DIVERGES from [Reminder.swipeProtected] for a
+ * follow-global row while the global switch is off: that property reports the
+ * row's own stored intent (#92) because the notification and swipe paths must
+ * not let a Settings toggle silently complete reminders, whereas this function
+ * reports effective behaviour because that is what the user is looking at. Both
+ * are right for their own caller; do not collapse them into one.
+ */
+private fun editorSwipeEnabled(existing: Reminder?, settings: SettingsStore): Boolean {
+    if (existing == null) return settings.reminderReshowEnabled
+    if (!existing.persistent) return false
+    return when (existing.reshowMinutes) {
+        Reminder.RESHOW_OFF -> false
+        Reminder.RESHOW_FOLLOW_GLOBAL -> settings.reminderReshowEnabled
+        else -> true
+    }
+}
+
 private fun buildCandidate(
     existing: Reminder?,
     text: String,

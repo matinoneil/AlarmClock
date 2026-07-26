@@ -326,6 +326,8 @@ class AlarmRepository(context: Context) {
             defaultSeriesVibrate = settings.defaultSeriesVibrate,
             reminderReshowMinutes = settings.reminderReshowMinutes,
             reminderReshowEnabled = settings.reminderReshowEnabled,
+            reminderDefaultNagEnabled = settings.reminderDefaultNagEnabled,
+            reminderDefaultRenotifyMinutes = settings.reminderDefaultRenotifyMinutes,
             defaultTimerVibrate = settings.defaultTimerVibrate,
             fullScreenBannerDismissed = settings.fullScreenBannerDismissed
         )
@@ -389,6 +391,8 @@ class AlarmRepository(context: Context) {
         settings.defaultSeriesVibrate = data.defaultSeriesVibrate
         settings.reminderReshowMinutes = data.reminderReshowMinutes
         settings.reminderReshowEnabled = data.reminderReshowEnabled
+        settings.reminderDefaultNagEnabled = data.reminderDefaultNagEnabled
+        settings.reminderDefaultRenotifyMinutes = data.reminderDefaultRenotifyMinutes
         settings.defaultTimerVibrate = data.defaultTimerVibrate
         settings.fullScreenBannerDismissed = data.fullScreenBannerDismissed
 

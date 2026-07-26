@@ -79,6 +79,10 @@ class SettingsStore(context: Context) {
     // daily re-alert for still-visible notifications is separate and fixed.
     // #62: master switch for the swipe comeback; reminders set to
     // App default follow this. Per-reminder overrides ignore it.
+    // #93: this pair now does DOUBLE DUTY -- it is (a) the swipe-protection
+    // default copied into every NEW reminder, and (b) still what a legacy
+    // RESHOW_FOLLOW_GLOBAL row resolves against, which is what lets those
+    // rows keep their current behaviour with no data migration.
     var reminderReshowEnabled: Boolean
         get() = prefs.getBoolean(KEY_REMINDER_RESHOW_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_REMINDER_RESHOW_ENABLED, value).apply()
@@ -86,6 +90,19 @@ class SettingsStore(context: Context) {
     var reminderReshowMinutes: Int
         get() = prefs.getInt(KEY_REMINDER_RESHOW, 30)
         set(value) = prefs.edit().putInt(KEY_REMINDER_RESHOW, value.coerceAtLeast(0)).apply()
+
+    // #93: the nag half of the new-reminder defaults, mirroring the pair
+    // above. Both defaults reproduce the values #92's editor hardcoded, so a
+    // fresh install behaves exactly as before until these are changed.
+    var reminderDefaultNagEnabled: Boolean
+        get() = prefs.getBoolean(KEY_REMINDER_DEFAULT_NAG, true)
+        set(value) = prefs.edit().putBoolean(KEY_REMINDER_DEFAULT_NAG, value).apply()
+
+    // Minutes only -- "off" is the boolean above, never a 0 stored here, so
+    // the floor is 1 rather than renotifyMinutes' 0.
+    var reminderDefaultRenotifyMinutes: Int
+        get() = prefs.getInt(KEY_REMINDER_DEFAULT_RENOTIFY, 1440)
+        set(value) = prefs.edit().putInt(KEY_REMINDER_DEFAULT_RENOTIFY, value.coerceAtLeast(1)).apply()
 
     // #91: user dismissed the "full-screen alarms are off" banner. Cleared
     // automatically once the permission is granted again, so a LATER revocation
@@ -110,6 +127,8 @@ class SettingsStore(context: Context) {
         const val KEY_TIMER_VIBRATE = "default_timer_vibrate"
         const val KEY_REMINDER_RESHOW = "reminder_reshow_minutes"
         const val KEY_REMINDER_RESHOW_ENABLED = "reminder_reshow_enabled"
+        const val KEY_REMINDER_DEFAULT_NAG = "reminder_default_nag_enabled"
+        const val KEY_REMINDER_DEFAULT_RENOTIFY = "reminder_default_renotify_minutes"
         const val KEY_FS_BANNER_DISMISSED = "full_screen_banner_dismissed"
     }
 }

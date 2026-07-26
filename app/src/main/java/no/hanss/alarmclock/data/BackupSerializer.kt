@@ -40,7 +40,10 @@ object BackupSerializer {
         val defaultSeriesVibrate: Boolean = true,
         val defaultTimerVibrate: Boolean = true,
         val reminderReshowMinutes: Int = 30,
-        val reminderReshowEnabled: Boolean = true
+        val reminderReshowEnabled: Boolean = true,
+        // #93: new-reminder defaults for the nag half.
+        val reminderDefaultNagEnabled: Boolean = true,
+        val reminderDefaultRenotifyMinutes: Int = 1440
     )
 
     fun toJson(data: BackupData): String {
@@ -63,6 +66,8 @@ object BackupSerializer {
         settings.put("defaultSeriesVibrate", data.defaultSeriesVibrate)
         settings.put("reminderReshowMinutes", data.reminderReshowMinutes)
         settings.put("reminderReshowEnabled", data.reminderReshowEnabled)
+        settings.put("reminderDefaultNagEnabled", data.reminderDefaultNagEnabled)
+        settings.put("reminderDefaultRenotifyMinutes", data.reminderDefaultRenotifyMinutes)
         settings.put("defaultTimerVibrate", data.defaultTimerVibrate)
         settings.put("fullScreenBannerDismissed", data.fullScreenBannerDismissed)
         root.put("settings", settings)
@@ -269,6 +274,10 @@ object BackupSerializer {
             defaultSeriesVibrate = settings.optBoolean("defaultSeriesVibrate", settings.optBoolean("defaultAlarmVibrate", true)),
             reminderReshowMinutes = settings.optInt("reminderReshowMinutes", 30).coerceAtLeast(0),
             reminderReshowEnabled = settings.optBoolean("reminderReshowEnabled", true),
+            // #93: absent in files written before this version -- the
+            // defaults are the pre-#93 hardcoded behaviour.
+            reminderDefaultNagEnabled = settings.optBoolean("reminderDefaultNagEnabled", true),
+            reminderDefaultRenotifyMinutes = settings.optInt("reminderDefaultRenotifyMinutes", 1440).coerceAtLeast(1),
             defaultTimerVibrate = settings.optBoolean("defaultTimerVibrate", true),
             fullScreenBannerDismissed = settings.optBoolean("fullScreenBannerDismissed", false)
         )

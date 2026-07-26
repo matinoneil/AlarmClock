@@ -88,8 +88,13 @@ fun SettingsScreen(
     var defaultTimerSound by remember { mutableStateOf(viewModel.settings.defaultTimerSoundUri) }
     // Hoisted out of the "Reminders" EditSection so the restore handler below can
     // refresh them; nested state was unreachable from its scope (#90).
+    // #93: four values now, mirroring the reminder editor's two toggles.
+    // All FOUR must stay in this top-level block and in the post-restore
+    // refresh below -- #90 is the entry about what happens when they don't.
     var reshowEnabled by remember { mutableStateOf(viewModel.settings.reminderReshowEnabled) }
-    var reshowText by remember { mutableStateOf(viewModel.settings.reminderReshowMinutes.toString()) }
+    var reshowMinutes by remember { mutableIntStateOf(viewModel.settings.reminderReshowMinutes) }
+    var nagEnabled by remember { mutableStateOf(viewModel.settings.reminderDefaultNagEnabled) }
+    var renotifyMinutes by remember { mutableIntStateOf(viewModel.settings.reminderDefaultRenotifyMinutes) }
     var confirmApplyAlarms by remember { mutableStateOf(false) }
     var confirmApplyTimers by remember { mutableStateOf(false) }
     var pendingRestoreJson by remember { mutableStateOf<String?>(null) }
@@ -281,7 +286,9 @@ fun SettingsScreen(
                             bedtimeHoursText = viewModel.settings.bedtimeHoursBefore.toString()
                             bedtimeMessage = viewModel.settings.bedtimeMessage
                             reshowEnabled = viewModel.settings.reminderReshowEnabled
-                            reshowText = viewModel.settings.reminderReshowMinutes.toString()
+                            reshowMinutes = viewModel.settings.reminderReshowMinutes
+                            nagEnabled = viewModel.settings.reminderDefaultNagEnabled
+                            renotifyMinutes = viewModel.settings.reminderDefaultRenotifyMinutes
                             "Restored $a alarms, $s series, $t timers"
                         } catch (e: Exception) {
                             "Restore failed: ${e.message}"
@@ -571,11 +578,56 @@ fun SettingsScreen(
 
             EditSection(title = "Reminders") {
                 val doneCount = uiForSettings.reminders.count { it.state == Reminder.STATE_DONE }
+                // #93: deliberately the SAME two switches and the SAME two
+                // dropdowns as the reminder editor, in the same order and
+                // wording, so the two screens read as one idea instead of two
+                // vocabularies. Only the framing line below differs, and each
+                // label carries its own situation since there are no separate
+                // section headings to do it here.
+                Text(
+                    "What a new reminder starts with. Every reminder can change these in its own editor.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Bring back a swiped-away reminder", style = MaterialTheme.typography.bodyLarge)
+                        Text("Remind me again if I don't press Done", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            "The default for reminders; each can override it in its own editor",
+                            if (nagEnabled) "It alerts again, as often as chosen below"
+                            else "It alerts once and then stays quiet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = nagEnabled,
+                        onCheckedChange = {
+                            nagEnabled = it
+                            viewModel.settings.reminderDefaultNagEnabled = it
+                        }
+                    )
+                }
+                if (nagEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    RenotifyDropdown(
+                        renotifyMinutes = renotifyMinutes,
+                        onSelect = {
+                            renotifyMinutes = it
+                            viewModel.settings.reminderDefaultRenotifyMinutes = it
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Bring it back if I swipe it away", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            when {
+                                reshowEnabled -> "It comes back on its own, after the delay below"
+                                nagEnabled -> "It stays gone until the next reminder above"
+                                else -> "It stays gone, and the reminder counts as done"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -588,23 +640,17 @@ fun SettingsScreen(
                         }
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = reshowText,
-                    onValueChange = {
-                        reshowText = it.filter(Char::isDigit).take(4)
-                        reshowText.toIntOrNull()?.let { v ->
-                            viewModel.settings.reminderReshowMinutes = v
+                if (reshowEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ReshowDropdown(
+                        reshowMinutes = reshowMinutes,
+                        onSelect = {
+                            reshowMinutes = it
+                            viewModel.settings.reminderReshowMinutes = it
                         }
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    enabled = reshowEnabled,
-                    label = { Text("After (minutes)") },
-                    supportingText = { Text("0 = permanent: comes straight back, with sound.") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedButton(
                     onClick = { confirmClearHistory = true },
                     enabled = doneCount > 0,
