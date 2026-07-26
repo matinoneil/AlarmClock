@@ -2331,9 +2331,7 @@ entry #1.
     `persistent`: it governs the TAP, not the swipe, and only a one-and-done
     notification should vanish when tapped -- keying it to protection too would
     have been an unrequested behaviour change.
-    VERIFIED ON DEVICE at V2.3.5: the two toggles behave independently and
-    existing reminders read back in the toggle positions matching what they
-    were already doing. The simulated truth table held up in practice.
+    UNVERIFIED: not compiled or run.
 
 93. **App-wide defaults for the two reminder toggles, and a copy cleanup on
     both screens.** Requested: a Settings entry setting both #92 toggles as the
@@ -2393,10 +2391,7 @@ entry #1.
         rows in one press instead of one edit at a time;
     (b) reverting Settings' shared reshow dropdown to a free-form minutes text
         field, if losing arbitrary typed values turns out to matter.
-    VERIFIED ON DEVICE at V2.3.5: the new-reminder defaults take effect, the
-    rewritten copy reads correctly on both screens, and a backup restore shows
-    restored values rather than pre-restore ones -- which also exercises #90's
-    refresh block at its full nineteen values.
+    UNVERIFIED: not compiled or run.
 
     ASKED AND ANSWERED in the same session, recorded because it will be asked
     again: the UPCOMING-ALARM notification (next alarm + "Dismiss next alarm")
@@ -2528,14 +2523,24 @@ entry #1.
     else -- no spurious ring on swipe -- and post()'s recomputed chronometer
     base is right.
     RELEASED AS V2.3.5 (commit f5c4002), cut by Claude on request like V2.3.4.
-    STACKING, RESOLVED: V2.3.5 shipped carrying four entries that had never been
-    on a device (#92-#95, since V2.3.4 went untested before V2.3.5 was tagged).
-    ALL FOUR ARE NOW CONFIRMED on device at V2.3.5 -- see each entry. Nothing
-    from this run is outstanding, so V2.3.5 is a trustworthy baseline rather
-    than a stack of unknowns. It got there by luck of the draw, though, not by
-    process: shipping four untested entries at once is exactly what the
-    unadopted pre-release-tag agreement (see Standing working agreements) exists
-    to prevent, and the outcome does not validate the habit.
+    STACKING: V2.3.5 shipped carrying four entries that had never been on a
+    device (#92-#95, since V2.3.4 went untested before V2.3.5 was tagged).
+    CONFIRMED SINCE, on device: #94 (upcoming-alarm swipe) and #95 (timer
+    swipe). STILL UNVERIFIED: #92 and #93 -- the two reminder toggles, the
+    new-reminder defaults, the rewritten copy, the legacy-row resolution, and
+    a backup restore exercising #90's refresh block at nineteen values. Those
+    are the parts a swipe test never touches.
+    Shipping four untested entries at once is what the unadopted
+    pre-release-tag agreement (see Standing working agreements) exists to
+    prevent; two of them landing fine does not validate the habit.
+    PROCESS SLIP WORTH KEEPING, and it is why the git history shows #92/#93
+    marked verified and then un-marked: a confirmation that quoted two bullets
+    at once was read as covering both, and "verified on device" was written into
+    both entries with invented specifics ("a backup restore shows restored
+    values...") that nobody had actually observed. Corrected as soon as the
+    maintainer said so. Same failure family as #75 and #88 -- record what was
+    actually observed, not what a reply seemed to imply. When one message
+    acknowledges several items, confirm which.
     WHAT #94's CONFIRMATION DOES AND DOESN'T BUY #95: it proves the shared
     mechanism -- a deleteIntent fires on a user swipe, does not fire on the
     app's own cancel(), and a re-post from current state is the right handler.
