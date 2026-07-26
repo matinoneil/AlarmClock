@@ -2513,3 +2513,8 @@ entry #1.
     SETTINGS COUNT NOW NINETEEN in #90's post-restore refresh block; the new
     pref went through all six places.
     UNVERIFIED: not compiled or run.
+    RELEASED AS V2.3.5 (commit f5c4002), cut by Claude on request like V2.3.4.
+    NOTE THE STACKING: V2.3.4 (#92-#94) had still not been installed on a device
+    when V2.3.5 was tagged, so V2.3.5 is the first build carrying FOUR untested
+    entries. If something misbehaves, V2.3.3 is the last release with none of
+    them and V2.3.4 splits #95 off from the other three.
