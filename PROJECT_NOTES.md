@@ -2272,3 +2272,37 @@ entry #1.
     post-restore refresh block -- correct, because it is not displayed there; that
     block only covers state the Settings screen holds.
     UNVERIFIED: not compiled or run.
+
+92. **[OPEN] Split the two persistence mechanisms into two independent toggles.**
+    Requested: in a reminder, "remind me again" and swipe-away protection should
+    be two separate toggles, settable independently, on new AND existing
+    reminders.
+    NOTE FIRST that the two mechanisms are ALREADY orthogonal in the data model
+    -- #62 gave both dropdowns an "Off" option precisely for this. What is
+    coupled is the UI: #61's single "Keep reminding until done" switch gates
+    BOTH dropdowns and hides them when off, so off lives in two places (the
+    master switch and each dropdown's own "Off") and the two look like one
+    setting. This entry is therefore mostly a UI restructure, not new
+    behaviour -- do not go looking for a missing mechanism.
+    INTENDED APPROACH: two switches, one per mechanism, each owning its own
+    "off" and revealing its dropdown when on; the "Off" options come OUT of both
+    dropdowns so off is expressed in exactly one place. `persistent` stops being
+    a user-facing master and becomes DERIVED at save: `persistent = nag ||
+    swipeProtection`. That keeps all four combinations #62 documents, including
+    nag-on + reshow-off (a swipe sticks until the next re-alert) and nag-off +
+    reshow-on (silent, but comes back after a swipe).
+    NO DB MIGRATION, deliberately: no new column, and existing rows are read
+    through two computed properties (`nagging` = persistent && renotify > 0,
+    `swipeProtected` = persistent && reshow != RESHOW_OFF) so a legacy
+    persistent=false row -- whose renotify/reshow values the old editor left
+    untouched when it hid the dropdowns -- still reads as both-off. This is what
+    makes "old ones" work without touching the schema.
+    ONE BEHAVIOUR CHANGE, believed an improvement: today persistent=true with
+    nag off AND reshow off leaves a fired reminder ACTIVE forever with nothing
+    to bring it back. Both-toggles-off now means persistent=false, i.e. #61's
+    one-and-done (plain dismissable notification, swipe counts as Done), so the
+    dead state is unreachable by construction. Any existing row in it changes
+    behaviour on next save, not on upgrade.
+    ALSO: setOngoing should follow swipe protection rather than `persistent`,
+    or a nag-on/swipe-off reminder would still be unswipeable on pre-14 where
+    setOngoing actually blocks the swipe -- the opposite of what the toggle says.
