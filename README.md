@@ -18,7 +18,7 @@ toggles the whole series.
 <img width="250" height="500" alt="Alarms" src="https://github.com/user-attachments/assets/1ec68798-3c69-4ba6-bea4-940825a66530" />
 
 
-## Timers
+## Timers 
 
 Saved, reusable presets — duration, label, sound, vibration. A running timer
 counts down on its card and in a notification with **+30 s**, **−30 s**, and
