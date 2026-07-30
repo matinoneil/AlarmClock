@@ -122,9 +122,11 @@ proposed, investigated and ruled out. Re-proposing any of it costs a session.
 - **Adding androidx.profileinstaller explicitly** - no-op, #75/#76: it is already in the APK transitively via Compose.
 - **V2.1.8 as a cause, dependency drift, build variant, classic nested-scroll conflicts, the minute ticker, the rings-in computation** - all ruled out, #73/#75.
 
-Still live: **hypothesis 4, ART optimisation state** (#75/#76) - under test
-on-device as of V2.2. Do not ship a release the maintainer would install
-during that window; a new APK restarts the clock.
+- **The scroll clunkiness itself** - CLOSED, #100: the maintainer states it is
+  fine in use. Nothing here is under test any more, the release freeze that
+  applied while hypothesis 4 (ART optimisation state) was being observed is
+  LIFTED, and the Compose 1.7 upgrade that #73 floated as the candidate fix is
+  no longer motivated by it.
 
 **Rule earned the hard way (#75/#76):** do not diagnose rendering, layout or
 gesture behaviour by reading code in the dev sandbox. It cannot build, run or
@@ -2763,3 +2765,26 @@ entry #1.
     banner was identified as residue rather than a live finding. Deleting the
     configuration from that status page cleared it. Decoding the id is a
     generally useful trick for attributing a code-scanning banner to a file.
+
+100. **Scroll clunkiness (#73/#75/#76): CLOSED, no fix ever shipped.** The
+    maintainer, asked directly, reports the clunkiness is fine in use. That ends an
+    investigation that ran across five attempts and produced four wrong answers
+    and one wasted release (V2.1.9, a behavioural no-op with inaccurate notes).
+    Hypothesis 4 (ART optimisation state) was the last one standing and was
+    under on-device observation from V2.2; it is neither confirmed nor refuted,
+    it simply stopped mattering. Recorded that way deliberately rather than as
+    "resolved by X", because nothing was changed to resolve it.
+    TWO CONSTRAINTS LIFT WITH IT, which is the practical point of this entry.
+    (a) The release freeze -- "do not ship a release the maintainer would install
+    during the observation window, a new APK restarts the clock" -- no longer
+    applies; release normally. (b) The Compose BOM 2024.06.00 -> 1.7 upgrade,
+    floated in #73 because the Pager APIs stop being @ExperimentalFoundationApi
+    in foundation 1.7, loses its only concrete payoff. #20(f) still wants the
+    stack modernised eventually, but there is now no bug pulling it forward, and
+    the standing rule holds: a Compose or Kotlin bump on an app that cannot be
+    built or tested in the sandbox is its own on-device-tested release, never a
+    drive-by.
+    WHAT SURVIVES UNCHANGED: the rule earned here -- do not diagnose rendering,
+    layout or gesture behaviour by reading code in the sandbox -- and every
+    ruled-out cause listed under "Dead ends". Those were established against the
+    code and remain true regardless of how the symptom ended.
