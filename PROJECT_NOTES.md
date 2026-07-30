@@ -2708,6 +2708,10 @@ entry #1.
     all, which is the property worth keeping (the wrong function is not in
     scope where Done is implemented). saveReminder and the #64 preview still
     use nextOccurrenceAfter, correctly.
+    RELEASED AS V2.3.7 (commit 7073ca2), cut by Claude at the maintainer's
+    explicit request, one release after V2.3.6 shipped the feature this fixes.
+    #98 is its only change, so V2.3.6 is the bisect point if the roll misbehaves
+    in some new way.
     UNVERIFIED: not compiled or run. The specific thing to retest is the exact
     report -- a daily reminder due in 2 h, editor button, expect "in 1 d 2 h" on
     the card AND the dialog naming tomorrow rather than today before you
