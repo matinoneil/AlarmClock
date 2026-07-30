@@ -6,7 +6,7 @@ Android 8.0+ (API 26), though only ever tested on current Android.
 The app exists mainly for one feature: **alarm series** — batches of fully
 independent alarms generated from a single definition.
 
-## Alarm series
+## Alarm series 
 
 A series is defined by a start time, an interval, and a duration — "from 07:00,
 every 5 minutes, for 45 minutes" — and expands into ten real alarms. Each is
