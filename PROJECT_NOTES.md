@@ -2661,3 +2661,42 @@ entry #1.
     else since V2.3.5 is docs and the CodeQL workflow -- so if reminders
     misbehave, V2.3.5 is the clean bisect point.
     UNVERIFIED: not compiled or run. Nothing in #97 has been on a device.
+
+98. **[OPEN] "Mark this one done" is a no-op on a reminder that has not fired
+    yet -- it rolls to the occurrence it is already on.** Reported on device
+    against V2.3.6: a daily reminder due in 2 h still said "in 2 h" after using
+    #97's editor button; expected "in 1 d 2 h".
+    ROOT CAUSE, and it is a question-mismatch rather than broken arithmetic:
+    nextOccurrenceAfter starts at dueAtMillis and advances only
+    `while (t <= nowMillis)`. For a FUTURE dueAt the loop runs zero times and
+    returns dueAtMillis unchanged, so markDone writes the same date back and
+    reschedules the same instant. Correct for that function's own contract --
+    "the next on-pattern occurrence strictly after now" IS the current dueAt
+    when dueAt is still ahead -- and wrong for Done, which needs "the next
+    occurrence after THE ONE I JUST COMPLETED".
+    LATENT SINCE #54, NOT INTRODUCED BY #97: the pre-#97 list checkmark called
+    markDone the same way, so checking off a not-yet-fired repeating reminder
+    was always a no-op and #54's snackbar always announced the unchanged date.
+    It was invisible because the natural moment to check a reminder off is once
+    it has fired (ACTIVE, dueAt <= now, loop advances once). #97 made the
+    future case the PRIMARY way the feature is used, which is why it surfaced
+    immediately. My dialog also previewed the same wrong value, so the two
+    agreed with each other and neither agreed with the user.
+    INTENDED FIX: roll from max(now, dueAtMillis) instead of now. Overdue rows
+    are unaffected (max == now, identical catch-up behaviour); a future row
+    advances exactly one step. Going in a NAMED helper in Reminder.kt rather
+    than a maxOf() inlined at each call site, so the two callers cannot drift
+    and the distinction from nextOccurrenceAfter is documented where both are
+    read. nextOccurrenceAfter ITSELF STAYS AS IS -- AlarmRepository.saveReminder
+    depends on its current meaning behind a `dueAtMillis <= now` guard.
+    PRIOR ART 300 LINES AWAY: the editor's "Next: x · y · z" preview (#64)
+    already does this by hand -- `if (cursor.dueAtMillis > now) cursor.dueAtMillis
+    else nextOccurrenceAfter(cursor, now)` and then stepping with the previous
+    hit as the `from`. That preview has always been right; the Done path never
+    borrowed the trick. Worth reading it before touching this.
+    BOTH CALL SITES CHANGE: ReminderOps.markDone and #97's confirm dialog
+    preview, which must show what will actually happen.
+    NOTIFICATION PATHS UNAFFECTED BY DESIGN, which matters because the
+    maintainer froze them in #97: notification Done and the one-and-done swipe
+    both act on an ACTIVE row (dueAt <= now), so max(now, dueAt) == now and
+    their behaviour is bit-for-bit what it was.
