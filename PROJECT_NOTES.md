@@ -2656,6 +2656,19 @@ entry #1.
     runtime.mutableStateOf import (it only used mutableLongStateOf), so the new
     dialog state would not have compiled. Check the import block, not just the
     diff, when adding remembered state to a file.
+    ASKED AND ANSWERED, recorded because it will be asked again: can the
+    NOTIFICATION's Done archive a repeating reminder? Effectively no. Exactly
+    three places write STATE_DONE -- complete() (list checkmark, confirmed),
+    delete() (editor trash, confirmed, and note this is a SECOND in-app route
+    into the faded section, not just the checkmark), and markDoneLocked's else
+    branch. That last one archives a repeating reminder only when
+    occurrenceAfterCompleting returns null, i.e. nextOccurrenceAfter's two
+    guards: a pattern that fails to strictly advance (not reachable -- every
+    repeat type adds >= a day) or a catch-up exceeding 5000 steps (~13 years
+    daily, ~96 weekly). It Log.e's first. Deliberate fail-safe, kept on purpose:
+    a reminder whose next occurrence cannot be computed is better visibly
+    archived than sitting active with nothing armed. Do not "fix" it into
+    leaving the row PENDING without asking.
     PARTLY VERIFIED, see #98: the editor's per-occurrence button and its dialog
     work on device (confirmed after V2.3.7, which fixed the roll they drive).
     The list checkmark -> confirm -> complete path is still UNTESTED.
