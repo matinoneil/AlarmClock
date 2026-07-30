@@ -53,6 +53,12 @@ Consequences that follow from this:
 - Release tags are plain incremental `Vx.x.x` (capital V), pushed as full releases (no
   pre-release/beta convention in use). Published tags are immutable — a follow-up fix is a new
   patch tag, never a moved tag.
+- **Run `git fetch --tags` before saying anything about what is or isn't released.** Releases are
+  created on GitHub, not tagged locally, so this checkout's tag list is routinely behind. A session
+  once told the maintainer six commits were unreleased when the tag for exactly those commits
+  already existed on the remote. Note that `git rev-parse --short HEAD origin/main` (two refs, one
+  call) fails in the maintainer's fish shell with "Needed a single revision" — resolve refs one per
+  call.
 - Room schema JSON is exported to `app/schemas/` at *build* time (`exportSchema = true`); commit it
   after a schema-changing build so migrations are reviewable.
 - `R8`/minification is deliberately **off** (`isMinifyEnabled = false`) — treated as a separate risk
@@ -68,6 +74,28 @@ Write release notes unprompted after every push (see PROJECT_NOTES.md's "Standin
 agreements" for the exact format: `### Fixed`/`### Added`/`### Improved`/`### Note` sections,
 user-visible language, one bullet per line with no manual wrapping, delivered as a fenced markdown
 code block, and — per entry #28 — **no trailing tag/commit footer inside the release text itself**).
+
+Commits are the maintainer's name alone. Attribution is disabled in their Claude Code settings
+(`attribution: { commit: "", pr: "" }`), so no `Co-Authored-By: Claude` trailer is added — do not
+hand-write one back into a commit message as a courtesy. Commits up to and including `4751e73`
+predate this and still carry the old trailer; leave them, since rewriting would mean force-pushing
+over an immutable published tag.
+
+Edits land only in this local checkout. Committing and pushing are separate, explicit steps taken
+when the maintainer asks — not automatically after a change. Nothing reaches the phone until they
+tag a release on top of that.
+
+## Session hygiene
+
+Conversation context does not survive quitting the CLI; the repo is what carries state forward.
+Two consequences:
+
+- **Anything worth keeping goes in a file** — PROJECT_NOTES.md for the "why" of a change, this file
+  for standing constraints. A conclusion that exists only in a transcript is lost the moment the
+  session ends.
+- **A prior session is often recoverable** — `claude --continue` resumes the most recent session in
+  this directory, `claude --resume` offers a picker. Suggest this before re-deriving context or
+  asking the maintainer to re-explain a bug they already described.
 
 ## Architecture
 
