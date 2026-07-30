@@ -104,6 +104,10 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         repository.markReminderDone(reminder.id)
     }
 
+    fun completeReminder(reminder: Reminder) = viewModelScope.launch {
+        repository.completeReminder(reminder.id)
+    }
+
     fun clearDoneReminders() = viewModelScope.launch {
         repository.clearDoneReminders()
     }

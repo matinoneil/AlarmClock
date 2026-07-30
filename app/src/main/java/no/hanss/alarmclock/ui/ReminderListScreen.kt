@@ -15,18 +15,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,8 +36,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import no.hanss.alarmclock.data.nextOccurrenceAfter
 import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.data.describeRepeat
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
@@ -71,7 +71,9 @@ internal fun reminderWhenLabel(millis: Long): String {
 
 /**
  * The Reminders tab body: pending/active reminders up top (due-order), done
- * one-shots as a faded history section at the bottom with a Clear action.
+ * ones (completed, retired or expired -- #97 sends repeating reminders here
+ * too) as a faded history section at the bottom. Clear history is in Settings
+ * (#56).
  * Lives inside HomeScreen's Scaffold, same as the other tab contents.
  */
 @Composable
@@ -82,7 +84,36 @@ fun ReminderListContent(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
+
+    // #97: the checkmark completes the reminder outright, so it gets a confirm
+    // (#52's precedent for a one-tap action with no visible undo). Holding the
+    // target row rather than a boolean keeps the dialog correct if the list
+    // recomposes underneath it.
+    var confirmComplete by remember { mutableStateOf<Reminder?>(null) }
+
+    confirmComplete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { confirmComplete = null },
+            title = { Text("Mark complete?") },
+            text = {
+                Text(
+                    if (target.isRepeating)
+                        "This ends the repeat. It moves down to the faded reminders below, where you can edit it to start it again or delete it."
+                    else
+                        "It moves down to the faded reminders below, where you can edit it to bring it back or delete it."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.completeReminder(target)
+                    confirmComplete = null
+                }) { Text("Complete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmComplete = null }) { Text("Cancel") }
+            }
+        )
+    }
 
     // Minute-granularity clock for the "in X" labels, aligned to wall clock
     // minute boundaries -- same shared-ticker pattern as the alarm list.
@@ -106,21 +137,12 @@ fun ReminderListContent(
                 reminder = reminder,
                 nowMillis = nowMillis,
                 onClick = { onEditReminder(reminder) },
-                onDone = {
-                    // A repeating reminder rolls forward and STAYS in the
-                    // list (by design -- completing this week's must not
-                    // kill the series), which without feedback reads as a
-                    // no-op (entry #54). Announce where it went.
-                    if (reminder.isRepeating) {
-                        val next = nextOccurrenceAfter(reminder, System.currentTimeMillis())
-                        if (next != null) {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Done — next ${reminderWhenLabel(next)}")
-                            }
-                        }
-                    }
-                    viewModel.markReminderDone(reminder)
-                }
+                // #97: the checkmark now COMPLETES the reminder -- a repeating
+                // one ends here rather than rolling to its next occurrence,
+                // which is the editor's per-occurrence button now. #54's
+                // snackbar moved there with it; completing needs no
+                // announcement because the card visibly fades and sinks.
+                onDone = { confirmComplete = reminder }
             )
         }
 

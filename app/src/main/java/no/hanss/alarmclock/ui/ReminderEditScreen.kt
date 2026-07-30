@@ -141,6 +141,15 @@ fun ReminderEditScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // #97: the per-occurrence "done" action -- what the list checkmark did
+    // before it became Complete. Offered only for an already-SAVED repeating
+    // row, because the op acts on what is in the database; the local editor
+    // state may hold a different, unsaved repeat pattern and must not decide
+    // this. Read into a local so it smart-casts off the delegated var.
+    var showOccurrenceConfirm by remember { mutableStateOf(false) }
+    val savedRow = existing
+    val canMarkOccurrenceDone = savedRow != null && savedRow.isRepeating &&
+        savedRow.state != Reminder.STATE_DONE
 
     val interval = intervalText.toIntOrNull()?.coerceIn(1, 999) ?: 1
     val isRepeating = repeatType != Reminder.REPEAT_NONE
@@ -149,6 +158,41 @@ fun ReminderEditScreen(
     // a past one-shot would fire the instant it's saved, so it's blocked.
     val saveBlockedByPast = dueInPast && !isRepeating
     val canSave = text.isNotBlank() && !saveBlockedByPast
+
+    // ?.let rather than an `if (... && savedRow != null)` block: `row` is then
+    // a non-null lambda parameter, so nothing inside the nested dialog lambdas
+    // depends on a smart cast holding -- not worth betting a build on from a
+    // sandbox that cannot compile.
+    if (showOccurrenceConfirm) savedRow?.let { row ->
+        val next = nextOccurrenceAfter(row, System.currentTimeMillis())
+        AlertDialog(
+            onDismissRequest = { showOccurrenceConfirm = false },
+            title = { Text("Mark this one done?") },
+            text = {
+                Text(
+                    (if (next != null) "The reminder stays active and comes back ${reminderWhenLabel(next)}."
+                    else "The reminder stays active.") +
+                        " Unsaved changes on this screen are discarded."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    // Leaves the screen on purpose: this rolls dueAtMillis in
+                    // the database, and the editor's local copy would then be
+                    // stale -- a later Save rebuilds the row from that local
+                    // state and would write the OLD dueAt straight back,
+                    // silently undoing the roll. Do not turn this into an
+                    // in-place update without solving that write-back.
+                    viewModel.markReminderDone(row)
+                    showOccurrenceConfirm = false
+                    onDone()
+                }) { Text("Mark done") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOccurrenceConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     if (showDeleteConfirm && existing != null) {
         val isHistory = existing!!.state == Reminder.STATE_DONE
@@ -507,6 +551,17 @@ fun ReminderEditScreen(
                         onSelect = { reshowMinutes = it }
                     )
                 }
+            }
+
+            if (canMarkOccurrenceDone) {
+                OutlinedButton(
+                    onClick = { showOccurrenceConfirm = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Mark this one done, keep repeating")
+                }
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             Button(

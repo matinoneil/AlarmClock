@@ -92,6 +92,29 @@ object ReminderOps {
     }
 
     /**
+     * #97: complete the reminder outright -- what the list checkmark now does.
+     * A repeating reminder ENDS here instead of rolling to its next occurrence
+     * ([markDone]'s job, now reached from the editor): notification and
+     * scheduler cancelled, STATE_DONE, repeat fields kept so the faded history
+     * card still describes itself and editing it re-arms the pattern.
+     *
+     * Deliberately the same transition as [delete]'s live branch (#55) rather
+     * than new state: "completed" and "moved to history" land in the same place
+     * by the maintainer's choice, and no column exists to tell them apart. The
+     * separate name is for the call sites, which mean different things to the
+     * user. Unlike [delete] this NEVER erases -- a DONE row no-ops, so a
+     * checkmark racing something else can't turn into a permanent delete.
+     */
+    suspend fun complete(context: Context, reminderId: Long) = mutex.withLock {
+        val dao = AlarmDatabase.getInstance(context).reminderDao()
+        ReminderNotificationManager(context).cancel(reminderId)
+        ReminderScheduler(context).cancel(reminderId)
+        val reminder = dao.getReminder(reminderId) ?: return@withLock
+        if (reminder.state == Reminder.STATE_DONE) return@withLock
+        dao.update(reminder.copy(state = Reminder.STATE_DONE, snoozedUntilMillis = null))
+    }
+
+    /**
      * The notification was dismissed without Done (#57). Rearm the reminder's
      * single scheduler slot at now + the configured re-show delay -- much
      * sooner than the daily re-alert it replaces in that slot. When it fires,

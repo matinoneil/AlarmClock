@@ -317,6 +317,10 @@ class AlarmRepository(context: Context) {
 
     suspend fun markReminderDone(reminderId: Long) = ReminderOps.markDone(appContext, reminderId)
 
+    // #97: the list checkmark -- ends a repeating reminder instead of rolling
+    // it forward. Same landing place as delete's live branch, different intent.
+    suspend fun completeReminder(reminderId: Long) = ReminderOps.complete(appContext, reminderId)
+
     suspend fun clearDoneReminders() = reminderDao.deleteDoneReminders()
 
     // --- Backup / restore ---
