@@ -2583,3 +2583,50 @@ entry #1.
     expired to idle rather than ringing it late. Restore should do the same, and
     the reset must happen BEFORE refreshRunningTimers() or that will post for a
     row about to be cleared.
+
+97. **[OPEN] No way to finish a repeating reminder off -- the list checkmark
+    always rolls it to the next occurrence.** Requested: checking off a
+    repeating reminder in the list should COMPLETE it (cross it off, into the
+    faded history under the active list, deletable from there), and the
+    per-occurrence "done, roll forward" action moves to a button inside the
+    editor.
+    SYMPTOM AS REPORTED: pressing the checkmark on a daily reminder "just skips
+    the one reminder for today". Accurate -- markDone on a repeating row rolls
+    dueAtMillis to the next on-pattern occurrence, stays PENDING and stays in
+    the list (#54, by design). Retiring one has only ever been possible through
+    Delete, which is not what crossing something off should be called.
+    WHAT THIS IS NOT: no new state. Retiring a live reminder is already exactly
+    ReminderOps.delete's live branch (#55) -- cancel notification + scheduler,
+    STATE_DONE, repeat fields kept so the faded card still describes itself,
+    editable back into a live reminder. So Complete and Delete land in the same
+    place on purpose, and the maintainer explicitly wants that: completed rows
+    sit as a shadow under the active list with every other expired reminder.
+    NO SCHEMA CHANGE, decided rather than defaulted -- no completedAt column,
+    history does not distinguish Completed from Deleted. DB stays at 14.
+    INTENDED APPROACH:
+    (a) ReminderOps.complete() -- mutex, cancel notification, cancel scheduler,
+        STATE_DONE. Same transition as delete()'s live branch, separate name so
+        the two intents read differently at the call sites.
+    (b) List checkmark -> complete, behind a CONFIRM DIALOG (the maintainer's
+        choice over a snackbar Undo). One tap where "done for today" used to
+        live now retires the reminder, and #52 set the precedent that a
+        one-tap irreversible-looking action gets a confirm. Wording must not
+        collide with Delete's "Move to history?".
+    (c) Editor gains the old per-occurrence action as a labelled button
+        (repeating, non-history rows only -- meaningless on a one-shot).
+    (d) THE TRAP IN (c), and the reason it is not just a button: the editor
+        holds dueAtMillis in local state and Save rebuilds the row from it via
+        buildCandidate. Rolling the DB row forward while the screen is open
+        leaves that local copy stale, and a subsequent Save would write the OLD
+        dueAt back and re-arm it -- silently undoing the roll. The button
+        therefore performs the op and LEAVES the screen (onDone()), reusing
+        #54's snackbar for the "next ..." feedback. Do not "improve" this into
+        an in-place update without solving the write-back.
+    ONE-SHOTS UNAFFECTED: checkmark already meant STATE_DONE for them, so the
+    new semantics are identical there.
+    NOTIFICATION "Done" UNCHANGED -- still per-occurrence. Changing it would
+    interact with the nag/re-alert loop (#59/#61/#92) for no requested gain.
+    OUT OF SCOPE, flagged not built: the faded history card has no delete
+    affordance of its own (tap -> editor -> trash, or Settings' Clear history
+    per #56). "I can delete them from there" is true via that path; if a
+    per-card delete is wanted it is a separate change.
