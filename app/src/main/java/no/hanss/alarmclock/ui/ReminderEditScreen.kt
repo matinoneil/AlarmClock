@@ -56,6 +56,7 @@ import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.data.SettingsStore
 import no.hanss.alarmclock.data.alignDueAtToPattern
 import no.hanss.alarmclock.data.nextOccurrenceAfter
+import no.hanss.alarmclock.data.occurrenceAfterCompleting
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
 import java.util.Calendar
 import java.util.TimeZone
@@ -164,7 +165,9 @@ fun ReminderEditScreen(
     // depends on a smart cast holding -- not worth betting a build on from a
     // sandbox that cannot compile.
     if (showOccurrenceConfirm) savedRow?.let { row ->
-        val next = nextOccurrenceAfter(row, System.currentTimeMillis())
+        // #98: same call the op makes, so the dialog cannot promise a date
+        // that markDone will not produce.
+        val next = occurrenceAfterCompleting(row, System.currentTimeMillis())
         AlertDialog(
             onDismissRequest = { showOccurrenceConfirm = false },
             title = { Text("Mark this one done?") },

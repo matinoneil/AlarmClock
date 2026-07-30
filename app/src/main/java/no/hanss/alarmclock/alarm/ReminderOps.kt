@@ -7,7 +7,7 @@ import kotlinx.coroutines.sync.withLock
 import no.hanss.alarmclock.data.AlarmDatabase
 import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.data.SettingsStore
-import no.hanss.alarmclock.data.nextOccurrenceAfter
+import no.hanss.alarmclock.data.occurrenceAfterCompleting
 
 private const val TAG = "ReminderOps"
 
@@ -77,13 +77,16 @@ object ReminderOps {
         scheduler.cancel(reminderId)
         val reminder = dao.getReminder(reminderId) ?: return
 
-        val next = if (reminder.isRepeating) nextOccurrenceAfter(reminder, System.currentTimeMillis()) else null
+        // #98: occurrenceAfterCompleting, NOT nextOccurrenceAfter -- the latter
+        // returns the current occurrence unchanged when dueAt is still in the
+        // future, which made Done a no-op on a reminder that had not fired yet.
+        val next = if (reminder.isRepeating) occurrenceAfterCompleting(reminder, System.currentTimeMillis()) else null
         if (next != null) {
             dao.update(reminder.copy(state = Reminder.STATE_PENDING, dueAtMillis = next, snoozedUntilMillis = null))
             scheduler.schedule(reminderId, next)
         } else {
             if (reminder.isRepeating) {
-                // nextOccurrenceAfter only returns null for a repeating
+                // occurrenceAfterCompleting only returns null for a repeating
                 // reminder on its runaway guard -- degrade to done, loudly.
                 Log.e(TAG, "Repeating reminder $reminderId had no computable next occurrence; marking done")
             }

@@ -216,6 +216,25 @@ fun nextOccurrenceAfter(reminder: Reminder, nowMillis: Long): Long? {
     return t
 }
 
+/**
+ * #98: the occurrence to roll to when the CURRENT one has just been completed.
+ *
+ * Distinct from [nextOccurrenceAfter] on purpose. That one answers "the next
+ * on-pattern occurrence strictly after a moment in time", so when
+ * [Reminder.dueAtMillis] is still in the future it correctly returns dueAt
+ * itself -- which as a Done handler is a silent no-op: the reminder rolls to
+ * the occurrence it is already sitting on. Rolling from max(now, dueAt)
+ * forces at least one step past the occurrence being completed, while leaving
+ * the overdue case (dueAt <= now, catch up past several missed occurrences)
+ * bit-for-bit as it was.
+ *
+ * Use this for anything that means "this one is handled". Use
+ * [nextOccurrenceAfter] only when the question really is about now --
+ * AlarmRepository.saveReminder does, behind its own `dueAtMillis <= now` guard.
+ */
+fun occurrenceAfterCompleting(reminder: Reminder, nowMillis: Long): Long? =
+    nextOccurrenceAfter(reminder, maxOf(nowMillis, reminder.dueAtMillis))
+
 private fun isoDayOf(cal: Calendar): Int {
     // Calendar: Sunday=1..Saturday=7 -> ISO: Monday=1..Sunday=7.
     val d = cal.get(Calendar.DAY_OF_WEEK)

@@ -2662,8 +2662,8 @@ entry #1.
     misbehave, V2.3.5 is the clean bisect point.
     UNVERIFIED: not compiled or run. Nothing in #97 has been on a device.
 
-98. **[OPEN] "Mark this one done" is a no-op on a reminder that has not fired
-    yet -- it rolls to the occurrence it is already on.** Reported on device
+98. **"Mark this one done" was a no-op on a reminder that had not fired yet --
+    it rolled to the occurrence it was already on.** Reported on device
     against V2.3.6: a daily reminder due in 2 h still said "in 2 h" after using
     #97's editor button; expected "in 1 d 2 h".
     ROOT CAUSE, and it is a question-mismatch rather than broken arithmetic:
@@ -2700,3 +2700,16 @@ entry #1.
     maintainer froze them in #97: notification Done and the one-and-done swipe
     both act on an ACTIVE row (dueAt <= now), so max(now, dueAt) == now and
     their behaviour is bit-for-bit what it was.
+    WHAT SHIPPED: a new `occurrenceAfterCompleting(reminder, now)` in
+    Reminder.kt -- one line, `nextOccurrenceAfter(reminder, maxOf(now,
+    reminder.dueAtMillis))` -- with the doc comment carrying the distinction so
+    the next reader picks the right one. ReminderOps.markDone and #97's confirm
+    dialog both call it; ReminderOps no longer imports nextOccurrenceAfter at
+    all, which is the property worth keeping (the wrong function is not in
+    scope where Done is implemented). saveReminder and the #64 preview still
+    use nextOccurrenceAfter, correctly.
+    UNVERIFIED: not compiled or run. The specific thing to retest is the exact
+    report -- a daily reminder due in 2 h, editor button, expect "in 1 d 2 h" on
+    the card AND the dialog naming tomorrow rather than today before you
+    confirm. Also worth one check that notification Done on a repeating
+    reminder still rolls forward exactly once, since that shares the code path.
