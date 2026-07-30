@@ -1,7 +1,7 @@
 # AlarmClock
 
 An Android alarm clock app built with Kotlin and Jetpack Compose. Requires
-Android 8.0+ (API 26), though only ever tested on current Android.
+Android 8.0+ (API 26), though it has only ever been tested on current Android.
 
 The app exists mainly for one feature: **alarm series** — batches of fully
 independent alarms generated from a single definition.
