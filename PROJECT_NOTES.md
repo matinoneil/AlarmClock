@@ -2636,6 +2636,22 @@ entry #1.
     to MainActivity so the editor could post a snackbar after popBackStack was
     considered and rejected as too much surface for one message -- HomeScreen's
     `remember { SnackbarHostState() }` does not survive the navigation anyway.
+    DECIDED AND CLOSED, do not reopen: the confirm dialog offers ONE action.
+    Putting "Just this one" beside "Complete" as a two-option done-menu was
+    offered and declined -- skipping an occurrence is to be reachable ONLY from
+    the reminder's own screen inside the app, which is the whole point of moving
+    it there. A dialog with both would put the rare action one tap from the
+    frequent one, the exact collision (b) exists to avoid.
+    NOTIFICATION ACTIONS ARE FROZEN, per the maintainer: "don't change the
+    android buttons". Done and Snooze on the notification behave exactly as they
+    did before #97, no confirm (a notification action cannot raise a dialog
+    anyway), because non-repeating reminders are mostly handled from the shade
+    and that path has to stay one tap. NOTE THE ONE INCONSISTENCY THIS LEAVES,
+    accepted knowingly rather than missed: notification-Done on a REPEATING
+    reminder still rolls it to the next occurrence, so a per-occurrence skip IS
+    reachable from outside the app after all. Leave it. Making it complete the
+    reminder instead would change the notification, and confirmless completion
+    from the shade is worse than the inconsistency.
     A MISSING IMPORT CAUGHT BY LOOKING: ReminderListScreen had no
     runtime.mutableStateOf import (it only used mutableLongStateOf), so the new
     dialog state would not have compiled. Check the import block, not just the
