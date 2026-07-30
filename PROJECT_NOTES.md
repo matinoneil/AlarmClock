@@ -2717,3 +2717,15 @@ entry #1.
     the card AND the dialog naming tomorrow rather than today before you
     confirm. Also worth one check that notification Done on a repeating
     reminder still rolls forward exactly once, since that shares the code path.
+
+99. **CodeQL scanning turned OFF, deliberately -- do not re-add it.** The
+    "CodeQL Advanced" workflow (added f66dda3, removed 7f62f91) ran on every
+    push to main, every PR and a weekly cron. Removed at the maintainer's
+    request; the workflow file WAS the whole mechanism here, so deleting it is
+    the off switch. build-apk.yml is untouched and releases still build.
+    If a future session thinks security scanning would be a nice addition:
+    it was had and dropped on purpose. Ask first.
+    NOT REACHABLE FROM THIS SANDBOX: the code-scanning REST endpoints return
+    403 for a repo-scoped PAT, so whether GitHub's separate "default setup" is
+    also enabled, and any alerts already filed, can only be seen and cleared in
+    the web UI by the maintainer.
