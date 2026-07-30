@@ -2656,6 +2656,9 @@ entry #1.
     runtime.mutableStateOf import (it only used mutableLongStateOf), so the new
     dialog state would not have compiled. Check the import block, not just the
     diff, when adding remembered state to a file.
+    PARTLY VERIFIED, see #98: the editor's per-occurrence button and its dialog
+    work on device (confirmed after V2.3.7, which fixed the roll they drive).
+    The list checkmark -> confirm -> complete path is still UNTESTED.
     RELEASED AS V2.3.6 (commit 4b9f471), cut by Claude at the maintainer's
     explicit request. #97 is the ONLY user-visible change in it -- everything
     else since V2.3.5 is docs and the CodeQL workflow -- so if reminders
@@ -2712,11 +2715,19 @@ entry #1.
     explicit request, one release after V2.3.6 shipped the feature this fixes.
     #98 is its only change, so V2.3.6 is the bisect point if the roll misbehaves
     in some new way.
-    UNVERIFIED: not compiled or run. The specific thing to retest is the exact
-    report -- a daily reminder due in 2 h, editor button, expect "in 1 d 2 h" on
-    the card AND the dialog naming tomorrow rather than today before you
-    confirm. Also worth one check that notification Done on a repeating
-    reminder still rolls forward exactly once, since that shares the code path.
+    VERIFIED ON DEVICE after V2.3.7: the maintainer confirmed a reminder now
+    rolls forward when marked done. So occurrenceAfterCompleting is right, and
+    #97's editor path is exercised end to end with it -- the button appears for
+    a repeating row, the dialog opens, and the roll persists.
+    WHAT THAT DOES **NOT** COVER, stated because #92/#93 went wrong exactly here
+    by reading one confirmation as covering everything shipped alongside it:
+    (a) #97's list checkmark -> confirm -> complete -> faded section, for either
+        a repeating or a one-shot reminder; (b) editing a faded card back into a
+        live reminder; (c) notification Done on a REPEATING reminder still
+        advancing exactly ONE occurrence, which shares the changed call and
+        would over-advance if maxOf() ever picked dueAt where it should pick
+        now. (c) is the one with a plausible failure mode -- worth a look if a
+        repeating reminder ever seems to skip a day.
 
 99. **CodeQL scanning turned OFF, deliberately -- do not re-add it.** The
     "CodeQL Advanced" workflow (added f66dda3, removed 7f62f91) ran on every
