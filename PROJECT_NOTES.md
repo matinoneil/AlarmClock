@@ -2729,3 +2729,13 @@ entry #1.
     403 for a repo-scoped PAT, so whether GitHub's separate "default setup" is
     also enabled, and any alerts already filed, can only be seen and cleared in
     the web UI by the maintainer.
+    CONFIRMED OFF by the maintainer: he pushed a README change specifically to
+    see whether anything CodeQL appeared in Actions, and nothing did.
+    THE LEFTOVERS, since they look alarming and are not: the settings row kept
+    saying "Advanced setup / Last scan N minutes ago", and the security page
+    showed "CodeQL is reporting warnings" against a stale configuration. That
+    configuration id in the URL is base32 -- it decoded to
+    `.github/workflows/codeql.yml`, i.e. the deleted file, which is how the
+    banner was identified as residue rather than a live finding. Deleting the
+    configuration from that status page cleared it. Decoding the id is a
+    generally useful trick for attributing a code-scanning banner to a file.

@@ -38,8 +38,10 @@ preview of the next three occurrences while configuring. Each reminder decides
 how insistent it is: re-alert on a schedule until marked done, come back after
 being swiped away (up to instantly), both, or neither ("one and done" — then a
 swipe marks it done). There is always exactly one notification per reminder,
-and it survives reboots. Completed and deleted reminders remain as faded
-history; Clear history lives in Settings.
+and it survives reboots. Checking a reminder off in the list completes it for
+good, repeating ones included; to handle just the current occurrence and keep
+the repeat going, open the reminder and use **Mark this one done**. Completed
+and deleted reminders remain as faded history; Clear history lives in Settings.
 
 ## Other features
 
