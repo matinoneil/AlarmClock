@@ -2656,4 +2656,8 @@ entry #1.
     runtime.mutableStateOf import (it only used mutableLongStateOf), so the new
     dialog state would not have compiled. Check the import block, not just the
     diff, when adding remembered state to a file.
-    UNVERIFIED: not compiled or run.
+    RELEASED AS V2.3.6 (commit 4b9f471), cut by Claude at the maintainer's
+    explicit request. #97 is the ONLY user-visible change in it -- everything
+    else since V2.3.5 is docs and the CodeQL workflow -- so if reminders
+    misbehave, V2.3.5 is the clean bisect point.
+    UNVERIFIED: not compiled or run. Nothing in #97 has been on a device.
