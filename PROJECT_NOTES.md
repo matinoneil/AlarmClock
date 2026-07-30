@@ -2788,3 +2788,31 @@ entry #1.
     layout or gesture behaviour by reading code in the sandbox -- and every
     ruled-out cause listed under "Dead ends". Those were established against the
     code and remain true regardless of how the symptom ended.
+
+101. **The overscroll cushion is back on, reverting the first half of #76.**
+    Requested by the maintainer. `CompositionLocalProvider(LocalOverscrollConfiguration
+    provides null)` is gone from MainActivity's `setContent`, so Compose's default
+    stretch overscroll returns everywhere below it: all three tabs, Settings and
+    every editor.
+    THE #76 EDGE DELAY COMES BACK WITH IT, BY DESIGN. Reaching the bottom and
+    immediately swiping up will again spend the first part of the gesture paying
+    back the stretch, because OverscrollEffect consumes scroll delta before the
+    list sees it. That is not a regression and must not be "re-fixed" -- #76
+    disabled the cushion to chase the #73/#75/#76 lag, #100 closed that saga with
+    the maintainer reporting the feel is fine, and the bounce was then asked for
+    back. The trade is simply being taken the other way round now, knowingly.
+    NOT TOUCHED: the baseline profile, #76's second half. The two shipped together
+    in V2.2 but are independent and independently revertable, and the profile is a
+    pure compilation hint with no behavioural effect -- nothing about closing the
+    lag investigation argues for removing it.
+    `@OptIn(ExperimentalFoundationApi::class)` on `onCreate` was KEPT although
+    nothing in the file needs it any more. Deliberate, per #41's asymmetry: a
+    redundant OptIn is a warning, a missing one is a broken build, and the sandbox
+    still cannot compile to prove which. Delete it freely if a real build ever
+    confirms it is dead.
+    UNCHANGED ELSEWHERE: RingingActivity and ReminderSnoozeActivity have their own
+    `setContent` and never had the provider, so they were already on default
+    overscroll -- #76's note about adding it there if they grow a long list is now
+    moot.
+    Purely visual: no scheduling, DB, service or notification code touched.
+    UNVERIFIED until installed, as always.

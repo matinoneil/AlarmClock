@@ -12,8 +12,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.LocalOverscrollConfiguration
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -155,15 +153,16 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) requestNextMissingPermission()
 
         setContent {
-            // Entry #76: the stretch overscroll at a list edge has to be "paid
-            // back" before the container scrolls again -- OverscrollEffect consumes
-            // scroll delta BEFORE the list sees it, and subtracts the outstanding
-            // overscroll first when the drag reverses. Reaching the bottom and
-            // immediately swiping up therefore spent the first part of the gesture
-            // discharging the spring instead of scrolling. null disables it for
-            // every scrollable below here: the tabs, Settings and all the editors.
-            // Purely visual -- no scheduling, DB, service or notification code.
-            CompositionLocalProvider(LocalOverscrollConfiguration provides null) {
+            // Entry #101: the stretch overscroll ("cushion") is back on, restoring
+            // Compose's default. #76 disabled it app-wide to kill the edge-swipe
+            // delay -- OverscrollEffect consumes scroll delta BEFORE the list sees
+            // it and pays back the outstanding stretch first when a drag reverses,
+            // so hitting the bottom and swiping straight up spent the first part of
+            // the gesture discharging the spring. That trade (no bounce anywhere,
+            // edges stop dead) was accepted while the #73/#75/#76 lag saga was open;
+            // the maintainer has since closed that out (#100) and asked for the
+            // bounce back, so the delay comes back with it BY DESIGN. Do not
+            // "re-fix" it as a bug -- see #101 before touching this.
             AlarmClockTheme {
                 val navController = rememberNavController()
 
@@ -241,7 +240,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-            }
             }
         }
     }
