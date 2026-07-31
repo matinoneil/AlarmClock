@@ -2816,3 +2816,29 @@ entry #1.
     moot.
     Purely visual: no scheduling, DB, service or notification code touched.
     UNVERIFIED until installed, as always.
+
+102. **Licence files: offered and DECLINED, 2026-07-31. Do not re-raise.** Came
+    up in a "what other features would make sense" pass. Two separate things,
+    both declined together:
+    (a) a `LICENSE` for this repo's own code. There is none, so it is all rights
+        reserved -- viewable and forkable on GitHub, no right to use or modify.
+        That is a preference and the default is a legitimate answer; no
+        obligation either way.
+    (b) an open-source-licences screen or `NOTICE` covering the Apache 2.0
+        dependencies (Compose, Room, AndroidX) shipped inside the APK.
+        Redistributing those binaries is conditioned on passing the licence text
+        and attribution notices along, and publishing signed APKs from a public
+        repo IS redistribution, so this one is an unmet condition rather than a
+        preference. Flagged as unmet in the "THE REPO IS PUBLIC" section above,
+        which predates this entry -- that flag stands as a factual statement and
+        is not a to-do.
+    WHY DECLINED, so it is not relitigated: the practical stakes are nil. One
+    star, no forks, a personal alarm clock nobody is going to pursue. The
+    maintainer weighed it and said skip; that is the decision, not an oversight.
+    IF IT IS EVER REOPENED, the cheapest form is a static "Open-source licences"
+    row in Settings listing the deps and bundling the Apache 2.0 text -- no
+    network, no new permission, no dependency. The Play Services OSS plugin is
+    the usual route and is overkill here.
+    ALSO DECLINED in the same pass: a ring/dismiss history log ("don't see the
+    point" -- single-user app, the data would be looked at twice and never
+    again). Still open and genuinely wanted are #93's two parked reminder items.
