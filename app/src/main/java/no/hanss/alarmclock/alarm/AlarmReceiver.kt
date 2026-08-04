@@ -63,6 +63,21 @@ class AlarmReceiver : BroadcastReceiver() {
                         cancelNotification()
                         refresh()
                     }
+
+                    // #103: and re-arm the bedtime check against the NEXT ring.
+                    // BedtimeNotificationManager.refresh() only schedules its wake-up
+                    // in the "not bedtime yet" branch, so once it has posted for
+                    // tonight nothing re-arms it for tomorrow -- a repeating alarm
+                    // would get exactly one bedtime reminder, ever. A firing alarm is
+                    // the event that makes the next occurrence computable, so this is
+                    // where the chain continues. Guarded separately so a failure here
+                    // cannot skip the widget update below.
+                    try {
+                        BedtimeNotificationManager(context).refresh()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Could not refresh the bedtime reminder", e)
+                    }
+
                     AlarmWidgetUpdater.updateAll(context)
                 }
             } catch (e: Exception) {
