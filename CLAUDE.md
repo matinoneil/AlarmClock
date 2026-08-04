@@ -52,7 +52,8 @@ Consequences that follow from this:
   manually bump versionName/versionCode for a release** — tagging handles it.
 - Release tags are plain incremental `Vx.x.x` (capital V), pushed as full releases (no
   pre-release/beta convention in use). Published tags are immutable — a follow-up fix is a new
-  patch tag, never a moved tag.
+  patch tag, never a moved tag. **No two-digit segments** — after `V2.3.9` the next tag is `V2.4`,
+  not `V2.3.10`; the maintainer asked for this explicitly (PROJECT_NOTES #105).
 - **Run `git fetch --tags` before saying anything about what is or isn't released.** Releases are
   created on GitHub, not tagged locally, so this checkout's tag list is routinely behind. A session
   once told the maintainer six commits were unreleased when the tag for exactly those commits

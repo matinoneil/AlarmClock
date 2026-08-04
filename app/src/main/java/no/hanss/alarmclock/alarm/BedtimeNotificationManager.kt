@@ -32,9 +32,16 @@ private const val GRACE_MILLIS = 30 * 60 * 1000L
 // real remaining time, so it cannot lie and there is nothing to suppress.
 // The floor exists because #103 made every alarm firing call refresh(): mid-way
 // through a series the next member is minutes away, and without it each ring
-// would post "bed now for 5 min of sleep". An hour is comfortably above any
-// sane series interval and below any useful sleep.
-private const val SHORT_NOTICE_MIN_MILLIS = 60 * 60 * 1000L
+// would post "bed now for 5 min of sleep".
+// TWO HOURS, raised from one in #105. A series whose interval clears the floor
+// posts between its own members -- once per member, each one truthful but not
+// wanted -- and the floor is the only thing standing in the way. Two hours
+// covers any interval anyone would plausibly set while still being far less
+// sleep than the reminder is ever configured to protect.
+// NOTE this does NOT gate the on-time post. A bedtimeHoursBefore of 1 (the
+// settings minimum) is reached through the `now < bedtimeAt` branch and its
+// grace, above; the floor only ever suppresses the short-notice branch.
+private const val SHORT_NOTICE_MIN_MILLIS = 2 * 60 * 60 * 1000L
 
 const val ACTION_CHECK_BEDTIME = "no.hanss.alarmclock.action.CHECK_BEDTIME"
 
@@ -94,6 +101,8 @@ class BedtimeNotificationManager(private val context: Context) {
             now < bedtimeAt + GRACE_MILLIS -> postNotification(triggerAt)
             // #104: past the window, but the alarm is still far enough out to be
             // worth saying so. Posts the real remaining time, not `hours`.
+            // Re-posts for the same occurrence if something else calls refresh()
+            // while the alarm sits in this band -- known and accepted (#105).
             triggerAt - now >= SHORT_NOTICE_MIN_MILLIS -> postNotification(triggerAt)
             else -> {
                 // The alarm is imminent -- inside a series, or minutes away. A

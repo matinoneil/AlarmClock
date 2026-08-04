@@ -2912,7 +2912,8 @@ entry #1.
         feature exists for. Consistent with #48's rule that the facts stay visible
         whatever the wording, but it IS a change to what #48 shipped -- flagged to
         the maintainer as such.
-    THE ONE-HOUR FLOOR IS LOAD-BEARING AND IS THERE BECAUSE OF #103. Now that
+    THE ONE-HOUR FLOOR IS LOAD-BEARING AND IS THERE BECAUSE OF #103. (Raised to
+    two hours in #105 -- the reasoning below stands, the number moved.) Now that
     every alarm firing calls refresh(), a mid-series refresh sees the next member
     minutes away; without a floor each ring would post "bed now for 5 min of
     sleep". An hour sits comfortably above any sane series interval and below any
@@ -2928,4 +2929,33 @@ entry #1.
     brings it back. `setOnlyAlertOnce(true)` means it updates silently rather than
     re-alerting, and the number stays current. Tracking dismissal per occurrence
     would need new persisted state and was not asked for.
+    UNVERIFIED until installed.
+
+105. **Short-notice floor raised to two hours; the duplicate-post edge examined
+    and ACCEPTED.** Shipped in V2.3.9 (#104) and reviewed immediately after, when
+    the maintainer asked whether a bedtime reminder could ever fire more than once
+    for one alarm. It can, two ways, and both were put to him explicitly:
+    (a) ANY refresh() between the bedtime moment and the floor re-posts for the
+        same occurrence -- an alarm toggle, a settings change, a restore, a
+        reboot. `setOnlyAlertOnce(true)` keeps that silent only while the
+        notification is STILL SHOWING; Android's rule is "do not alert if it is
+        not already there", so a post after the user has swiped it away DOES make
+        noise again. #104 described this edge as a silent update and understated
+        it. **ACCEPTED, not fixed** -- "case 1 is fine, can live with that". The
+        fix if it ever stops being fine is a persisted last-notified triggerAt,
+        about ten lines and one SharedPreferences key, no schema change.
+    (b) a series whose interval clears the floor posts between its own members.
+        FIXED by raising SHORT_NOTICE_MIN_MILLIS from 1 h to 2 h -- "for good
+        measure", no interval anyone would set gets near it.
+    WHY THE FLOOR IS THE RIGHT LEVER for (b) and the triggerAt idea is not: each
+    series member is a genuinely different occurrence with a different triggerAt,
+    so per-occurrence suppression would not touch it. The two problems look alike
+    and need different tools.
+    THE FLOOR STILL DOES NOT GATE THE ON-TIME POST, which matters because it is
+    now higher than the minimum bedtimeHoursBefore of 1 h. A 1 h setting is served
+    by the `now < bedtimeAt` branch and its 30-minute grace; the floor only ever
+    suppresses the short-notice branch. Do not "fix" the apparent contradiction.
+    RELEASED AS V2.4, NOT V2.3.10, at the maintainer's request: he does not want
+    two-digit patch numbers ("messed me up last time i tried it"). Bear that in
+    mind at V2.4.9 -- the next one is V2.5, not V2.4.10.
     UNVERIFIED until installed.
