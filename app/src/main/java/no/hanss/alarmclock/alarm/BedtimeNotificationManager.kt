@@ -21,10 +21,20 @@ private const val TAG = "BedtimeManager"
 private const val BEDTIME_CHANNEL_ID = "bedtime_channel"
 private const val BEDTIME_NOTIFICATION_ID = 2002
 private const val BEDTIME_CHECK_REQUEST_CODE = 999002
-// If the bedtime moment is already further in the past than this when a
-// refresh runs (say an alarm was created only 3 h out with an 8 h window),
-// no notification: "bed now for 8 h of sleep" would be a lie.
+// How late a refresh may run and still treat this as the ON-TIME post for the
+// occurrence. Beyond it, the short-notice branch below takes over.
 private const val GRACE_MILLIS = 30 * 60 * 1000L
+
+// #104: when the alarm is NEARER than the configured window -- created at 23:00
+// to ring at 06:00 with a 9 h setting -- a reminder is still wanted, saying how
+// long there actually is rather than the setting. That used to be silent on the
+// grounds that "bed now for 9 h of sleep" would be a lie; the message now states
+// real remaining time, so it cannot lie and there is nothing to suppress.
+// The floor exists because #103 made every alarm firing call refresh(): mid-way
+// through a series the next member is minutes away, and without it each ring
+// would post "bed now for 5 min of sleep". An hour is comfortably above any
+// sane series interval and below any useful sleep.
+private const val SHORT_NOTICE_MIN_MILLIS = 60 * 60 * 1000L
 
 const val ACTION_CHECK_BEDTIME = "no.hanss.alarmclock.action.CHECK_BEDTIME"
 
@@ -35,8 +45,15 @@ const val ACTION_CHECK_BEDTIME = "no.hanss.alarmclock.action.CHECK_BEDTIME"
  * series children alike -- which makes it pause-, snooze-, and skip-aware for
  * free; an AlarmManager check wakes [BedtimeReceiver] at the bedtime moment;
  * and [refresh] is called from every place alarms change (repository, boot,
- * the check itself), so the reminder fires once per occurrence and re-arms
- * for the next.
+ * the check itself, and -- since #103 -- [AlarmReceiver]), so the reminder fires
+ * once per occurrence and re-arms for the next.
+ *
+ * THE RE-ARM IS NOT SELF-SUSTAINING ON ITS OWN, which is what #103 fixed: only
+ * the "not bedtime yet" branch of [refresh] schedules a wake-up. Posting the
+ * notification, or finding the window already missed, arms nothing. Something
+ * external therefore has to call [refresh] again, and for a repeating alarm the
+ * only event that reliably comes round every day is the alarm firing. Do not
+ * remove the [AlarmReceiver] call believing this class re-arms itself.
  */
 class BedtimeNotificationManager(private val context: Context) {
 
@@ -74,11 +91,15 @@ class BedtimeNotificationManager(private val context: Context) {
                 cancelNotification()
                 scheduleCheckAt(bedtimeAt)
             }
-            now < bedtimeAt + GRACE_MILLIS -> postNotification(triggerAt, hours)
+            now < bedtimeAt + GRACE_MILLIS -> postNotification(triggerAt)
+            // #104: past the window, but the alarm is still far enough out to be
+            // worth saying so. Posts the real remaining time, not `hours`.
+            triggerAt - now >= SHORT_NOTICE_MIN_MILLIS -> postNotification(triggerAt)
             else -> {
-                // Missed the window by too much for the message to be true;
-                // stay silent for this occurrence. The next refresh (after the
-                // alarm fires or anything changes) arms the following one.
+                // The alarm is imminent -- inside a series, or minutes away. A
+                // bedtime message here is noise; stay silent for this occurrence.
+                // The next refresh (after the alarm fires or anything changes)
+                // arms the following one.
                 cancelNotification()
             }
         }
@@ -115,7 +136,22 @@ class BedtimeNotificationManager(private val context: Context) {
         return PendingIntent.getBroadcast(context, BEDTIME_CHECK_REQUEST_CODE, intent, flags)
     }
 
-    private fun postNotification(triggerAtMillis: Long, hours: Int) {
+    /**
+     * "9 h", "6 h 40 min", "45 min". Minutes round UP, so the figure never
+     * understates the time left (the same reasoning as #39's countdown ceiling).
+     */
+    private fun remainingLabel(millis: Long): String {
+        val totalMinutes = ((millis + 59_999L) / 60_000L).coerceAtLeast(0L)
+        val h = totalMinutes / 60
+        val m = totalMinutes % 60
+        return when {
+            h == 0L -> "$m min"
+            m == 0L -> "$h h"
+            else -> "$h h $m min"
+        }
+    }
+
+    private fun postNotification(triggerAtMillis: Long) {
         createChannel()
 
         val cal = java.util.Calendar.getInstance().apply { timeInMillis = triggerAtMillis }
@@ -124,6 +160,13 @@ class BedtimeNotificationManager(private val context: Context) {
             cal.get(java.util.Calendar.HOUR_OF_DAY),
             cal.get(java.util.Calendar.MINUTE)
         )
+
+        // #104: the sleep length quoted is what is ACTUALLY left, computed here
+        // rather than taken from the setting. On the on-time post the two are the
+        // same to within the grace; on a short-notice post they are not, and the
+        // setting would overstate. Minutes round UP, per #39's rule about never
+        // understating a remaining time.
+        val remaining = remainingLabel(triggerAtMillis - System.currentTimeMillis())
 
         // A custom message (settings) replaces the default text; the factual
         // alarm time moves to the header so it stays visible either way (#48).
@@ -137,9 +180,12 @@ class BedtimeNotificationManager(private val context: Context) {
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
         if (custom.isNotEmpty()) {
-            builder.setContentText(custom).setSubText("Alarm at $timeLabel")
+            // #104: the remaining time joins the alarm time in the subtext, so a
+            // custom message does not cost you the one number this is for. Same
+            // principle as #48 -- the facts stay visible whatever the wording.
+            builder.setContentText(custom).setSubText("Alarm at $timeLabel · $remaining of sleep")
         } else {
-            builder.setContentText("Alarm at $timeLabel — bed now for $hours h of sleep")
+            builder.setContentText("Alarm at $timeLabel — bed now for $remaining of sleep")
         }
         val notification = builder.build()
 

@@ -2842,3 +2842,90 @@ entry #1.
     ALSO DECLINED in the same pass: a ring/dismiss history log ("don't see the
     point" -- single-user app, the data would be looked at twice and never
     again). Still open and genuinely wanted are #93's two parked reminder items.
+
+103. **The bedtime reminder fired exactly once and then never again.** Reported
+    as "it hasn't gone off these last two days" against one weekday-repeating
+    alarm series with the reminder set 9 h before. Not an OS/battery issue and
+    not a permission issue -- a missing re-arm, diagnosable from the code.
+    THE MECHANISM, two halves that only bite together:
+    (a) `BedtimeNotificationManager.refresh()` unconditionally cancels its
+        pending check, then re-schedules one in ONLY the `now < bedtimeAt`
+        branch. The branch that POSTS the notification and the branch that finds
+        the window already missed both arm nothing. So the 22:00 check fires,
+        posts, and leaves tomorrow unscheduled.
+    (b) `AlarmReceiver` refreshed `UpcomingAlarmManager` and the widget when an
+        alarm rang but never `BedtimeNotificationManager`, so the one event that
+        comes round every day did not restart the chain.
+    Everything that DID call it is edit-shaped -- saveStandaloneAlarm,
+    deleteAlarm, setAlarmEnabled, saveSeries, deleteSeries, setSeriesEnabled,
+    restoreBackupJson, BootReceiver, and the Settings bedtime controls. Hence the
+    symptom shape: one reminder after any edit, reboot or app update, then
+    silence. A ONE-SHOT alarm would have masked this for a long time, because
+    re-enabling it each night is a repository write; a repeating series never
+    gets one.
+    NOT the cause, checked and ruled out: `AlarmViewModel.init` only calls
+    `reconcileExpiredPauses`, which does not reach `notifyChanged()`, so merely
+    opening the app never re-armed anything.
+    THE FIX is (b) alone: `AlarmReceiver` now calls
+    `BedtimeNotificationManager(context).refresh()` after the upcoming-alarm
+    refresh, in its own try/catch so a failure cannot skip the widget update.
+    Same package, so no new import -- checked deliberately per #31.
+    WHY NOT ALSO FIX (a): re-arming from the post/missed branches means picking
+    the next bedtime, and the obvious "next distinct trigger" is wrong for a
+    series -- from 22:00 the next trigger after tomorrow 07:00 is 07:05, whose
+    bedtime is 22:05 TONIGHT, so it would re-post every interval through the
+    whole series window. Chaining a re-check just after each ring instead would
+    burn ~10 exact alarms a day for a notification. Piggybacking on an alarm
+    that was going to fire anyway costs nothing and needs no new wake-ups.
+    HOW IT SETTLES for the reported setup (07:00, every 5 min, 45 min): each of
+    the early members refreshes into the "missed" branch and arms nothing, which
+    is correct -- their bedtime is yesterday's. The LAST member at 07:45 sees
+    soonest = tomorrow 07:00, computes tonight 22:00, and arms it. Weekends work
+    the same way; Friday's last ring arms Sunday 22:00 for Monday.
+    RESIDUAL GAP, accepted: the chain depends on an alarm actually firing. A
+    phone off through the whole series window re-arms at boot instead
+    (BootReceiver already calls refresh), and disabling/re-enabling the series
+    goes through notifyChanged. Nothing re-arms if a series is left enabled but
+    every member is somehow prevented from firing -- no known way to reach that.
+    The class docstring was corrected in the same change: it claimed refresh was
+    "called from every place alarms change", which is what made (b) look
+    intentional. It now states outright that the class does NOT re-arm itself and
+    that the AlarmReceiver call must not be removed.
+    UNVERIFIED until installed. The on-device confirmation is simply that the
+    reminder appears on two consecutive nights without touching anything.
+
+104. **Bedtime reminder now fires when the alarm is NEARER than the configured
+    window, and quotes real remaining time.** Asked for directly: "it is nice to
+    know in how many hours the alarm rings despite that it's shorter than the set
+    bedtime reminder". Previously #47's grace made that case silent, on the
+    reasoning that "bed now for 9 h of sleep" would be a lie when the alarm is 7 h
+    out. The lie was in quoting the SETTING; quoting what is actually left cannot
+    lie, so the suppression had nothing left to protect and is gone.
+    WHAT CHANGED, three small things in BedtimeNotificationManager:
+    (a) a third `when` branch -- past the grace, still post if the alarm is at
+        least SHORT_NOTICE_MIN_MILLIS away;
+    (b) `postNotification` dropped its `hours` parameter and computes remaining
+        from `triggerAt - now` via a new `remainingLabel` ("9 h", "6 h 40 min",
+        "45 min"), minutes rounded UP per #39's never-understate rule;
+    (c) the custom-message path puts the remaining time in the subtext beside the
+        alarm time, so choosing a custom message does not cost the one number the
+        feature exists for. Consistent with #48's rule that the facts stay visible
+        whatever the wording, but it IS a change to what #48 shipped -- flagged to
+        the maintainer as such.
+    THE ONE-HOUR FLOOR IS LOAD-BEARING AND IS THERE BECAUSE OF #103. Now that
+    every alarm firing calls refresh(), a mid-series refresh sees the next member
+    minutes away; without a floor each ring would post "bed now for 5 min of
+    sleep". An hour sits comfortably above any sane series interval and below any
+    useful amount of sleep. If a series ever uses intervals over an hour it will
+    post between members -- unusual enough to accept, and the message would still
+    be true.
+    NOT REGRESSED: the on-time branch and its 30-minute grace are untouched, so
+    the normal 22:00 post behaves exactly as before. The new branch is additive.
+    The settings range is 1-24 h (SettingsStore coerces), and the floor can never
+    suppress an on-time post because that path is reached first.
+    KNOWN EDGE, accepted: the short-notice branch posts on every refresh while
+    the alarm sits in that band, so dismissing it and then editing an alarm
+    brings it back. `setOnlyAlertOnce(true)` means it updates silently rather than
+    re-alerting, and the number stays current. Tracking dismissal per occurrence
+    would need new persisted state and was not asked for.
+    UNVERIFIED until installed.
