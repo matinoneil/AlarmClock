@@ -2959,3 +2959,44 @@ entry #1.
     two-digit patch numbers ("messed me up last time i tried it"). Bear that in
     mind at V2.4.9 -- the next one is V2.5, not V2.4.10.
     UNVERIFIED until installed.
+
+106. **Bedtime reminder: the sleep figure was invisible whenever a custom
+    message was set.** Reported from the phone: "the text where we see how much
+    time we can sleep is hidden in an android notification since there is too
+    much text in the header (when i have a bedtime message, which i have)".
+    THE SLOT WAS THE BUG, not the wording. #48 put the factual "Alarm at HH:MM"
+    in `setSubText` so a custom message could own the body line, and #104 added
+    the remaining time beside it. `setSubText` is not a second body line -- it
+    renders in the COLLAPSED HEADER ROW, sharing one line with the app name and
+    the timestamp, and it is the first thing Android elides. On a real phone the
+    one number the feature exists for was simply gone. #48 chose that slot
+    reasoning the facts would "stay visible either way"; on-device behaviour says
+    otherwise. The principle survives, the mechanism does not.
+    WHAT CHANGED, custom-message branch of `postNotification` only:
+    (a) the facts become the TITLE ("Alarm at 07:00 · 9 h of sleep"), the message
+        becomes the body. Both are full-width lines, so all three things -- time,
+        sleep left, message -- are visible collapsed, which is what was asked for;
+    (b) `setSubText("Bedtime")` keeps the label in the header. Short and purely
+        identifying, so nothing load-bearing sits in a slot that truncates;
+    (c) a first `BigTextStyle`, so a long message expands instead of dying at one
+        line. It carries the message only.
+    FACTS-ON-TOP RATHER THAN MESSAGE-ON-TOP was the maintainer's pick from three
+    mocked-up layouts; the bold, never-truncated line goes to the numbers.
+    NO `setBigContentTitle("")` HERE, and do not add one "for consistency" with
+    ReminderNotificationManager. #53 needed that blanking because the title and
+    the big text were the same string and expanding showed it twice. Here the big
+    form's title defaults to the content title (the facts) while the body is the
+    message -- each appears exactly once, and blanking would throw the facts away
+    in the expanded view, re-creating this very bug one pull-down deeper.
+    THE DEFAULT (BLANK-MESSAGE) BRANCH IS UNTOUCHED, deliberately: its single body
+    line already carries everything and its title has nothing to compete with, so
+    changing it would be regression risk for no gain. V2.4 users who never set a
+    message see no difference at all.
+    NOT TOUCHED EITHER: channel, id 2002, group, autoCancel, onlyAlertOnce, and
+    the whole #103/#104/#105 scheduling story. This is presentation-only -- when
+    the notification posts, and what it says about time remaining, are unchanged.
+    NOTED IN PASSING, not fixed: `timeLabel` is a hardcoded
+    `String.format("%02d:%02d", ...)`, so it ignores the system 12/24-hour
+    setting. Out of scope here; flagged to the maintainer.
+    UNVERIFIED until installed. On-device confirmation is a reminder posted with
+    a long custom message showing the alarm time and sleep figure uncut.

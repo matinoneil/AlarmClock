@@ -177,24 +177,43 @@ class BedtimeNotificationManager(private val context: Context) {
         // understating a remaining time.
         val remaining = remainingLabel(triggerAtMillis - System.currentTimeMillis())
 
-        // A custom message (settings) replaces the default text; the factual
-        // alarm time moves to the header so it stays visible either way (#48).
+        // A custom message (settings) replaces the default text. #48's principle
+        // still holds -- the facts stay visible whatever the wording -- but #106
+        // moved WHERE they live, because the slot #48 chose does not hold them.
         val custom = settings.bedtimeMessage.trim()
         val builder = NotificationCompat.Builder(context, BEDTIME_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_bed)
             .setGroup("no.hanss.alarmclock.BEDTIME")
-            .setContentTitle("Bedtime")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
         if (custom.isNotEmpty()) {
-            // #104: the remaining time joins the alarm time in the subtext, so a
-            // custom message does not cost you the one number this is for. Same
-            // principle as #48 -- the facts stay visible whatever the wording.
-            builder.setContentText(custom).setSubText("Alarm at $timeLabel · $remaining of sleep")
+            // #106: the facts are the TITLE and the message the body. They used
+            // to be setSubText, which Android renders in the COLLAPSED HEADER ROW
+            // beside the app name and the timestamp -- the first thing elided on
+            // a narrow phone, so with a message set the one number this feature
+            // exists for was invisible on device. Nothing load-bearing goes in
+            // that row any more; "Bedtime" may, being short and merely a label.
+            //
+            // BigTextStyle lets a long message expand rather than truncate at one
+            // line. No setBigContentTitle("") blanking here, unlike
+            // ReminderNotificationManager (#53): there the title and the big text
+            // were the SAME string and expanding showed it twice. Here the big
+            // form's title defaults to the content title (the facts) and the body
+            // is the message, so each string already appears exactly once --
+            // blanking would throw the facts away when expanded.
+            builder
+                .setContentTitle("Alarm at $timeLabel · $remaining of sleep")
+                .setContentText(custom)
+                .setSubText("Bedtime")
+                .setStyle(NotificationCompat.BigTextStyle().bigText(custom))
         } else {
-            builder.setContentText("Alarm at $timeLabel — bed now for $remaining of sleep")
+            // Unchanged from V2.4: with no message the single body line already
+            // carries everything, and the title has nothing to compete with.
+            builder
+                .setContentTitle("Bedtime")
+                .setContentText("Alarm at $timeLabel — bed now for $remaining of sleep")
         }
         val notification = builder.build()
 
