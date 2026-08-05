@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.NotificationsNone
@@ -39,6 +40,7 @@ import kotlinx.coroutines.delay
 import no.hanss.alarmclock.data.Reminder
 import no.hanss.alarmclock.data.describeRepeat
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
+import no.hanss.alarmclock.viewmodel.ScrollTarget
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -127,7 +129,29 @@ fun ReminderListContent(
 
     val (done, undone) = state.reminders.partition { it.state == Reminder.STATE_DONE }
 
+    // #108: scroll to the reminder an editor just saved. No header items in this
+    // list (#51), so the index is just the position in the undone block, or past
+    // it into the done block. Keyed on the partitions too, because the save is
+    // fire-and-forget and the row arrives after the editor has already popped.
+    // A saved reminder is always pending (saveReminder forces STATE_PENDING), but
+    // `done` is searched anyway so the index cannot silently go wrong if it isn't.
+    val listState = rememberLazyListState()
+    val scrollTarget by viewModel.scrollTarget.collectAsState()
+    LaunchedEffect(scrollTarget, undone, done) {
+        val target = scrollTarget as? ScrollTarget.ReminderRow
+        val index = target?.let {
+            undone.indexOfFirst { r -> r.id == it.id }.takeIf { i -> i >= 0 }
+                ?: done.indexOfFirst { r -> r.id == it.id }.takeIf { i -> i >= 0 }
+                    ?.let { i -> undone.size + i }
+        }
+        if (index != null) {
+            listState.scrollToItem(index)
+            viewModel.consumeScrollTarget()
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)

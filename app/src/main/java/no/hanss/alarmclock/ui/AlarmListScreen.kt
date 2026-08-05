@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
@@ -23,6 +24,7 @@ import no.hanss.alarmclock.data.Alarm
 import no.hanss.alarmclock.data.AlarmSeries
 import no.hanss.alarmclock.ui.theme.ClockTextStyle
 import no.hanss.alarmclock.viewmodel.AlarmViewModel
+import no.hanss.alarmclock.viewmodel.ScrollTarget
 
 /** "in 32 min", "in 7 h 5 min", "in 2 d 6 h" -- rounded UP so an alarm never
  * reads "in 0 min" while still pending, and the value flips exactly as each
@@ -78,7 +80,39 @@ fun AlarmListContent(
         }
     }
 
+    // #108: after an editor saves, scroll to the row it saved. Keyed on the LISTS
+    // as well as the target because the save is fire-and-forget -- the editor pops
+    // first, so on the first composition after returning the new row is not in
+    // uiState yet and the id resolves to nothing. Re-running when Room emits is
+    // what makes it land. A miss simply waits for the next emission.
+    val listState = rememberLazyListState()
+    val scrollTarget by viewModel.scrollTarget.collectAsState()
+    LaunchedEffect(scrollTarget, state.series, state.standaloneAlarms) {
+        val index = when (val target = scrollTarget) {
+            // Indices must count the CONDITIONAL header/spacer items below: the
+            // "Alarm series" header, the series cards and the spacer only exist
+            // when there is at least one series, and the "Alarms" header only
+            // when there is at least one standalone alarm.
+            is ScrollTarget.SeriesRow ->
+                state.series.indexOfFirst { it.id == target.id }
+                    .takeIf { it >= 0 }
+                    ?.let { 1 + it }
+            is ScrollTarget.AlarmRow -> {
+                val seriesBlock = if (state.series.isEmpty()) 0 else state.series.size + 2
+                state.standaloneAlarms.indexOfFirst { it.id == target.id }
+                    .takeIf { it >= 0 }
+                    ?.let { seriesBlock + 1 + it }
+            }
+            else -> null
+        }
+        if (index != null) {
+            listState.scrollToItem(index)
+            viewModel.consumeScrollTarget()
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)

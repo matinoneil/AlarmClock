@@ -3,7 +3,10 @@ package no.hanss.alarmclock.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -23,6 +26,21 @@ data class AlarmListUiState(
     val timers: List<TimerPreset> = emptyList(),
     val reminders: List<Reminder> = emptyList()
 )
+
+/**
+ * The row a list should scroll to after an editor saves it (#108). Variants are
+ * named *Row because `Alarm` and `Reminder` in this file are the Room entities.
+ *
+ * This has to live in the ViewModel rather than in the list composable: the
+ * NavHost DISPOSES the "list" destination while an editor is open, so anything
+ * remembered inside it is gone by the time the save completes.
+ */
+sealed interface ScrollTarget {
+    val id: Long
+    data class AlarmRow(override val id: Long) : ScrollTarget
+    data class SeriesRow(override val id: Long) : ScrollTarget
+    data class ReminderRow(override val id: Long) : ScrollTarget
+}
 
 class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -45,13 +63,25 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AlarmListUiState())
 
+    // #108: set by the save methods, read by the list screens, cleared once one
+    // of them has scrolled. Null means "no pending scroll".
+    private val _scrollTarget = MutableStateFlow<ScrollTarget?>(null)
+    val scrollTarget: StateFlow<ScrollTarget?> = _scrollTarget.asStateFlow()
+
+    fun consumeScrollTarget() {
+        _scrollTarget.value = null
+    }
+
     fun canScheduleExactAlarms(): Boolean = repository.canScheduleExactAlarms()
 
     suspend fun getAlarm(id: Long): Alarm? = repository.getAlarm(id)
     suspend fun getSeries(id: Long): AlarmSeries? = repository.getSeries(id)
 
+    // The repository has always returned the row id -- correct for an insert and
+    // for an update alike -- and it used to be discarded. #108 keeps it so the
+    // list can scroll to what was just saved.
     fun saveAlarm(alarm: Alarm) = viewModelScope.launch {
-        repository.saveStandaloneAlarm(alarm)
+        _scrollTarget.value = ScrollTarget.AlarmRow(repository.saveStandaloneAlarm(alarm))
     }
 
     fun deleteAlarm(alarm: Alarm) = viewModelScope.launch {
@@ -63,7 +93,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveSeries(series: AlarmSeries) = viewModelScope.launch {
-        repository.saveSeries(series)
+        _scrollTarget.value = ScrollTarget.SeriesRow(repository.saveSeries(series))
     }
 
     fun deleteSeries(series: AlarmSeries) = viewModelScope.launch {
@@ -93,7 +123,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun getReminder(id: Long): Reminder? = repository.getReminder(id)
 
     fun saveReminder(reminder: Reminder) = viewModelScope.launch {
-        repository.saveReminder(reminder)
+        _scrollTarget.value = ScrollTarget.ReminderRow(repository.saveReminder(reminder))
     }
 
     fun deleteReminder(reminder: Reminder) = viewModelScope.launch {

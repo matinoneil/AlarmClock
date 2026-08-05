@@ -1437,7 +1437,9 @@ entry #1.
     list anywhere in the tree. (e) The #27/#30 minute ticker resetting scroll
     position -- delay(60_000 - now % 60_000) always lands in 1..60000ms so it
     cannot hot-loop, and the LazyColumn's own saveable state survives
-    recomposition.
+    recomposition. (Still true, and about recomposition only. It says nothing
+    about the NavHost dispose/restore round-trip, which restores BY INDEX and is
+    unreliable when rows have shifted -- see #108.)
     LOCALIZED by the maintainer on-device: the Settings screen is markedly
     snappier and feels higher-framerate than the list tabs. Settings scrolls
     via verticalScroll and sits OUTSIDE the pager; all three clunky tabs are
@@ -3050,3 +3052,54 @@ records that the collapsed content area is too short for a second line on severa
 skins anyway). Periodic re-posting was never a candidate: it costs a wake-up per
 minute, and #105 documents that a re-post after the user has swiped the
 notification away alerts audibly again.
+
+108. **Saving an alarm or reminder now returns you to the row you saved.**
+    Reported: "when i press save, you go back to the menu of the alarms or the
+    reminders. But you go to where the reminder was in the menu 'que', and not to
+    the top." Asked for as "start at the top"; shipped as "go to the row you just
+    saved", which the maintainer picked from mocked-up options once the sort order
+    below came out.
+    THE PREMISE "A NEW ENTRY COMES AT THE TOP" IS NOT TRUE IN THIS APP, and that
+    is why scroll-to-top would have been the wrong fix. Both lists are sorted by
+    CONTENT, not by creation time: standalone alarms `ORDER BY hour, minute`
+    (AlarmDao:8), reminders done-last then `dueAtMillis` ascending (AlarmDao:96).
+    A new 07:30 alarm lands between 06:00 and 09:00; a reminder due next week
+    lands near the BOTTOM of the pending group. Scrolling to the top would have
+    shown the new row only when it happened to sort first. Scrolling to the row
+    itself is what actually delivers what was asked, and it covers edits too.
+    WHY THE OLD BEHAVIOUR HAPPENED, and this is the bit worth keeping: navigation
+    is a NavHost (MainActivity:167-191), so the "list" destination is DISPOSED
+    while an editor is open, not merely recomposed. No `rememberLazyListState`
+    existed anywhere in the repo -- all three lists used LazyColumn's default,
+    whose saved state is an anonymous (firstVisibleItemIndex, offset) INTEGER
+    PAIR. On return it restores BY INDEX into a list whose contents have shifted
+    and whose section headers are conditional, so it can land on a different row
+    than the one you were looking at. #73(e) says "the LazyColumn's own saveable
+    state survives recomposition" -- true, and about a different path; it does not
+    describe this dispose/restore round-trip.
+    THE SIGNAL HAS TO LIVE IN THE VIEWMODEL for exactly that reason. A remembered
+    value inside the list composable is gone by the time the save completes.
+    `_scrollTarget: MutableStateFlow<ScrollTarget?>` is set by saveAlarm /
+    saveSeries / saveReminder and cleared by `consumeScrollTarget()` once a list
+    has scrolled. The row id needed no new plumbing: saveStandaloneAlarm,
+    saveSeries and saveReminder have ALWAYS returned it, correct for insert and
+    update alike, and the ViewModel was simply discarding it.
+    THE LaunchedEffect MUST BE KEYED ON THE LISTS, NOT JUST THE TARGET. Saves are
+    fire-and-forget (`viewModelScope.launch`) and the editor pops immediately, so
+    on the first composition after returning, the saved row is NOT in uiState yet
+    and the id resolves to nothing. Re-running when the Room flow emits is what
+    makes it land. Do not "simplify" that key list.
+    INDEX MATH COUNTS THE CONDITIONAL ITEMS. The alarms LazyColumn emits the
+    "Alarm series" header, the series cards and a spacer ONLY when a series
+    exists, and the "Alarms" header only when a standalone alarm exists -- hence
+    `seriesBlock = if (series.isEmpty()) 0 else series.size + 2` and
+    `alarmIndex = seriesBlock + 1 + position`. The reminders list has no headers
+    at all (#51), so it is position-in-undone, or undone.size + position-in-done.
+    NOT DONE: timers, which were not asked for; sort order, which is unchanged;
+    and the "mark this one done" / delete paths in the reminder editor, which pop
+    without setting a target.
+    KNOWN EDGE, ACCEPTED: if the saved row never appears (saved, then deleted from
+    elsewhere before the list resolves it) the target stays set and would scroll
+    there if it ever exists again. Clearing on a miss is NOT the fix -- a miss is
+    exactly what the first composition after the pop looks like.
+    UNVERIFIED until installed.
