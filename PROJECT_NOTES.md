@@ -3000,3 +3000,53 @@ entry #1.
     setting. Out of scope here; flagged to the maintainer.
     UNVERIFIED until installed. On-device confirmation is a reminder posted with
     a long custom message showing the alarm time and sleep figure uncut.
+
+107. **Bedtime reminder: the sleep duration removed from both wordings.** V2.4.1
+    (#106) made the "N h of sleep" figure readable, and a night of real use
+    showed the figure itself is not wanted. Two reasons, both from the
+    maintainer: it is FROZEN AT POST TIME (posted at 22:00 it still reads "9 h of
+    sleep" at 01:00), and more fundamentally "it's a reminder of when to go to
+    bed, not a 'how much sleep do i get' function". On the on-time post the
+    number only ever restated bedtimeHoursBefore anyway, which the maintainer
+    already knows -- it was near-zero information dressed as a statistic.
+    WHAT CHANGED, presentation only:
+    (a) custom-message wording: title is now plain "Alarm at 07:00";
+    (b) default wording: body is now plain "Alarm at 07:00". No instruction word
+        ("time for bed", "bed now") -- the "Bedtime" title above it already says
+        that, and the maintainer picked the barer of the two options offered;
+    (c) `remainingLabel()` and its one call site DELETED rather than left dead.
+    THIS IS A PARTIAL WALK-BACK OF #104 AND OF #47's ORIGINAL WORDING, and the
+    line matters: #104's SCHEDULING is untouched. All three `when` branches, the
+    30-minute grace and the 2 h SHORT_NOTICE_MIN_MILLIS floor (#105) behave
+    exactly as before. Only the text changed. Do not read this entry as
+    permission to simplify the branch logic.
+    #104's SHORT-NOTICE BRANCH KEEPS ITS JUSTIFICATION, FOR A NEW REASON. #104
+    argued the branch was safe because quoting the REAL time left cannot overstate
+    the sleep available (unlike quoting the setting). Quoting NO duration cannot
+    overstate it either, so the argument survives the removal intact -- the branch
+    still posts, and the alarm time it shows is itself the signal that the alarm
+    is close.
+    UNVERIFIED until installed.
+
+**DEAD END, do not reopen: a live/ticking countdown in the bedtime notification
+(#107).** Designed in full, priced, and DECLINED by the maintainer -- record kept
+because it is technically available and a later session will otherwise re-propose
+it as an obvious win. It is not blocked by feasibility. Android will tick a
+countdown itself, with zero process time even while the app's process is dead,
+via `setWhen(triggerAt)` + `setUsesChronometer(true)` + `setChronometerCountDown(true)`
+-- the same OS mechanism TimerNotificationManager already relies on. Two things
+killed it:
+- **Placement and format.** The built-in chronometer renders ONLY in the header
+  timestamp slot (top-right, where "22:00" sits) and ONLY as H:MM:SS. There is no
+  minutes-only format, so it reads "8:59:47", ticking seconds, all night.
+- **The metric is not the feature.** Per #107 above, this is a "when to go to
+  bed" reminder. A more accurate sleep meter is a better version of something
+  that should not be there.
+The alternative placement -- a custom RemoteViews body with a large Chronometer,
+as notification_timer.xml does -- was ruled out SEPARATELY and on its own merits:
+it takes the body slot, which would push the custom message back into the header
+subText, re-creating the exact truncation bug #106 was released to fix (and #37
+records that the collapsed content area is too short for a second line on several
+skins anyway). Periodic re-posting was never a candidate: it costs a wake-up per
+minute, and #105 documents that a re-post after the user has swiped the
+notification away alerts audibly again.
